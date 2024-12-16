@@ -11,10 +11,4 @@ export class AppService implements OnModuleInit {
   getHello(): string {
     return 'Hello World! Microservice';
   }
-
-  // @EventPattern('event_name') // Handle the event
-  // async handleEvent(data: any) {
-  //   console.log('Event received:', data);
-  // }
-
 }
