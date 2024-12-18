@@ -4,19 +4,22 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const microservice = await NestFactory.createMicroservice<MicroserviceOptions>(
-    AppModule,
+  const microservice = app.connectMicroservice<MicroserviceOptions>(
     {
-      transport: Transport.TCP,
+      transport: Transport.RMQ,
       options: {
-        host: '127.0.0.1',
-        port: 3002, // Subscriber listens on this port
+        urls: ['amqp://localhost:5672'],
+        queue: 'finance_queue',
+        noAck: false,
+        queueOptions: {
+          durable: false
+        },
       },  
     },
   );
 
+  await app.startAllMicroservices();
   await app.listen(3000);
-  await microservice.listen();
   console.log('Subscriber microservice is running...');
 }
 bootstrap();

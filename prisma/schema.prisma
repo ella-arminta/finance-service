@@ -1,0 +1,140 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Companies {
+  company_id  Int   @default(autoincrement()) @id
+  name        String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  branchs    Branchs[]
+  scheduled_trans Scheduled_Trans[]
+  trans Trans[]
+}
+
+model Branchs {
+  branch_id   Int   @default(autoincrement()) @id
+  company  Companies? @relation(fields: [company_id], references: [company_id])
+  company_id  Int?
+  name        String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  journals    Journals[]
+  users       Users[]
+  accounts    Accounts[]
+}
+
+model Accounts {
+  account_id  Int   @default(autoincrement()) @id
+  branch_id Int?
+  code Int
+  deactive Boolean
+  name        String
+  type       Int // -1 : kredit, 1 : debit
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  
+  scheduleds  Scheduled_Trans_Accs[]
+  scheduled_trans Scheduled_Trans[]
+  branch Branchs? @relation(fields: [branch_id], references: [branch_id])
+  journal_accounts Journal_Accounts[]
+  trans Trans[]
+  auto_debits      Auto_Trans[]      @relation("AccountDebit") // Reverse relation for account_debit
+  auto_kredits     Auto_Trans[]      @relation("AccountKredit") // Reverse relation for account_kredit
+
+}
+
+
+model Journals {
+  journal_id  Int   @default(autoincrement()) @id
+  branch Branchs? @relation(fields: [branch_id], references: [branch_id])
+  branch_id   Int  
+  name        String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  journal_accounts Journal_Accounts[]
+}
+
+model Journal_Accounts { 
+  ja_id Int @default(autoincrement()) @id
+  journal_id Int
+  account_id Int
+
+  journal Journals? @relation(fields: [journal_id], references: [journal_id])
+  account Accounts? @relation(fields: [account_id], references: [account_id])
+}
+
+model Users {
+  user_id     Int    @default(autoincrement()) @id
+  name        String
+  branch_id   Int?
+
+  branch Branchs? @relation(fields: [branch_id], references: [branch_id])
+}
+
+model Scheduled_Trans {
+  schedule_id Int   @default(autoincrement()) @id
+  company_id Int?
+  account_id Int?
+  type Int
+  start_date DateTime
+  end_date DateTime
+  period String // daily, weekly, monthly, yearly
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by Int
+  updated_by Int
+
+  company Companies? @relation(fields: [company_id], references: [company_id])
+  account Accounts? @relation(fields: [account_id], references: [account_id])
+}
+
+model Scheduled_Trans_Accs {
+  sched_acc_id Int   @default(autoincrement()) @id
+  schedule_id Int?
+  account_id Int?
+  nominal Int
+  description String
+  
+  account Accounts? @relation(fields: [account_id], references: [account_id])
+}
+
+model Trans {
+  trans_id Int   @default(autoincrement()) @id
+  company_id Int?
+  code String
+  account_id Int?
+  type Int
+  trans_date DateTime
+  created_date DateTime @default(now())
+  updated_date DateTime @updatedAt
+  created_by Int
+  updated_by Int
+
+  company Companies? @relation(fields: [company_id], references: [company_id])
+  account Accounts? @relation(fields: [account_id], references: [account_id])
+}
+
+model Auto_Trans {
+  auto_id Int   @default(autoincrement()) @id
+  pos_id Int
+  acc_debit_id Int
+  acc_kredit_id Int
+
+  account_debit Accounts? @relation("AccountDebit",fields: [acc_debit_id], references: [account_id])
+  account_kredit Accounts? @relation("AccountKredit",fields: [acc_kredit_id], references: [account_id])
+}
