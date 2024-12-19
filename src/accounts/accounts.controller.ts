@@ -1,14 +1,26 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
 import { Prisma } from '@prisma/client';
+import { ValidationService } from 'src/common/validation.service';
+import { AccountValidation } from './account.validation';
 
 @Controller('accounts')
 export class AccountsController {
-  constructor(private readonly accountsService: AccountsService) {}
+  constructor(
+    private readonly accountsService: AccountsService,
+    private validationService: ValidationService,
+  ) {}
 
   @Post()
-  create(@Body() createAccountDto: Prisma.AccountsCreateInput) {
-    return this.accountsService.create(createAccountDto);
+  async create(@Body() createAccountDto: Prisma.AccountsCreateInput) {
+    var data = this.validationService.validate(AccountValidation.CREATE, createAccountDto);
+    data = await this.accountsService.create(data);
+    return  {
+      error: [],
+      message: 'success',
+      statusCode : 200,
+      data
+    }
   }
 
   @Get()

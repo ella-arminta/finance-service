@@ -1,9 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { Transport, MicroserviceOptions } from '@nestjs/microservices';
 import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+import { ZodFilter } from './filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.useGlobalFilters(new ZodFilter());
+
   const microservice = app.connectMicroservice<MicroserviceOptions>(
     {
       transport: Transport.RMQ,
@@ -20,6 +25,5 @@ async function bootstrap() {
 
   await app.startAllMicroservices();
   await app.listen(3000);
-  console.log('Subscriber microservice is running...');
 }
 bootstrap();

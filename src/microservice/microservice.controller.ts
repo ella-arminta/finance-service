@@ -3,6 +3,10 @@ import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 
 @Controller('microservice')
 export class MicroserviceController {
+  constructor() {
+      console.log('MicroserviceController initialized');
+  }
+
     @EventPattern('event_name')
     async handleUserCreated(@Payload() data: Record<string, unknown>, @Ctx() context: RmqContext) {
       // business logic
