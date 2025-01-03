@@ -6,6 +6,7 @@ import { AccountsService } from '../src/accounts/accounts.service';
 import { ValidationService } from '../src/common/validation.service';
 import { DatabaseService } from '../src/database/database.service';
 import { DatabaseModule } from '../src/database/database.module';
+import { ZodFilter } from '../src/filters/http-exception.filter';
 
 describe('AccountController (e2e)', () => {
   let app: INestApplication;
@@ -18,6 +19,8 @@ describe('AccountController (e2e)', () => {
     .compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalFilters(new ZodFilter());
+    
     await app.init();
   });
 
@@ -53,6 +56,25 @@ describe('AccountController (e2e)', () => {
             created_at: expect.any(String),
             updated_at: expect.any(String),
           }
+        });
+      }
+    );
+  });
+
+  it('/users (POST) --> 400 on validation error', () => {
+    return request(app.getHttpServer())
+      .post('/accounts')
+      .send({
+        "code": 123,
+        "deactive": true,
+        "name": "test",
+      })
+      .expect(400)
+      .then((response) => {
+        expect(response.body).toEqual({
+          errors: expect.any(Array),
+          message: expect.any(String),
+          statusCode: 400,
         });
       }
     );
