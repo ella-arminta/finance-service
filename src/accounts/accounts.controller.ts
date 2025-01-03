@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
 import { Prisma } from '@prisma/client';
-import { ValidationService } from 'src/common/validation.service';
+import { ValidationService } from '../common/validation.service';
 import { AccountValidation } from './account.validation';
 
 @Controller('accounts')
@@ -29,17 +29,17 @@ export class AccountsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseIntPipe) id: number) {
     return this.accountsService.findOne(+id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAccountDto: Prisma.AccountsUpdateInput) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateAccountDto: Prisma.AccountsUpdateInput) {
     return this.accountsService.update(+id, updateAccountDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseIntPipe) id: number) {
     return this.accountsService.remove(+id);
   }
 }

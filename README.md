@@ -97,3 +97,120 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+
+## Prisma
+
+npx prisma migrate dev
+# create one to one relation
+In users.service.ts
+createUser(data: Prisma.UserCreateInput) {
+  return this.prisma.user.create({
+    data: {
+      ...data,
+      userSetting: { <!-- ini relasinya -->
+        create: {
+          attributeUserSetting1 : true,
+          attributeUserSetting2 : true,
+        }
+      }
+    }
+  })
+}
+<!-- mau menginclude model lain yg berelasi one to one -->
+getUsers() {
+  return this.prisma.user.findMany({ include: {userSetting : true}});
+}
+or 
+getUsers() {
+  return this.prisma.user.findMany({ include: {userSetting : {
+    select: {
+      smsEnabled: true, <!-- ini milih field -->
+      notificationsOn:true;
+    }
+  }}});
+}
+hasil : {
+  "id" : 4,
+  "username" : "jack",
+  "displayName" : "",
+  "userSetting" : {
+    "id" : 1,
+    "notificationsOn" : false,
+    "smsEnabled" : true
+  }
+}
+
+## many to one relation post
+In service
+
+createGroupPost(
+  userIds: number[],
+  data: Prisma.GroupPost
+) {
+  this.prisma.groupPost.create({
+    data: {
+      ..data,
+      users: {
+        create: userIds.map((userId) => ({userId: userId}))
+      }
+    }
+  })
+}
+
+## Decorator Query 
+findOne(@Param('id', ParseIntPipe) id, @Query("sort", ParseBoolPipe) sort)
+ini buat misal /posts/12?sort=true
+
+## Validations
+## Type 1 validation using Class validator + Class transform + Pipe + Dto
+@Post()
+@usePipes(new ValidationPipe())
+- ValidationPipe({whitelist:true}) -> spy attribute yg gk diakui gk ditambahkan ke database
+- ValidationPipe({whitelist:true,forbidNonWhiteListed:true }) => error bad request property type should not exists. send error when extra field
+
+bisa juga begini
+
+create (@Body(new ValidationPipe()) body: CreatePropertyDto) {}
+
+## global validation
+di main.ts
+const app = await NestFactory.create(AppModule);
+app.useGlobalPipes(new ValidationPipe({
+  whitelist:true, 
+  forbidNonWhiteListed: true
+}))
+
+<!-- global valdiation di Module -->
+di blabla.module.ts
+@Module({
+  controllers: [PropertyController],
+  providers: [{
+    provide: APP_PIPE,
+    <!-- useClass: ValidationPipe -->
+    useValue: new ValidationPipe({
+    }),
+    transform: true,
+    transformOptions: {
+      enableImplicitConversion: true,
+    }
+  }]
+})
+
+## Validation for Params and Querys
+Pakai dto
+@Patch(':id')
+update(
+  @Param() param: IdParamDto,
+)
+
+# using transformPipe
+in pipes/parseIdppipe.ts
+export class ParseIdPipe implementss PipeTransform<string, number> {
+  transform(value: string, metadata: ArgumentMetadata): number {
+    const val = parseInt(value, 10);
+    if (isNaN(val)) throw new BadRequestException('id must be a number');
+    if (val <= 0) throw new BadRequestException('id must be positive);
+    return val;
+  }
+}

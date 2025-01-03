@@ -1,4 +1,8 @@
 module.exports = {
+  moduleNameMapper: {
+    '^src/(.*)$': '<rootDir>/src/$1'
+  },
+  testEnvironment: 'node',
   parser: '@typescript-eslint/parser',
   parserOptions: {
     project: 'tsconfig.json',

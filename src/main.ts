@@ -9,21 +9,21 @@ async function bootstrap() {
 
   app.useGlobalFilters(new ZodFilter());
 
-  const microservice = app.connectMicroservice<MicroserviceOptions>(
-    {
-      transport: Transport.RMQ,
-      options: {
-        urls: ['amqp://localhost:5672'],
-        queue: 'finance_queue',
-        noAck: false,
-        queueOptions: {
-          durable: false
-        },
-      },  
-    },
-  );
+  // const microservice = app.connectMicroservice<MicroserviceOptions>(
+  //   {
+  //     transport: Transport.RMQ,
+  //     options: {
+  //       urls: ['amqp://localhost:5672'],
+  //       queue: 'finance_queue',
+  //       noAck: false,
+  //       queueOptions: {
+  //         durable: false
+  //       },
+  //     },  
+  //   },
+  // );
 
-  await app.startAllMicroservices();
+  // await app.startAllMicroservices();
   await app.listen(3000);
 }
 bootstrap();
