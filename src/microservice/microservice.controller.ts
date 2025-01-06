@@ -17,6 +17,6 @@ export class MicroserviceController {
 
       const channel = context.getChannelRef();
       const originalMsg = context.getMessage();
-      channel.ack(originalMsg);
+      channel.ack(originalMsg); // acknowledge messge jadi hapus dari queue
     }
 }

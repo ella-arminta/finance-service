@@ -14,7 +14,7 @@ datasource db {
 }
 
 model Companies {
-  company_id  Int   @default(autoincrement()) @id
+  id  Int   @default(autoincrement()) @id
   name        String
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
@@ -25,8 +25,8 @@ model Companies {
 }
 
 model Branchs {
-  branch_id   Int   @default(autoincrement()) @id
-  company  Companies? @relation(fields: [company_id], references: [company_id])
+  id   Int   @default(autoincrement()) @id
+  company  Companies? @relation(fields: [company_id], references: [id])
   company_id  Int?
   name        String
   created_at   DateTime @default(now())
@@ -38,7 +38,7 @@ model Branchs {
 }
 
 model Accounts {
-  account_id  Int   @default(autoincrement()) @id
+  id  Int   @default(autoincrement()) @id
   branch_id Int?
   code Int
   deactive Boolean
@@ -49,7 +49,7 @@ model Accounts {
   
   scheduleds  Scheduled_Trans_Accs[]
   scheduled_trans Scheduled_Trans[]
-  branch Branchs? @relation(fields: [branch_id], references: [branch_id])
+  branch Branchs? @relation(fields: [branch_id], references: [id])
   journal_accounts Journal_Accounts[]
   trans Trans[]
   auto_debits      Auto_Trans[]      @relation("AccountDebit") // Reverse relation for account_debit
@@ -59,8 +59,8 @@ model Accounts {
 
 
 model Journals {
-  journal_id  Int   @default(autoincrement()) @id
-  branch Branchs? @relation(fields: [branch_id], references: [branch_id])
+  id  Int   @default(autoincrement()) @id
+  branch Branchs? @relation(fields: [branch_id], references: [id])
   branch_id   Int  
   name        String
   created_at   DateTime @default(now())
@@ -70,24 +70,24 @@ model Journals {
 }
 
 model Journal_Accounts { 
-  ja_id Int @default(autoincrement()) @id
+  id Int @default(autoincrement()) @id
   journal_id Int
   account_id Int
 
-  journal Journals? @relation(fields: [journal_id], references: [journal_id])
-  account Accounts? @relation(fields: [account_id], references: [account_id])
+  journal Journals? @relation(fields: [journal_id], references: [id])
+  account Accounts? @relation(fields: [account_id], references: [id])
 }
 
 model Users {
-  user_id     Int    @default(autoincrement()) @id
+  id     Int    @default(autoincrement()) @id
   name        String
   branch_id   Int?
 
-  branch Branchs? @relation(fields: [branch_id], references: [branch_id])
+  branch Branchs? @relation(fields: [branch_id], references: [id])
 }
 
 model Scheduled_Trans {
-  schedule_id Int   @default(autoincrement()) @id
+  id Int   @default(autoincrement()) @id
   company_id Int?
   account_id Int?
   type Int
@@ -99,22 +99,22 @@ model Scheduled_Trans {
   created_by Int
   updated_by Int
 
-  company Companies? @relation(fields: [company_id], references: [company_id])
-  account Accounts? @relation(fields: [account_id], references: [account_id])
+  company Companies? @relation(fields: [company_id], references: [id])
+  account Accounts? @relation(fields: [account_id], references: [id])
 }
 
 model Scheduled_Trans_Accs {
-  sched_acc_id Int   @default(autoincrement()) @id
+  id Int   @default(autoincrement()) @id
   schedule_id Int?
   account_id Int?
   nominal Int
   description String
   
-  account Accounts? @relation(fields: [account_id], references: [account_id])
+  account Accounts? @relation(fields: [account_id], references: [id])
 }
 
 model Trans {
-  trans_id Int   @default(autoincrement()) @id
+  id Int   @default(autoincrement()) @id
   company_id Int?
   code String
   account_id Int?
@@ -125,16 +125,16 @@ model Trans {
   created_by Int
   updated_by Int
 
-  company Companies? @relation(fields: [company_id], references: [company_id])
-  account Accounts? @relation(fields: [account_id], references: [account_id])
+  company Companies? @relation(fields: [company_id], references: [id])
+  account Accounts? @relation(fields: [account_id], references: [id])
 }
 
 model Auto_Trans {
-  auto_id Int   @default(autoincrement()) @id
+  id Int   @default(autoincrement()) @id
   pos_id Int
   acc_debit_id Int
   acc_kredit_id Int
 
-  account_debit Accounts? @relation("AccountDebit",fields: [acc_debit_id], references: [account_id])
-  account_kredit Accounts? @relation("AccountKredit",fields: [acc_kredit_id], references: [account_id])
+  account_debit Accounts? @relation("AccountDebit",fields: [acc_debit_id], references: [id])
+  account_kredit Accounts? @relation("AccountKredit",fields: [acc_kredit_id], references: [id])
 }

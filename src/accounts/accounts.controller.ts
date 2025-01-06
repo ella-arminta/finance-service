@@ -3,6 +3,7 @@ import { AccountsService } from './accounts.service';
 import { Prisma } from '@prisma/client';
 import { ValidationService } from '../common/validation.service';
 import { AccountValidation } from './account.validation';
+import { ResponseDto } from 'src/common/response.dto';
 
 @Controller('accounts')
 export class AccountsController {
@@ -15,12 +16,7 @@ export class AccountsController {
   async create(@Body() createAccountDto: Prisma.AccountsCreateInput) {
     var data = this.validationService.validate(AccountValidation.CREATE, createAccountDto);
     data = await this.accountsService.create(data);
-    return  {
-      error: [],
-      message: 'success',
-      statusCode : 200,
-      data
-    }
+    return new ResponseDto(data, 'success', 201);
   }
 
   @Get()
@@ -34,12 +30,12 @@ export class AccountsController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateAccountDto: Prisma.AccountsUpdateInput) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateAccountDto: any) {
     return this.accountsService.update(+id, updateAccountDto);
   }
 
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
-    return this.accountsService.remove(+id);
+    return this.accountsService.delete(+id);
   }
 }

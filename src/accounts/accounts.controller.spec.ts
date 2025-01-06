@@ -6,34 +6,11 @@ import { ValidationService } from '../common/validation.service';
 describe('AccountsController', () => {
   let controller: AccountsController;
 
-  const mockAccountsService = {
-    create: jest.fn( dto => {
-      return {
-        id: 1,
-        ...dto
-      }
-    }),
-    update: jest.fn((id, dto) => Promise.resolve({
-      id,
-      ...dto
-    })),
-  }
-  const mockValidationService = {
-    validate: jest.fn( (validation, dto) => {
-      return {
-        id: 1,
-        ...dto
-      }
-    })
-  }
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AccountsController],
       providers: [AccountsService, ValidationService],
     })
-    .overrideProvider(AccountsService).useValue(mockAccountsService)
-    .overrideProvider(ValidationService).useValue(mockValidationService)
     .compile();
 
     controller = module.get<AccountsController>(AccountsController);

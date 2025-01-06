@@ -1,42 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { DatabaseService } from '../database/database.service';
+import { Accounts } from '@prisma/client';
+import { BaseService } from 'src/common/base.service';
+import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
-export class AccountsService {
-  constructor(private readonly databaseService: DatabaseService) {}
-  async create(createAccountDto: Prisma.AccountsCreateInput) {
-    return  this.databaseService.accounts.create({
-      data: createAccountDto
-    })
+export class AccountsService extends BaseService<Accounts> {
+  constructor(db: DatabaseService) {
+    super('accounts', db);
   }
 
-  async findAll() {
-    return this.databaseService.accounts.findMany({});
-  }
-
-  async findOne(id: number) {
-    return this.databaseService.accounts.findUnique({
-      where: {
-        account_id : id
-      }
-    })
-  }
-
-  async update(id: number, updateAccountDto: Prisma.AccountsUpdateInput) {
-    return this.databaseService.accounts.update({
-      where: {
-        account_id: id
-      },
-      data: updateAccountDto
-    });
-  }
-
-  async remove(id: number) {
-    return this.databaseService.accounts.delete({
-      where: {
-        account_id: id
-      }
-    });
+  // addfunctionview
+  async findByEmail(id: number) {
+    return this.db.accounts.findUnique({ where: { id } });
   }
 }
