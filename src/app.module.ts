@@ -8,9 +8,10 @@ import { CommonModule } from './common/common.module';
 import { LoggerMiddleware } from './common/logger.middleware';
 import { CompaniesModule } from './companies/companies.module';
 import { DiscoveryModule } from '@nestjs/core';
+import { StoresModule } from './stores/stores.module';
 
 @Module({
-  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule],
+  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule],
   controllers: [AppController],
   providers: [AppService],
 })
