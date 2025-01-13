@@ -6,11 +6,14 @@ import { DatabaseService } from 'src/database/database.service';
 @Injectable()
 export class AccountsService extends BaseService<Accounts> {
   constructor(db: DatabaseService) {
-    super('accounts', db);
+    const relations = {
+      store: true,
+    }
+    super('accounts', db, relations);
   }
 
   // addfunctionview
-  async findByEmail(id: number) {
-    return this.db.accounts.findUnique({ where: { id } });
-  }
+  // async findByEmail(id: number) {
+  //   return this.db.accounts.findUnique({ where: { id } });
+  // }
 }

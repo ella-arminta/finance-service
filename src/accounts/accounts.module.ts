@@ -5,6 +5,7 @@ import { ValidationService } from '../common/validation.service';
 import { DatabaseService } from '../database/database.service';
 
 @Module({
+  imports: [],
   controllers: [AccountsController],
   providers: [AccountsService, ValidationService, DatabaseService],
 })

@@ -100,6 +100,7 @@ Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 
 
 ## Prisma
+npx prisma migrate dev --name your_migration_name
 
 npx prisma migrate dev
 # create one to one relation

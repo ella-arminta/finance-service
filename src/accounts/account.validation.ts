@@ -2,7 +2,8 @@ import { ZodType, z } from 'zod';
 
 export class AccountValidation {
     static readonly CREATE: ZodType = z.object({
-        branch_id: z.number().optional(), // Validates the foreign key
+        branch_id: z.number(), // Validates the foreign key
+        company_id: z.number(), // Validates the foreign key
         code: z.number().int().min(1),
         deactive: z.boolean(),
         name: z.string().min(1).max(255),

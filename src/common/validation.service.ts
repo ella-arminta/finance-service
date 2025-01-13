@@ -4,8 +4,8 @@ import { Global, Injectable } from '@nestjs/common';
 @Global()
 @Injectable()
 export class ValidationService {
-  validate<T>(zodType: ZodType<T>, data: T): T {
+  async validate<T>(zodType: ZodType<T>, data: T): Promise<T> {
     console.log('Validating data:', data);
-    return zodType.parse(data);
+    return zodType.parseAsync(data);
   }
 }

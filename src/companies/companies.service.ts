@@ -6,6 +6,9 @@ import { DatabaseService } from 'src/database/database.service';
 @Injectable()
 export class CompaniesService extends BaseService<Companies> {
   constructor(db: DatabaseService) {
-    super('companies', db);
+    const relations = {
+      stores: true,
+    }
+    super('companies', db, relations, true);
   }
 }

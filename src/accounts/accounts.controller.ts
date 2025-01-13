@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client';
 import { ValidationService } from '../common/validation.service';
 import { AccountValidation } from './account.validation';
 import { ResponseDto } from 'src/common/response.dto';
+import { MessagePattern, Payload } from '@nestjs/microservices';
+import { Describe } from '../decorator/describe.decorator';
 
 @Controller('accounts')
 export class AccountsController {
@@ -12,21 +14,30 @@ export class AccountsController {
     private validationService: ValidationService,
   ) {}
 
-  @Post()
-  async create(@Body() createAccountDto: Prisma.AccountsCreateInput) {
-    var data = this.validationService.validate(AccountValidation.CREATE, createAccountDto);
-    data = await this.accountsService.create(data);
-    return new ResponseDto(data, 'success', 201);
+  @MessagePattern({ cmd: 'post:account' })
+  @Describe('Create a new account')
+  async create(@Payload() data: any) {
+      data = this.validationService.validate(AccountValidation.CREATE, data);
+      data = await this.accountsService.create(data);
+      return ResponseDto.success('Data Found!', data, 200);
   }
 
-  @Get()
-  findAll() {
-    return this.accountsService.findAll();
+  @MessagePattern({ cmd: 'get:account' })
+  @Describe('Get all account')
+  async findAll(payload: Record<string, any>) {
+    const filters = payload.filters || {}; // Extract filters from the payload
+    const data = await this.accountsService.findAll(filters); // Pass filters to the service
+    return ResponseDto.success('Data Found!', data, 200);
   }
+  
 
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.accountsService.findOne(+id);
+  @MessagePattern({ cmd: 'get:account/*' })
+  @Describe('Get a account by id')
+  async findOne(@Payload() data: any) {
+    const param = data.params;
+    param.id = parseInt(param.id);
+    data =  await this.accountsService.findOne(param.id);
+    return ResponseDto.success('Data Found!', data, 200);
   }
 
   @Patch(':id')

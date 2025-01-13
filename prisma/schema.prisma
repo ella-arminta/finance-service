@@ -14,20 +14,21 @@ datasource db {
 }
 
 model Companies {
-  id  Int   @default(autoincrement()) @id
+  id          String @id @db.Uuid @default(uuid())
   name        String
+  owner_id    String @db.Uuid
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
+  deleted_at   DateTime?
 
-  branchs    Branchs[]
+  stores    Stores[]
   scheduled_trans Scheduled_Trans[]
   trans Trans[]
 }
 
-model Branchs {
+model Stores {
   id   Int   @default(autoincrement()) @id
-  company  Companies? @relation(fields: [company_id], references: [id])
-  company_id  Int?
+  company_id  String? @db.Uuid
   name        String
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
@@ -35,11 +36,13 @@ model Branchs {
   journals    Journals[]
   users       Users[]
   accounts    Accounts[]
+
+  company  Companies? @relation(fields: [company_id], references: [id])
 }
 
 model Accounts {
   id  Int   @default(autoincrement()) @id
-  branch_id Int?
+  store_id Int
   code Int
   deactive Boolean
   name        String
@@ -49,7 +52,7 @@ model Accounts {
   
   scheduleds  Scheduled_Trans_Accs[]
   scheduled_trans Scheduled_Trans[]
-  branch Branchs? @relation(fields: [branch_id], references: [id])
+  store Stores? @relation(fields: [store_id], references: [id])
   journal_accounts Journal_Accounts[]
   trans Trans[]
   auto_debits      Auto_Trans[]      @relation("AccountDebit") // Reverse relation for account_debit
@@ -60,8 +63,8 @@ model Accounts {
 
 model Journals {
   id  Int   @default(autoincrement()) @id
-  branch Branchs? @relation(fields: [branch_id], references: [id])
-  branch_id   Int  
+  store Stores? @relation(fields: [store_id], references: [id])
+  store_id   Int  
   name        String
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
@@ -81,14 +84,14 @@ model Journal_Accounts {
 model Users {
   id     Int    @default(autoincrement()) @id
   name        String
-  branch_id   Int?
+  store_id   Int?
 
-  branch Branchs? @relation(fields: [branch_id], references: [id])
+  store Stores? @relation(fields: [store_id], references: [id])
 }
 
 model Scheduled_Trans {
   id Int   @default(autoincrement()) @id
-  company_id Int?
+  company_id String? @db.Uuid
   account_id Int?
   type Int
   start_date DateTime
@@ -115,7 +118,7 @@ model Scheduled_Trans_Accs {
 
 model Trans {
   id Int   @default(autoincrement()) @id
-  company_id Int?
+  company_id String? @db.Uuid
   code String
   account_id Int?
   type Int

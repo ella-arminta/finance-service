@@ -6,6 +6,7 @@ import { ValidationService } from 'src/common/validation.service';
 import { CompanyValidation } from './companies.validation';
 import { response } from 'express';
 import { ResponseDto } from 'src/common/response.dto';
+import { Exempt } from 'src/decorator/exempt.decorator';
 
 @Controller('companies')
 export class CompaniesController {
@@ -14,44 +15,82 @@ export class CompaniesController {
     private validationService: ValidationService,
   ) {}
 
-  @EventPattern('createCompany')
-  create(@Payload() data: Prisma.CompaniesCreateInput , @Ctx() context: RmqContext) {
-    var createCompany = this.validationService.validate(CompanyValidation.CREATE, data);
-    createCompany = this.companiesService.create(createCompany);
-
+  @EventPattern({ cmd: 'company_created' })
+  @Exempt()  
+  async companyCreated(@Payload() data: any , @Ctx() context: RmqContext) {
+    console.log('Company created emit received:', data);
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
-    channel.ack(originalMsg);
 
-    return new ResponseDto(createCompany, 'success', 201);
+    const sanitizedData = {
+      ...data,
+      created_at: new Date(data.created_at),
+      updated_at: new Date(data.updated_at),
+      deleted_at: data.deleted_at ? new Date(data.deleted_at) : null,
+    }
+
+    try {
+      let validatedData = await this.validationService.validate(CompanyValidation.CREATE, sanitizedData);
+
+      const newData = await this.companiesService.create(validatedData);
+      if (newData) {
+        channel.ack(originalMsg);
+        console.log('Company created successfully acked:', newData);
+      }
+    } catch (error) {
+      console.error('Error creating company:', error);
+      channel.nack(originalMsg);
+    }
   }
 
-  @EventPattern('updateCompany')
-  async update(@Payload() data: { id: number; updateCompanyDto: any }, @Ctx() context: RmqContext) {
-      await this.validationService.validate(CompanyValidation.UPDATE, data);
+  @EventPattern( {cmd: 'company_updated'})
+  @Exempt()
+  async update(@Payload() data: any, @Ctx() context: RmqContext) {
+    console.log('Company updated emit received:', data);
+    const channel = context.getChannelRef();
+    const originalMsg = context.getMessage();
 
-      const { id, updateCompanyDto } = data;
-      return this.companiesService.update(id, updateCompanyDto);
+    // sanitize data if there is created_at, updated_at, deleted_at
+    const sanitizedData = {
+      ...data,
+      created_at: new Date(data.created_at),
+      updated_at: new Date(data.updated_at),
+      deleted_at: data.deleted_at ? new Date(data.deleted_at) : null,
+    }
 
-      const channel = context.getChannelRef();
-      const originalMsg = context.getMessage();
-      channel.ack(originalMsg);
+    try {
+      console.log('SanitizedData',sanitizedData);
+      let validatedData = await this.validationService.validate(CompanyValidation.UPDATE, sanitizedData);
 
-      return new ResponseDto(updateCompanyDto, 'success', 201);
+      const newData = await this.companiesService.update(data.id,validatedData);
+      console.log('new data',newData);
+      if (newData) {
+        channel.ack(originalMsg);
+        console.log('Company created successfully acked:', newData);
+      }
+    } catch (error) {
+      console.error('Error creating company:', error);
+      channel.nack(originalMsg);
+    }
+
   }
 
-  @EventPattern('removeCompany')
-  remove(@Payload() id: number) {
-    return this.companiesService.delete(id);
+  @EventPattern({cmd:'company_deleted'})
+  @Exempt()
+  async remove(@Payload() data: any, @Ctx() context: RmqContext) {
+    console.log('Company deleted emit received', data);
+    const channel = context.getChannelRef();
+    const originalMsg = context.getMessage();
+
+    try {
+      const deletedData = await this.companiesService.delete(data);
+      if (deletedData) {
+        channel.ack(originalMsg);
+        console.log('Company deleted successfully acked:', deletedData);
+      }
+    } catch (error) {
+      console.error('Error processing company_created event', error.stack);
+      channel.nack(originalMsg);
+    }
   }
-
-  // @MessagePattern('findAllCompanies')
-  // findAll() {
-  //   return this.companiesService.findAll();
-  // }
-
-  // @MessagePattern('findOneCompany')
-  // findOne(@Payload() id: number) {
-  //   return this.companiesService.findOne(id);
-  // }
 }
