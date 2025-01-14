@@ -24,6 +24,7 @@ model Companies {
   stores    Stores[]
   scheduled_trans Scheduled_Trans[]
   trans Trans[]
+  accounts Accounts[]
 }
 
 model Stores {
@@ -41,24 +42,39 @@ model Stores {
   company  Companies? @relation(fields: [company_id], references: [id])
 }
 
-model Accounts {
+model Account_Types {
   id  Int   @default(autoincrement()) @id
-  store_id String @db.Uuid
-  code Int
-  deactive Boolean
-  name        String
-  type       Int // -1 : kredit, 1 : debit
+  name        String @unique
+  description String
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
-  
-  scheduleds  Scheduled_Trans_Accs[]
-  scheduled_trans Scheduled_Trans[]
+  deleted_at   DateTime?
+
+  accounts Accounts[]
+}
+
+model Accounts {
+  id  String   @id @db.Uuid @default(uuid())
+  code Int
+  name        String
+  account_type_id Int //  kas/bank/giro/piutang/hutang
+  store_id String? @db.Uuid
+  company_id String @db.Uuid
+  deactive Boolean @default(false)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  deleted_at   DateTime?
+
   store Stores? @relation(fields: [store_id], references: [id])
-  journal_accounts Journal_Accounts[]
-  trans Trans[]
+  company Companies @relation(fields: [company_id], references: [id])
+  account_type Account_Types @relation(fields: [account_type_id], references: [id])
   auto_debits      Auto_Trans[]      @relation("AccountDebit") // Reverse relation for account_debit
   auto_kredits     Auto_Trans[]      @relation("AccountKredit") // Reverse relation for account_kredit
 
+  scheduleds  Scheduled_Trans_Accs[]
+  scheduled_trans Scheduled_Trans[]
+  journal_accounts Journal_Accounts[]
+  trans Trans[]
 }
 
 
@@ -76,24 +92,16 @@ model Journals {
 model Journal_Accounts { 
   id Int @default(autoincrement()) @id
   journal_id Int
-  account_id Int
+  account_id String @db.Uuid
 
   journal Journals? @relation(fields: [journal_id], references: [id])
   account Accounts? @relation(fields: [account_id], references: [id])
 }
 
-// model Users {
-//   id     Int    @default(autoincrement()) @id
-//   name        String
-//   store_id   Int?
-
-//   store Stores? @relation(fields: [store_id], references: [id])
-// }
-
 model Scheduled_Trans {
   id Int   @default(autoincrement()) @id
   company_id String? @db.Uuid
-  account_id Int?
+  account_id String @db.Uuid
   type Int
   start_date DateTime
   end_date DateTime
@@ -110,7 +118,7 @@ model Scheduled_Trans {
 model Scheduled_Trans_Accs {
   id Int   @default(autoincrement()) @id
   schedule_id Int?
-  account_id Int?
+  account_id String @db.Uuid
   nominal Int
   description String
   
@@ -121,7 +129,7 @@ model Trans {
   id Int   @default(autoincrement()) @id
   company_id String? @db.Uuid
   code String
-  account_id Int?
+  account_id String @db.Uuid
   type Int
   trans_date DateTime
   created_date DateTime @default(now())
@@ -136,8 +144,8 @@ model Trans {
 model Auto_Trans {
   id Int   @default(autoincrement()) @id
   pos_id Int
-  acc_debit_id Int
-  acc_kredit_id Int
+  acc_debit_id String @db.Uuid
+  acc_kredit_id String @db.Uuid
 
   account_debit Accounts? @relation("AccountDebit",fields: [acc_debit_id], references: [id])
   account_kredit Accounts? @relation("AccountKredit",fields: [acc_kredit_id], references: [id])

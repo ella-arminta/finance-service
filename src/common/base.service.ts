@@ -17,28 +17,45 @@ export class BaseService<T> {
     });
   }
 
-  async findAll(params: Record<string, any> = {}): Promise<T[]> {
+  async findAll(params = {}, literal = false): Promise<T[]> {
     const whereConditions: Record<string, any> = {
       ...(this.isSoftDelete ? { deleted_at: null } : {}),
       ...params,
     };
+  
+    // Handle `LIKE` behavior for string parameters
+    if (!literal) {
+      for (const key in params) {
+        const value = params[key];
+        if (typeof value === 'string') {
+          // Use 'contains' for wildcard matching (like `LIKE %value%`)
+          whereConditions[key] = { contains: value };
+        } else {
+          whereConditions[key] = value;
+        }
+      }
+    }
+    console.log('where conditions',whereConditions);
+  
     return (this.db[this.prismaModel] as any).findMany({
       where: whereConditions,
       include: this.relations,
     });
   }
+  
 
   async findOne(id: any): Promise<T | null> {
     const whereConditions: Record<string, any> = {
-      ...(this.isSoftDelete ? { id, deleted_at: null } : { id }),
+      ...(this.isSoftDelete ? { id: id, deleted_at: null } : { id }),
     };
+    console.log('where conditions',whereConditions);
     return (this.db[this.prismaModel] as any).findUnique({
       where: whereConditions,
       include: this.relations,
     });
   }
 
-  async update(id: number, data: Partial<T>): Promise<T> {
+  async update(id: any, data: Partial<T>): Promise<T> {
     return (this.db[this.prismaModel] as any).update({ where: { id }, data });
   }
 

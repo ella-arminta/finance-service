@@ -8,8 +8,10 @@ export class AccountsService extends BaseService<Accounts> {
   constructor(db: DatabaseService) {
     const relations = {
       store: true,
+      account_type: true,
+      company: true,
     }
-    super('accounts', db, relations);
+    super('accounts', db, relations, true);
   }
 
   // addfunctionview

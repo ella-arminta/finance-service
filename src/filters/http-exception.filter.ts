@@ -10,12 +10,27 @@ export class ZodFilter<T extends ZodError> implements ExceptionFilter {
         const ctx = host.switchToHttp();
         const response = ctx.getResponse();
         const status = 400;
-        // response.status(status).json({
-        //   errors: exception.errors,
-        //   message: exception.message,
-        //   statusCode: status,
-        // });
-
-        return ResponseDto.error(exception.message, exception.errors, status, false);
+        const errors = this.formatZodError(exception);
+        return ResponseDto.error("Validation failed", errors, status, false);
       }    
+
+  private formatZodError(error: ZodError): Record<string, any>[] {
+    return error.issues.map((issue) => {
+      const formattedIssue: Record<string, any> = {
+        field: issue.path.join('.'),
+        message: issue.message,
+        code: issue.code,
+      };
+
+      // Narrow down to issue types and include relevant properties
+      if ('expected' in issue) formattedIssue.expected = issue.expected;
+      if ('received' in issue) formattedIssue.received = issue.received;
+      if ('minimum' in issue) formattedIssue.minimum = issue.minimum;
+      if ('maximum' in issue) formattedIssue.maximum = issue.maximum;
+      if ('inclusive' in issue) formattedIssue.inclusive = issue.inclusive;
+      if ('exact' in issue) formattedIssue.exact = issue.exact;
+
+      return formattedIssue;
+    });
+  }
 }
