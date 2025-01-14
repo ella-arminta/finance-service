@@ -20,7 +20,7 @@ export class AccountValidation {
             message: 'Company ID does not exist',
         }),
         code: z.number().int().min(1),
-        name: z.string().min(1).max(255),
+        name: z.string().min(1).max(255).transform((name) => name.toUpperCase()),
         account_type_id: z.number().int().refine(async (account_type_id) => {
             const account_type = await this.accountTypeService.findOne(account_type_id);
             return !!account_type;
@@ -42,7 +42,7 @@ export class AccountValidation {
     });
 
     static readonly UPDATE: ZodType = z.object({
-        name: z.string().min(1).max(255).optional().nullable(),
+        name: z.string().min(1).max(255).optional().nullable().transform((name) => name.toUpperCase()),
         account_type_id: z.number().int().optional().nullable().refine(async (account_type_id) => {
             if (!account_type_id) return true;
             const account_type = await this.accountTypeService.findOne(account_type_id);

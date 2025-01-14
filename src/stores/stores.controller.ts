@@ -4,12 +4,14 @@ import { StoresService } from './stores.service';
 import { Exempt } from 'src/decorator/exempt.decorator';
 import { ValidationService } from 'src/common/validation.service';
 import { StoreValidation } from './stores.validation';
+import { AccountsService } from 'src/accounts/accounts.service';
 
 @Controller()
 export class StoresController {
   constructor(
     private readonly storesService: StoresService,
     private readonly validationService: ValidationService,
+    private readonly accountService: AccountsService,
   ) {}
 
   @EventPattern({ cmd: 'store_created' })
@@ -33,6 +35,8 @@ export class StoresController {
       if (newData) {
         channel.ack(originalMsg);
         console.log('Store created successfully acked:', newData);
+        // create default accounts for this store
+        this.accountService.generateDefaultAccountsByStore(newData.id);
       }
     } catch (error) {
       console.error('Error creating Store:', error);

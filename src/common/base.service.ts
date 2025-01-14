@@ -9,7 +9,7 @@ export class BaseService<T> {
     protected isSoftDelete = false,
   ) {}
 
-  async create(data: T): Promise<T> {
+  async create(data: any): Promise<T> {
     console.log('data in base service', data);
     return (this.db[this.prismaModel] as any).create({ 
       data,
@@ -17,7 +17,7 @@ export class BaseService<T> {
     });
   }
 
-  async findAll(params = {}, literal = false): Promise<T[]> {
+  async findAll(params = {}, literal = false, orderBy: Record<string, 'asc' | 'desc'> = {}): Promise<T[]> {
     const whereConditions: Record<string, any> = {
       ...(this.isSoftDelete ? { deleted_at: null } : {}),
       ...params,
@@ -28,6 +28,9 @@ export class BaseService<T> {
       for (const key in params) {
         const value = params[key];
         if (typeof value === 'string') {
+          if (key.includes('id')) {
+            continue;
+          }
           // Use 'contains' for wildcard matching (like `LIKE %value%`)
           whereConditions[key] = { contains: value };
         } else {
@@ -40,6 +43,7 @@ export class BaseService<T> {
     return (this.db[this.prismaModel] as any).findMany({
       where: whereConditions,
       include: this.relations,
+      orderBy
     });
   }
   

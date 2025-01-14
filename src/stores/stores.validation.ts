@@ -11,6 +11,7 @@ export class StoreValidation {
         created_at: z.date(),
         updated_at: z.date(),
         deleted_at: z.date().nullable(),
+        code: z.string(),
     });      
 
     static readonly UPDATE: ZodType = z.object({
@@ -26,6 +27,7 @@ export class StoreValidation {
         created_at: z.date().optional(),
         updated_at: z.date().optional(),
         deleted_at: z.date().nullable().optional(),
+        code: z.string().optional(),
     });
     
 }

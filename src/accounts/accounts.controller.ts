@@ -117,4 +117,20 @@ export class AccountsController {
     }
     return ResponseDto.success('Data Deleted!', deletedData, 200);
   }
+
+  @MessagePattern({ cmd: 'post:account-default-comp' })
+  @Describe('post account default company')
+  async generateDefaultAccountsByComp(@Payload() data: any) {
+    const company_id = data.body.company_id;
+    var newData = await this.accountsService.generateDefaultAccountsByComp(company_id);
+    return ResponseDto.success('Default Account Created!', newData, 201);
+  }
+
+  @MessagePattern({ cmd: 'post:account-default-store' })
+  @Describe('post account default store')
+  async generateDefaultAccountsByStore(@Payload() data: any) {
+    const store_id = data.body.store_id;
+    var newData = await this.accountsService.generateDefaultAccountsByStore(store_id);
+    return ResponseDto.success('Default Account Created!', newData, 201);
+  }
 }

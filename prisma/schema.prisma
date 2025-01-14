@@ -16,6 +16,7 @@ datasource db {
 model Companies {
   id          String @id @db.Uuid @default(uuid())
   name        String
+  code     String @default("B")
   owner_id    String @db.Uuid
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
@@ -29,6 +30,7 @@ model Companies {
 
 model Stores {
   id   String   @id @db.Uuid @default(uuid())
+  code     String @default("BA")
   name        String
   company_id  String @db.Uuid
 

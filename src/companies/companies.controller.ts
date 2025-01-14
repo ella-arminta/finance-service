@@ -7,12 +7,14 @@ import { CompanyValidation } from './companies.validation';
 import { response } from 'express';
 import { ResponseDto } from 'src/common/response.dto';
 import { Exempt } from 'src/decorator/exempt.decorator';
+import { AccountsService } from 'src/accounts/accounts.service';
 
 @Controller('companies')
 export class CompaniesController {
   constructor(
     private readonly companiesService: CompaniesService,
     private validationService: ValidationService,
+    private readonly accountService: AccountsService,
   ) {}
 
   @EventPattern({ cmd: 'company_created' })
@@ -36,6 +38,8 @@ export class CompaniesController {
       if (newData) {
         channel.ack(originalMsg);
         console.log('Company created successfully acked:', newData);
+        // create default accounts for this company
+        this.accountService.generateDefaultAccountsByComp(newData.id);
       }
     } catch (error) {
       console.error('Error creating company:', error);
