@@ -129,7 +129,7 @@ export class AccountsService extends BaseService<Accounts> {
           connect: { id: store.company_id },
         },
         code: codePendapatan++,
-        name: 'PENDAPATAN EMAS BATANGAN ' + store.name.toUpperCase(),
+        name: 'PENJUALAN' + store.name.toUpperCase(),
         account_type : {
           connect: { id: 5 },
         },
@@ -146,7 +146,7 @@ export class AccountsService extends BaseService<Accounts> {
           connect: { id: store.company_id },
         },
         code: codePendapatan++,
-        name: 'PENDAPATAN PERHIASAN ' + store.name.toUpperCase(),
+        name: 'PENDAPATAN LAIN-LAIN' + store.name.toUpperCase(),
         account_type : {
           connect: { id: 5 },
         },
@@ -267,7 +267,7 @@ export class AccountsService extends BaseService<Accounts> {
         code: codeBeban++,
         name: 'DISKON PENJUALAN ' + store.name.toUpperCase(),
         account_type : {
-          connect: { id: 2 },
+          connect: { id: 5 },
         },
         deactive: false,
         created_at: new Date(),
