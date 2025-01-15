@@ -14,6 +14,7 @@ export class AccountsController {
     private readonly accountsService: AccountsService,
     private validationService: ValidationService,
     private readonly storeService: StoresService,
+    private readonly accountValidation: AccountValidation,
   ) {}
 
   @MessagePattern({ cmd: 'post:account' })
@@ -54,7 +55,7 @@ export class AccountsController {
       newdata.company_id = store.company_id;
     }
 
-    newdata = await this.validationService.validate(AccountValidation.CREATE, newdata);
+    newdata = await this.validationService.validate(this.accountValidation.CREATE, newdata);
     newdata = await this.accountsService.create(newdata);
     return ResponseDto.success('Data Created!', newdata, 201);
   }
@@ -64,7 +65,7 @@ export class AccountsController {
   async findAll(@Payload() data: any) {
     const params = data.params;
     var filters =  data.body || {};
-    filters = await this.validationService.validate(AccountValidation.FILTERS, filters);
+    filters = await this.validationService.validate(this.accountValidation.FILTERS, filters);
     data = await this.accountsService.findAll(filters);
     return ResponseDto.success('Data Found!', data, 200);
   }
@@ -102,7 +103,7 @@ export class AccountsController {
       }
     }
 
-    var validatedData = await this.validationService.validate(AccountValidation.UPDATE, newData);
+    var validatedData = await this.validationService.validate(this.accountValidation.UPDATE, newData);
     var updatedData = await this.accountsService.update(param.id, validatedData);
     return ResponseDto.success('Data Updated!', updatedData, 201);
   }

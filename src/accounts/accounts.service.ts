@@ -112,7 +112,7 @@ export class AccountsService extends BaseService<Accounts> {
         company: {
           connect: { id: store.company_id },
         },
-        code: codeKas,
+        code: codeKas++,
         name: 'KAS ' + store.name.toUpperCase(),
         account_type : {
           connect: { id: 1 },
@@ -268,6 +268,23 @@ export class AccountsService extends BaseService<Accounts> {
         name: 'DISKON PENJUALAN ' + store.name.toUpperCase(),
         account_type : {
           connect: { id: 5 },
+        },
+        deactive: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+        store: {
+          connect: { id: store_id },
+        },
+        deleted_at: null,
+      },
+      {
+        company : {
+          connect: { id: store.company_id },
+        },
+        code: codeKas++,
+        name: 'PERSEDIAAN ' + store.name.toUpperCase(),
+        account_type : {
+          connect: { id: 1 },
         },
         deactive: false,
         created_at: new Date(),

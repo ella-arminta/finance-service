@@ -15,6 +15,7 @@ export class CompaniesController {
     private readonly companiesService: CompaniesService,
     private validationService: ValidationService,
     private readonly accountService: AccountsService,
+    private readonly companyValidation: CompanyValidation,
   ) {}
 
   @EventPattern({ cmd: 'company_created' })
@@ -32,7 +33,7 @@ export class CompaniesController {
     }
 
     try {
-      let validatedData = await this.validationService.validate(CompanyValidation.CREATE, sanitizedData);
+      let validatedData = await this.validationService.validate(this.companyValidation.CREATE, sanitizedData);
 
       const newData = await this.companiesService.create(validatedData);
       if (newData) {
@@ -64,7 +65,7 @@ export class CompaniesController {
 
     try {
       console.log('SanitizedData',sanitizedData);
-      let validatedData = await this.validationService.validate(CompanyValidation.UPDATE, sanitizedData);
+      let validatedData = await this.validationService.validate(this.companyValidation.UPDATE, sanitizedData);
 
       const newData = await this.companiesService.update(data.id,validatedData);
       console.log('new data',newData);

@@ -24,8 +24,9 @@ model Companies {
 
   stores    Stores[]
   scheduled_trans Scheduled_Trans[]
-  trans Trans[]
   accounts Accounts[]
+
+  @@index([owner_id, deleted_at])
 }
 
 model Stores {
@@ -42,6 +43,8 @@ model Stores {
   accounts    Accounts[]
 
   company  Companies? @relation(fields: [company_id], references: [id])
+  trans Trans[]
+  @@index([company_id, deleted_at])
 }
 
 model Account_Types {
@@ -76,7 +79,9 @@ model Accounts {
   scheduleds  Scheduled_Trans_Accs[]
   scheduled_trans Scheduled_Trans[]
   journal_accounts Journal_Accounts[]
-  trans Trans[]
+  trans_detail Trans_Details[]
+
+  @@index([company_id, deleted_at, store_id, account_type_id])
 }
 
 
@@ -87,8 +92,10 @@ model Journals {
   name        String
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
-
+  deleted_at   DateTime?
   journal_accounts Journal_Accounts[]
+
+  @@index([store_id, deleted_at])
 }
 
 model Journal_Accounts { 
@@ -115,6 +122,8 @@ model Scheduled_Trans {
 
   company Companies? @relation(fields: [company_id], references: [id])
   account Accounts? @relation(fields: [account_id], references: [id])
+
+  @@index([company_id])
 }
 
 model Scheduled_Trans_Accs {
@@ -127,20 +136,45 @@ model Scheduled_Trans_Accs {
   account Accounts? @relation(fields: [account_id], references: [id])
 }
 
-model Trans {
+model Trans_Type {
   id Int   @default(autoincrement()) @id
-  company_id String? @db.Uuid
+  name String
   code String
-  account_id String @db.Uuid
-  type Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  trans Trans[]
+}
+
+model Trans {
+  id String   @id @db.Uuid @default(uuid())
+  code String
+  store_id String @db.Uuid
   trans_date DateTime
-  created_date DateTime @default(now())
-  updated_date DateTime @updatedAt
+  trans_type_id Int
+  description String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
   created_by Int
   updated_by Int
 
-  company Companies? @relation(fields: [company_id], references: [id])
-  account Accounts? @relation(fields: [account_id], references: [id])
+  trans_details Trans_Details[]
+  trans_type Trans_Type @relation(fields: [trans_type_id], references: [id])
+  store Stores @relation(fields: [store_id], references: [id])
+  @@index([store_id, trans_type_id])
+}
+
+model Trans_Details {
+  id Int  @id @default(autoincrement())
+  trans_id String @db.Uuid
+  account_id String @db.Uuid
+  amount Int
+  description String?
+  
+  trans Trans @relation(fields: [trans_id], references: [id])
+  account Accounts @relation(fields: [account_id], references: [id])
+
+  @@index([trans_id])
 }
 
 model Auto_Trans {

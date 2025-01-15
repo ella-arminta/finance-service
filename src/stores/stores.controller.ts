@@ -12,6 +12,7 @@ export class StoresController {
     private readonly storesService: StoresService,
     private readonly validationService: ValidationService,
     private readonly accountService: AccountsService,
+    private readonly storeValidation: StoreValidation,
   ) {}
 
   @EventPattern({ cmd: 'store_created' })
@@ -29,7 +30,7 @@ export class StoresController {
     }
 
     try {
-      let validatedData = await this.validationService.validate(StoreValidation.CREATE, sanitizedData);
+      let validatedData = await this.validationService.validate(this.storeValidation.CREATE, sanitizedData);
 
       const newData = await this.storesService.create(validatedData);
       if (newData) {
@@ -59,7 +60,7 @@ export class StoresController {
     }
 
     try {
-      let validatedData = await this.validationService.validate(StoreValidation.UPDATE, sanitizedData);
+      let validatedData = await this.validationService.validate(this.storeValidation.UPDATE, sanitizedData);
 
       const updatedData = await this.storesService.update(validatedData.id, validatedData);
       if (updatedData) {

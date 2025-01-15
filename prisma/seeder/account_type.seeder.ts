@@ -6,7 +6,7 @@ async function main() {
   // Create multiple account types
   const account_types = await prisma.account_Types.createMany({
     data: [
-      { name: 'Kas', description: "Kas : Kas, Bank, Giro, dll" ,created_at: new Date(), updated_at: new Date() },
+      { name: 'Kas', description: "Kas : Kas, Bank, Giro,Asset, dll" ,created_at: new Date(), updated_at: new Date() },
       { name: 'Beban', description: "Beban: Biaya operasional, biaya gaji pegawai, biaya lain-lain", created_at: new Date(), updated_at: new Date() },
       { name: 'Hutang', description: "Hutang", created_at: new Date(), updated_at: new Date() },
       { name: 'Piutang', description:"Piutang" ,created_at: new Date(), updated_at: new Date() },

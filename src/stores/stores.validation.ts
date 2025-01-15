@@ -1,10 +1,15 @@
 import { ZodType, z } from 'zod';
 import { DatabaseService } from 'src/database/database.service';
 import { StoresService } from './stores.service';
+import { Injectable } from '@nestjs/common';
 
+@Injectable()
 export class StoreValidation {
+    constructor(
+        private readonly storeService: StoresService,
+    ){}
     
-    static readonly CREATE: ZodType = z.object({
+    readonly CREATE: ZodType = z.object({
         id: z.string().uuid(),
         name: z.string().min(3).max(255),
         company_id: z.string().uuid(),
@@ -14,10 +19,9 @@ export class StoreValidation {
         code: z.string(),
     });      
 
-    static readonly UPDATE: ZodType = z.object({
+    readonly UPDATE: ZodType = z.object({
         id: z.string().uuid().refine(async (id) => {
-            var storeServ = new StoresService(new DatabaseService);
-            const store = await storeServ.findOne(id);
+            const store = await this.storeService.findOne(id);
             return !!store;
         }, {
           message: 'Store ID does not exist',
