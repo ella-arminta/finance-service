@@ -13,6 +13,7 @@ export class TransactionValidation {
   ) {}
 
   readonly CREATE: ZodType = z.object({
+    code: z.string(),
     store_id: z.string().uuid().refine(
       async (store_id) => {
         const store = await this.storeService.findOne(store_id);
@@ -23,8 +24,10 @@ export class TransactionValidation {
       },
     ),
     trans_date: z.date(),
-    trans_type: z.number().int(),
+    trans_type_id: z.number().int(),
     description: z.string(),
+    created_by: z.string().uuid(),
+    updated_by: z.string().uuid(),
     accounts: z.array(
       z.object({
         account_id: z.string().uuid().refine(
@@ -39,6 +42,6 @@ export class TransactionValidation {
         amount: z.number().int(),
         description: z.string(),
       }),
-    ),
+    ).min(1, { message: 'At least one account is required' }),
   });
 }

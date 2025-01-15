@@ -8,9 +8,10 @@ import { AccountsService } from 'src/accounts/accounts.service';
 import { StoresModule } from 'src/stores/stores.module';
 import { CompaniesModule } from 'src/companies/companies.module';
 import { AccountsModule } from 'src/accounts/accounts.module';
+import { TransTypeModule } from 'src/trans-type/trans-type.module';
 
 @Module({
-  imports: [StoresModule, CompaniesModule, AccountsModule],
+  imports: [StoresModule, CompaniesModule, AccountsModule, TransTypeModule],
   controllers: [TransactionController],
   providers: [
     TransactionService,

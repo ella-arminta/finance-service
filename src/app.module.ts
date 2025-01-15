@@ -11,9 +11,10 @@ import { StoresModule } from './stores/stores.module';
 import { AccountTypesModule } from './account-types/account-types.module';
 import { MessagePatternDiscoveryService } from './discovery/message-pattern-discovery.service';
 import { TransactionModule } from './transaction/transaction.module';
+import { TransTypeModule } from './trans-type/trans-type.module';
 
 @Module({
-  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule],
+  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule, TransTypeModule],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],
 })

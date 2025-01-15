@@ -155,8 +155,8 @@ model Trans {
   description String?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-  created_by Int
-  updated_by Int
+  created_by String @db.Uuid
+  updated_by String @db.Uuid
 
   trans_details Trans_Details[]
   trans_type Trans_Type @relation(fields: [trans_type_id], references: [id])
