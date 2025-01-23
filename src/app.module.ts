@@ -12,9 +12,10 @@ import { AccountTypesModule } from './account-types/account-types.module';
 import { MessagePatternDiscoveryService } from './discovery/message-pattern-discovery.service';
 import { TransactionModule } from './transaction/transaction.module';
 import { TransTypeModule } from './trans-type/trans-type.module';
+import { TutupKasirModule } from './tutup-kasir/tutup-kasir.module';
 
 @Module({
-  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule, TransTypeModule],
+  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule, TransTypeModule, TutupKasirModule],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],
 })

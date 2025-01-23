@@ -177,6 +177,28 @@ model Trans_Details {
   @@index([trans_id])
 }
 
+model TutupKasir {
+  id String  @id @db.Uuid @default(uuid())
+  account_id String @db.Uuid
+  code String
+  created_at DateTime
+  created_by String @db.Uuid
+  updated_at DateTime
+  updated_by String @db.Uuid
+  saldo_awal Int
+  penjualan_cash Int
+  penjualan_transfer Int
+  total_penjualan Int
+  pembelian Int
+  pengeluaran Int
+  gadai Int
+  ambil_gadai Int
+  setor_pusat Int
+  account_pusat String @db.Uuid
+  saldo_akhir Int
+  tanggal_buka DateTime
+}
+
 model Auto_Trans {
   id Int   @default(autoincrement()) @id
   pos_id Int

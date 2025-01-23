@@ -17,7 +17,7 @@ export class TransactionController {
   ) {}
 
   @MessagePattern({ cmd: 'post:uang-keluar-masuk' })
-  @Describe('Create a new transaction uang keluar lain')
+  @Describe('Create a new transaction uang keluar or masuk lain')
   async uangKeluarMasuk(@Payload() data: any) {
     // TODOELLA NGEFIX ANGKA DIFRONTEND (transaction_id, debit kreditnya)
     var newdata = data.body;
