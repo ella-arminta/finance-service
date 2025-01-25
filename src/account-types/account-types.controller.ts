@@ -20,8 +20,16 @@ export class AccountTypesController {
   @Describe('get account type by id')
   async findOne(@Payload() data: any) {
     const param = data.params;
+    const body = data.body;
+    console.log('body', body);
     param.id = parseInt(param.id);
     const accountTypes = await this.accountTypesService.findOne(param.id);
-    return ResponseDto.success('Data Found!', accountTypes, 200);
+
+    if (body.code == true) {
+      const generateCode = await this.accountTypesService.generateCode(accountTypes,body.company_id);
+      return ResponseDto.success('Data Found!', generateCode, 200);
+    } else {
+      return ResponseDto.success('Data Found!', accountTypes, 200);
+    }
   }
 }

@@ -50,6 +50,7 @@ model Stores {
 model Account_Types {
   id  Int   @default(autoincrement()) @id
   name        String @unique
+  code Int
   description String
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
@@ -63,6 +64,7 @@ model Accounts {
   code Int
   name        String
   account_type_id Int //  kas/bank/giro/piutang/hutang
+  description String?
   store_id String? @db.Uuid
   company_id String @db.Uuid
   deactive Boolean @default(false)

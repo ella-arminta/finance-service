@@ -22,40 +22,41 @@ export class AccountsController {
   async create(@Payload() data: any) {
     var newdata = data.body;
 
+    newdata = await this.validationService.validate(this.accountValidation.CREATE, newdata);
+
     // code id unique in company_id
     var codeValidated = await this.accountsService.findAll({ code: newdata.code, company_id: newdata.company_id }, true);
     if (codeValidated.length > 0) {
-      return ResponseDto.error('Code already exists in the company!', {
+      return ResponseDto.error('Code already exists in the company!', [{
         message: 'Code already exists in the company!',
         field: 'code',
         code: 'already_exists',
-      }, 400);
+      }], 400);
     }
     // name unique in company_id
     if (newdata.name) {
       var nameValidated = await this.accountsService.findAll({ name: newdata.name, company_id: newdata.company_id }, true);
       if (nameValidated.length > 0) {
-        return ResponseDto.error('Name already exists in the company!', {
+        return ResponseDto.error('Name already exists in the company!', [{
           message: 'Name already exists in the company!',
           field: 'name',
           code: 'already_exists',
-        }, 400);
+        }], 400);
       }
     }
 
     if (newdata.store_id) {
       var store = await this.storeService.findOne(newdata.store_id);
       if (!store) {
-        return ResponseDto.error('Store ID does not exist!', {
+        return ResponseDto.error('Store ID does not exist!', [{
           message: 'Store ID does not exist!',
           field: 'store_id',
           code: 'not_exists',
-        }, 400);
+        }], 400);
       }
       newdata.company_id = store.company_id;
     }
 
-    newdata = await this.validationService.validate(this.accountValidation.CREATE, newdata);
     newdata = await this.accountsService.create(newdata);
     return ResponseDto.success('Data Created!', newdata, 201);
   }
@@ -65,6 +66,21 @@ export class AccountsController {
   async findAll(@Payload() data: any) {
     const params = data.params;
     var filters =  data.body || {};
+    console.log('data', data);
+    // if (params.user.company) {
+    //   filters.company_id = { in: params.user.company };
+    // }
+    if (filters.account_type_id) {
+      try {
+        filters.account_type_id = parseInt(filters.account_type_id);
+      } catch (error) {
+        return ResponseDto.error('Account type ID must be a number!', [{
+          message: 'Account type ID must be a number!',
+          field: 'account_type_id',
+          code: 'not_number',
+        }], 400);
+      }
+    }
     filters = await this.validationService.validate(this.accountValidation.FILTERS, filters);
     data = await this.accountsService.findAll(filters);
     return ResponseDto.success('Data Found!', data, 200);
@@ -102,8 +118,18 @@ export class AccountsController {
         }, 400);
       }
     }
-
     var validatedData = await this.validationService.validate(this.accountValidation.UPDATE, newData);
+    // code id unique in company_id
+    if (validatedData.code != prevData.code) {
+      var codeValidated = await this.accountsService.findAll({ code: validatedData.code, company_id: validatedData.company_id }, true);
+      if (codeValidated.length > 0) {
+        return ResponseDto.error('Code already exists in the company!', [{
+          message: 'Code already exists in the company!',
+          field: 'code',
+          code: 'already_exists',
+        }], 400);
+      }
+    }
     var updatedData = await this.accountsService.update(param.id, validatedData);
     return ResponseDto.success('Data Updated!', updatedData, 201);
   }

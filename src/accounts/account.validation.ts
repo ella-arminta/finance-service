@@ -31,12 +31,14 @@ export class AccountValidation {
     code: z.number().int().optional().nullable(),
     name: z.string().min(1).max(255).optional().nullable(),
     account_type_id: z.number().int().optional().nullable(),
+    description: z.string().optional().nullable(),
     store_id: z.string().uuid().optional().nullable(),
-    company_id: z.string().uuid().optional().nullable(),
+    company_id: z.any().optional().nullable(),
     deactive: z.boolean().optional().nullable(),
   });
 
   readonly UPDATE: ZodType = z.object({
+    code: z.number().int().min(1).optional(),
     name: z.string().min(1).max(255).optional().transform((name) => name.toUpperCase()),
     account_type_id: z.number().int().optional().refine(
       async (account_type_id) => {
