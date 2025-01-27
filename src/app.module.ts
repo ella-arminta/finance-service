@@ -13,9 +13,10 @@ import { MessagePatternDiscoveryService } from './discovery/message-pattern-disc
 import { TransactionModule } from './transaction/transaction.module';
 import { TransTypeModule } from './trans-type/trans-type.module';
 import { TutupKasirModule } from './tutup-kasir/tutup-kasir.module';
+import { JournalsModule } from './journals/journals.module';
 
 @Module({
-  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule, TransTypeModule, TutupKasirModule],
+  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule, TransTypeModule, TutupKasirModule, JournalsModule],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],
 })
