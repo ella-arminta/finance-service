@@ -82,6 +82,8 @@ model Accounts {
   scheduled_trans Scheduled_Trans[]
   journal_accounts Journal_Accounts[]
   trans_detail Trans_Details[]
+  tutup_kasir_acc_pusat TutupKasir[] @relation("AccountPusat")
+  tutup_kasir_acc_kasir TutupKasir[] @relation("AccountKasir")
 
   @@index([company_id, deleted_at, store_id, account_type_id])
 }
@@ -185,22 +187,28 @@ model TutupKasir {
   id String  @id @db.Uuid @default(uuid())
   account_id String @db.Uuid
   code String
+  date DateTime
+  saldo_awal Float
+  penjualan_cash Float
+  penjualan_transfer Float
+  total_penjualan Float
+  pembelian Float
+  pengeluaran Float
+  gadai Float
+  ambil_gadai Float
+  setor_pusat Float
+  account_pusat_id String @db.Uuid
+  saldo_akhir Float
+  tanggal_buka DateTime
+
   created_at DateTime
   created_by String @db.Uuid
   updated_at DateTime
   updated_by String @db.Uuid
-  saldo_awal Int
-  penjualan_cash Int
-  penjualan_transfer Int
-  total_penjualan Int
-  pembelian Int
-  pengeluaran Int
-  gadai Int
-  ambil_gadai Int
-  setor_pusat Int
-  account_pusat String @db.Uuid
-  saldo_akhir Int
-  tanggal_buka DateTime
+  deleted_at DateTime?
+  
+  account Accounts @relation("AccountKasir",fields: [account_id], references: [id])
+  account_pusat Accounts @relation("AccountPusat",fields: [account_pusat_id], references: [id])
 }
 
 model Auto_Trans {
