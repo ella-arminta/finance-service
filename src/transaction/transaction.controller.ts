@@ -137,14 +137,8 @@ export class TransactionController {
     const params = data.params;
     const filters = data.body;
     var filtersValidated = await this.validateService.validate(this.transactionValidation.FILTER, filters);
-    if (filtersValidated.start_date) {
-      filtersValidated.trans_date.gt = new Date(filtersValidated.start_date);
-      delete filtersValidated.start_date;
-    } else if (filtersValidated.end_date) {
-      filtersValidated.trans_date.lte = new Date(filtersValidated.end_date);
-      delete filtersValidated.end_date;
-    }
-    const datas =  await this.transactionService.getReportUangKeluarMasuk(filters);
+    console.log('filtersValidated', filtersValidated);
+    const datas =  await this.transactionService.getReportUangKeluarMasuk(filtersValidated);
 
     return ResponseDto.success('Data Retrieved!', datas, 200);
   }

@@ -149,7 +149,7 @@ export class TransactionService extends BaseService<Trans> {
   }
 
   async getReportUangKeluarMasuk(filters: any) {    
-    try  {
+    try {
       let query = Prisma.sql`
         SELECT 
           t.id as id,
@@ -166,10 +166,21 @@ export class TransactionService extends BaseService<Trans> {
         WHERE td.kas = true
       `;
   
-      if (filters.account_name && filters.account_name != '' && filters.account_name.length > 0) {
+      if (filters.account_name && filters.account_name !== '' && filters.account_name.length > 0) {
         query = Prisma.sql`${query} AND td.account_id = ${filters.account_name[0]}::uuid`;
       }
-      
+      if (filters.trans_type_id && filters.trans_type_id !== '') {
+        query = Prisma.sql`${query} AND t.trans_type_id = ${filters.trans_type_id}`;
+      }
+      if (filters.start_date) {
+        // Directly pass the formatted date as a string
+        query = Prisma.sql`${query} AND t.trans_date >= ${filters.start_date}::date`;
+      }
+      if (filters.end_date) {
+        // Directly pass the formatted date as a string
+        query = Prisma.sql`${query} AND t.trans_date <= ${filters.end_date}::date`;
+      }
+  
       const result = await this.db.$queryRaw(query);
   
       return result;
@@ -177,5 +188,5 @@ export class TransactionService extends BaseService<Trans> {
       console.error('Error fetching report:', error);
       throw error;
     }
-  }  
+  }
 }

@@ -10,11 +10,11 @@ export class TransactionValidation {
     private readonly storeService: StoresService,
     private readonly companiesService: CompaniesService,
     private readonly accountsService: AccountsService,
-  ) {}
+  ) { }
 
   readonly CREATE: ZodType = z.object({
     code: z.string(),
-    account_cash_id: z.string().uuid({message: 'Account Cash must be filled'}),
+    account_cash_id: z.string().uuid({ message: 'Account Cash must be filled' }),
     store_id: z.string().uuid().refine(
       async (store_id) => {
         const store = await this.storeService.findOne(store_id);
@@ -41,7 +41,7 @@ export class TransactionValidation {
             message: 'Account ID does not exist',
           },
         ),
-        amount : z.string().refine((val) => {
+        amount: z.string().refine((val) => {
           try {
             parseFloat(val);
             return true;
@@ -56,10 +56,37 @@ export class TransactionValidation {
 
   readonly FILTER: ZodType = z.object({
     store_id: z.string().uuid().optional(),
-    trans_type_id: z.number().int().optional(),
-    start_date: z.date().optional(),
-    end_date: z.date().optional(),
+    trans_type_id: z.preprocess((val) => {
+      if (typeof val === 'string') {
+        const parsed = parseInt(val, 10);
+        if (!isNaN(parsed)) {
+          return parsed;
+        }
+      }
+      return val;
+    }, z.number().int().refine((val) => val > 0, { message: 'Invalid trans_type_id' })),
+    start_date: z.preprocess((val) => {
+      if (typeof val === 'string') {
+        const parsed = new Date(val);
+        if (!isNaN(parsed.getTime())) {
+          // Ensure the date is in 'YYYY-MM-DD' format
+          return parsed.toISOString().split('T')[0];
+        }
+      }
+      return val;
+    }, z.string().optional()),
+    end_date: z.preprocess((val) => {
+      if (typeof val === 'string') {
+        const parsed = new Date(val);
+        if (!isNaN(parsed.getTime())) {
+          // Ensure the date is in 'YYYY-MM-DD' format
+          return parsed.toISOString().split('T')[0];
+        }
+      }
+      return val;
+    }, z.string().optional()),
   });
+
 
   readonly UPDATE: ZodType = z.object({
     account_cash_id: z.string().uuid().optional(),
@@ -70,7 +97,7 @@ export class TransactionValidation {
     accounts: z.array(
       z.object({
         account_id: z.string().uuid().optional(),
-        amount : z.string().optional().refine((val) => {
+        amount: z.string().optional().refine((val) => {
           try {
             parseFloat(val);
             return true;
@@ -83,5 +110,5 @@ export class TransactionValidation {
       }),
     ).optional(),
   });
-    
+
 }
