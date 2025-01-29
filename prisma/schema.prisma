@@ -154,6 +154,7 @@ model Trans {
   store_id String @db.Uuid
   trans_date DateTime
   trans_type_id Int
+  total Float?
   description String?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -167,10 +168,11 @@ model Trans {
 }
 
 model Trans_Details {
-  id Int  @id @default(autoincrement())
+  id String  @id @db.Uuid @default(uuid())
   trans_id String @db.Uuid
   account_id String @db.Uuid
-  amount Int
+  kas Boolean @default(false)
+  amount Float
   description String?
   
   trans Trans @relation(fields: [trans_id], references: [id])

@@ -48,7 +48,7 @@ export class BaseService<T> {
   }
   
 
-  async findOne(id: any): Promise<T | null> {
+  async findOne(id: any) {
     const whereConditions: Record<string, any> = {
       ...(this.isSoftDelete ? { id: id, deleted_at: null } : { id }),
     };
@@ -59,11 +59,11 @@ export class BaseService<T> {
     });
   }
 
-  async update(id: any, data: Partial<T>): Promise<T> {
+  async update(id: any, data: Partial<T>) {
     return (this.db[this.prismaModel] as any).update({ where: { id }, data });
   }
 
-  async delete(id: any): Promise<T> {
+  async delete(id: any){
     const deletedData = await this.findOne(id);
     if (deletedData == null) {
       console.log('data not found');

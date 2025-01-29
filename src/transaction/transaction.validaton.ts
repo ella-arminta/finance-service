@@ -14,6 +14,7 @@ export class TransactionValidation {
 
   readonly CREATE: ZodType = z.object({
     code: z.string(),
+    account_cash_id: z.string().uuid({message: 'Account Cash must be filled'}),
     store_id: z.string().uuid().refine(
       async (store_id) => {
         const store = await this.storeService.findOne(store_id);
@@ -23,6 +24,7 @@ export class TransactionValidation {
         message: 'Store ID does not exist',
       },
     ),
+    total: z.number(),
     trans_date: z.date(),
     trans_type_id: z.number().int(),
     description: z.string(),
@@ -39,9 +41,47 @@ export class TransactionValidation {
             message: 'Account ID does not exist',
           },
         ),
-        amount: z.number().int(),
+        amount : z.string().refine((val) => {
+          try {
+            parseFloat(val);
+            return true;
+          } catch (error) {
+            return false;
+          }
+        }, { message: 'Amount must be number' }),
         description: z.string(),
       }),
     ).min(1, { message: 'At least one account is required' }),
   });
+
+  readonly FILTER: ZodType = z.object({
+    store_id: z.string().uuid().optional(),
+    trans_type_id: z.number().int().optional(),
+    start_date: z.date().optional(),
+    end_date: z.date().optional(),
+  });
+
+  readonly UPDATE: ZodType = z.object({
+    account_cash_id: z.string().uuid().optional(),
+    total: z.number().optional(),
+    description: z.string().optional(),
+    updated_by: z.string().uuid(),
+    updated_at: z.date(),
+    accounts: z.array(
+      z.object({
+        account_id: z.string().uuid().optional(),
+        amount : z.string().optional().refine((val) => {
+          try {
+            parseFloat(val);
+            return true;
+          } catch (error) {
+            return false;
+          }
+        }, { message: 'Amount must be number' }),
+        description: z.string().optional(),
+        kas: z.boolean().optional(),
+      }),
+    ).optional(),
+  });
+    
 }
