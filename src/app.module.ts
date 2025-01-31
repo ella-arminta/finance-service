@@ -14,9 +14,11 @@ import { TransactionModule } from './transaction/transaction.module';
 import { TransTypeModule } from './trans-type/trans-type.module';
 import { TutupKasirModule } from './tutup-kasir/tutup-kasir.module';
 import { JournalsModule } from './journals/journals.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TaskScheduleModule } from './task-schedule/task-schedule.module';
 
 @Module({
-  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule, TransTypeModule, TutupKasirModule, JournalsModule],
+  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule, TransTypeModule, TutupKasirModule, JournalsModule, ScheduleModule.forRoot(), TaskScheduleModule ],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],
 })

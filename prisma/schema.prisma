@@ -211,6 +211,14 @@ model TutupKasir {
   account_pusat Accounts @relation("AccountPusat",fields: [account_pusat_id], references: [id])
 }
 
+model GoldPrice {
+  id Int   @default(autoincrement()) @id
+  sellPrice Float
+  buyPrice Float
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
 model Auto_Trans {
   id Int   @default(autoincrement()) @id
   pos_id Int
