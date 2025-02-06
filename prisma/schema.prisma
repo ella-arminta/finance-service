@@ -167,6 +167,7 @@ model Trans {
   trans_type Trans_Type @relation(fields: [trans_type_id], references: [id])
   store Stores @relation(fields: [store_id], references: [id])
   @@index([store_id, trans_type_id])
+  @@unique([code, store_id])
 }
 
 model Trans_Details {

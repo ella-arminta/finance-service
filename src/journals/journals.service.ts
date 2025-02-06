@@ -19,8 +19,8 @@ export class JournalsService extends BaseService<Journals> {
                 name: 'Sales Journal',
                 code: 'S',
                 debit: 0,
-                credit: 0,
-                balance: 0
+                credit: 2,
+                balance: 1
             },
             {
                 id: 2,

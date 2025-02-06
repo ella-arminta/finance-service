@@ -16,9 +16,10 @@ import { TutupKasirModule } from './tutup-kasir/tutup-kasir.module';
 import { JournalsModule } from './journals/journals.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TaskScheduleModule } from './task-schedule/task-schedule.module';
+import { SharedModule } from './shared.module';
 
 @Module({
-  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule, TransTypeModule, TutupKasirModule, JournalsModule, ScheduleModule.forRoot(), TaskScheduleModule ],
+  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule, TransTypeModule, TutupKasirModule, JournalsModule, ScheduleModule.forRoot(), TaskScheduleModule],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],
 })

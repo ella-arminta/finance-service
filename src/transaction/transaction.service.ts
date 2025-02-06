@@ -143,8 +143,11 @@ export class TransactionService extends BaseService<Trans> {
   async getTransCode(transType, store_id: string) {
     const year = new Date().getFullYear();
     const month = new Date().getMonth() + 1;
+    const Store = await this.db.stores.findFirst({
+      where: { id: store_id },
+    });
     const indexTransaction = await this.countThisMonthTransaction(store_id, year, month, transType.id) + 1;
-    var transactionCode = transType.code + '/' + year.toString().slice(-2) + month.toString().padStart(2, '0') + '/' + indexTransaction.toString().padStart(5, '0');
+    var transactionCode = transType.code + '/' + Store.code.toUpperCase() + '/' + year.toString().slice(-2) + month.toString().padStart(2, '0') + '/' + indexTransaction.toString().padStart(5, '0');
     return transactionCode;
   }
 

@@ -1,5 +1,5 @@
-import { Controller } from '@nestjs/common';
-import { Ctx, EventPattern, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
+import { Controller, Inject } from '@nestjs/common';
+import { ClientProxy, Ctx, EventPattern, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import { CompaniesService } from './companies.service';
 import { Prisma } from '@prisma/client';
 import { ValidationService } from 'src/common/validation.service';
@@ -16,6 +16,7 @@ export class CompaniesController {
     private validationService: ValidationService,
     private readonly accountService: AccountsService,
     private readonly companyValidation: CompanyValidation,
+    @Inject('MASTER') private readonly masterClient: ClientProxy
   ) {}
 
   @EventPattern({ cmd: 'company_created' })
@@ -97,5 +98,30 @@ export class CompaniesController {
       console.error('Error processing company_created event', error.stack);
       channel.nack(originalMsg);
     }
+  }
+
+  @MessagePattern({cmd:'get:company-sync'})
+  @Exempt()
+  async sync(@Payload() data: any) {
+    var data = await this.masterClient.send({ cmd: 'get:company' }, {}).toPromise();
+    data = data.data;
+    var results  = [];
+
+    for (const dat of data) {
+      dat.created_at = new Date(dat.created_at);
+      dat.updated_at = new Date(dat.updated_at);
+
+      let validatedData = await this.validationService.validate(this.companyValidation.CREATE, dat);
+      var prevData = await this.companiesService.findOne(dat.id);
+      var result;
+      if (prevData) {
+        result = await this.companiesService.update(dat.id, validatedData);
+      } else {
+        result = await this.companiesService.create(validatedData);
+      }
+      results.push(result);
+    }
+    
+    return ResponseDto.success('Company sync successful', results);
   }
 }

@@ -32,7 +32,7 @@ export class TransactionValidation {
     updated_by: z.string().uuid(),
     accounts: z.array(
       z.object({
-        account_id: z.string().uuid().refine(
+        account_id: z.string({ message:'Account must be chosen' }).uuid().refine(
           async (account_id) => {
             const account = await this.accountsService.findOne(account_id);
             return !!account;
@@ -41,7 +41,7 @@ export class TransactionValidation {
             message: 'Account ID does not exist',
           },
         ),
-        amount: z.string().refine((val) => {
+        amount: z.string({ message:'Amount must be filled'}).refine((val) => {
           try {
             parseFloat(val);
             return true;
@@ -96,19 +96,29 @@ export class TransactionValidation {
     updated_at: z.date(),
     accounts: z.array(
       z.object({
-        account_id: z.string().uuid().optional(),
-        amount: z.string().optional().refine((val) => {
+        account_id: z.string({ message:'Account must be chosen' }).uuid().refine(
+          async (account_id) => {
+            const account = await this.accountsService.findOne(account_id);
+            return !!account;
+          },
+          {
+            message: 'Account ID does not exist',
+          },
+        ),
+        amount: z.string({ message:'Amount must be filled'}).refine((val) => {
           try {
-            parseFloat(val);
+            var parsedVal = parseFloat(val);
+            if (parsedVal == 0 || isNaN(parsedVal)) {
+              return false;
+            }
             return true;
           } catch (error) {
             return false;
           }
-        }, { message: 'Amount must be number' }),
-        description: z.string().optional(),
-        kas: z.boolean().optional(),
+        }, { message: 'Amount must be number & more than 0' }),
+        description: z.string(),
       }),
-    ).optional(),
+    ).min(1, { message: 'At least one account is required' }),
   });
 
 }

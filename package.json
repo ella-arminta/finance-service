@@ -20,7 +20,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e:watch": "jest --config ./test/jest-e2e.json --watch",
     "seed": "ts-node runSeeder.ts",
-    "truncate": "node -r ts-node/register src/database/truncateTable.ts"
+    "truncate": "node -r ts-node/register src/database/truncateTable.ts",
+    "console:sync-database": "nest console SyncDatabaseService"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.0",
@@ -38,6 +39,7 @@
     "cheerio": "^1.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "nestjs-console": "^9.0.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
     "zod": "^3.24.1"

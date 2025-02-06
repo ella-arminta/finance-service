@@ -1,10 +1,13 @@
-import { Controller } from '@nestjs/common';
-import { Ctx, EventPattern, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
+import { Controller, Inject } from '@nestjs/common';
+import { ClientProxy, Ctx, EventPattern, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import { StoresService } from './stores.service';
 import { Exempt } from 'src/decorator/exempt.decorator';
 import { ValidationService } from 'src/common/validation.service';
 import { StoreValidation } from './stores.validation';
 import { AccountsService } from 'src/accounts/accounts.service';
+import { ResponseDto } from 'src/common/response.dto';
+import { CompaniesService } from 'src/companies/companies.service';
+import { CompanyValidation } from 'src/companies/companies.validation';
 
 @Controller()
 export class StoresController {
@@ -13,6 +16,9 @@ export class StoresController {
     private readonly validationService: ValidationService,
     private readonly accountService: AccountsService,
     private readonly storeValidation: StoreValidation,
+    private readonly companyService: CompaniesService,
+    private readonly companyValidation: CompanyValidation,
+    @Inject('MASTER') private readonly masterClient: ClientProxy
   ) {}
 
   @EventPattern({ cmd: 'store_created' })
@@ -90,5 +96,41 @@ export class StoresController {
       console.error('Error processing store_deleted event', error.stack);
       channel.nack(originalMsg);
     }
+  }
+
+  @MessagePattern({cmd:'get:store-sync'})
+  @Exempt()
+  async sync(@Payload() data: any) {
+    var data = await this.masterClient.send({ cmd: 'get:store' }, {}).toPromise();
+    data = data.data;
+    var results  = [];
+
+    for (const dat of data) {
+      dat.created_at = new Date(dat.created_at);
+      dat.updated_at = new Date(dat.updated_at);
+      var validatedData = await this.validationService.validate(this.storeValidation.CREATE, dat);
+      var company = await this.companyService.findOne(dat.company_id);
+      // Create the company if it does not exist
+      if (!company) {
+        var newCompany = await this.masterClient.send({ cmd: 'get:company/*' }, { params: { id: dat.company_id } }).toPromise();
+        newCompany = newCompany.data;
+        newCompany.created_at = new Date(newCompany.created_at);
+        newCompany.updated_at = new Date(newCompany.updated_at);
+        var validatedCompany = await this.validationService.validate(this.companyValidation.CREATE, newCompany);
+        company = await this.companyService.create(validatedCompany);
+      }
+
+      // Update / Create the store
+      var prevData = await this.storesService.findOne(dat.id);
+      var result;
+      if (prevData) {
+        result = await this.storesService.update(dat.id, validatedData);
+      } else {
+        result = await this.storesService.create(validatedData);
+      }
+      results.push(result);
+    }
+    
+    return ResponseDto.success('Store sync successful', results);
   }
 }
