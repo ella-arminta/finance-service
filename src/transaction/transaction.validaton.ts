@@ -52,6 +52,7 @@ export class TransactionValidation {
         description: z.string(),
       }),
     ).min(1, { message: 'At least one account is required' }),
+    recurring_period_code: z.string({ message:'Recurring period expected string' }).optional().nullable(),
   });
 
   readonly FILTER: ZodType = z.object({

@@ -49,6 +49,7 @@ export class TransactionController {
     console.log('store_id nih', store_id);
     var transactionCode = await this.transactionService.getTransCode(transtype, store_id);
 
+    // SANITIZE DATA
     var sanitizedData = {
       ...newdata,
       account_cash_id: newdata.account_cash_id.length > 0 ? newdata.account_cash_id[0] : '',
@@ -59,16 +60,33 @@ export class TransactionController {
       trans_date: new Date(newdata.trans_date),
     }
 
+    // RECURRING SETTINGS
+    if (sanitizedData.recurring) {
+      // VALIDATE
+      if (!sanitizedData.recurring_period_code) {
+        return ResponseDto.error('Recurring Period Not Found!', 
+          [{
+            message: 'Recurring period must be filled if recurring is checked!',
+            field: 'recurring_period_code',
+            code: 'not_found',
+          }], 400);
+      }
+    }
+    const recurring = sanitizedData.recurring;
+
+    // VALIDATE DATA
     var validatedData = await this.validateService.validate(this.transactionValidation.CREATE, sanitizedData);
     
-    // Reformat data
-    if (validatedData.trans_type_id == 1) { //uang keluar
+    const recurring_period = validatedData.recurring_period_code;
+
+    // REFORMAT DATA
+    if (validatedData.trans_type_id == 1) { // UANG KELUAR
       validatedData.accounts = validatedData.accounts.map((account) => {
         account.amount = Math.abs(account.amount);
         return account;
       });
       validatedData.total = Math.abs(validatedData.total) * -1;
-    } else { // uang masuk
+    } else { // UANG MASUK
       validatedData.accounts = validatedData.accounts.map((account) => {
         account.amount = Math.abs(account.amount) * -1;
         return account;
@@ -81,10 +99,16 @@ export class TransactionController {
       kas: true,
       description: ''
     })
-
     delete validatedData.account_cash_id;
 
+    // CREATE TRANSACTION
     newdata = await this.transactionService.create(validatedData);
+    
+    // RECURRING
+    if (recurring) {
+      var newRecurring = await this.transactionService.createRecurring(validatedData);
+    }
+
     return ResponseDto.success('Data Created!', newdata, 201);
   }
 

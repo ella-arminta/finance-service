@@ -17,5 +17,6 @@ import { TransTypeModule } from 'src/trans-type/trans-type.module';
     TransactionService,
     TransactionValidation,
   ],
+  exports: [TransactionService]
 })
 export class TransactionModule {}

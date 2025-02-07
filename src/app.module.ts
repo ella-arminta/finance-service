@@ -17,9 +17,25 @@ import { JournalsModule } from './journals/journals.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TaskScheduleModule } from './task-schedule/task-schedule.module';
 import { SharedModule } from './shared.module';
+import { RecurringModule } from './recurring/recurring.module';
 
 @Module({
-  imports: [AccountsModule, DatabaseModule, CommonModule, CompaniesModule, DiscoveryModule, StoresModule, AccountTypesModule, TransactionModule, TransTypeModule, TutupKasirModule, JournalsModule, ScheduleModule.forRoot(), TaskScheduleModule],
+  imports: [
+    AccountsModule, 
+    DatabaseModule, 
+    CommonModule, 
+    CompaniesModule,
+    DiscoveryModule, 
+    StoresModule, 
+    AccountTypesModule, 
+    TransactionModule, 
+    TransTypeModule, 
+    TutupKasirModule, 
+    JournalsModule, 
+    ScheduleModule.forRoot(), 
+    TaskScheduleModule, 
+    RecurringModule
+  ],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],
 })

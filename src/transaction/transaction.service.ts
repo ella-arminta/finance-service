@@ -32,6 +32,11 @@ export class TransactionService extends BaseService<Trans> {
         // all data but remove accounts
         var newtrans = { ...data };
         delete newtrans.accounts;
+        // remove recurring_period 
+        if ("recurring_period_code" in newtrans) {
+          delete newtrans.recurring_period_code;
+        }
+
 
         const trans = await this.db.trans.create({
           data: {
@@ -46,6 +51,50 @@ export class TransactionService extends BaseService<Trans> {
             },
           },
           include: this.relations
+        });
+
+        // If no errors occur, return the created transaction
+        return trans;
+      });
+
+      // Return the result if everything goes well
+      return result;
+    } catch (error) {
+      console.error('Error creating transaction:', error);
+      // You can throw the error to the caller to handle it further
+      throw new Error('Transaction creation failed');
+    }
+  }
+
+  async createRecurring(data: any) {
+    try {
+      const result = await this.db.$transaction(async (prisma) => {
+        // Create the main transaction record
+        var accounts = data.accounts;
+        // all data but remove accounts
+        var newtrans = { ...data };
+        delete newtrans.accounts;
+        // TRANS START DATE
+        newtrans.trans_start_date = newtrans.trans_date;
+        delete newtrans.trans_date;
+        delete newtrans.code;
+
+        const trans = await this.db.trans_Recurring.create({
+          data: {
+            ...newtrans,
+            trans_details_recurring: {
+              create: accounts.map(account => ({
+                account_id: account.account_id,
+                amount: account.amount,
+                description: account.description,
+                kas: account.kas ?? false
+              })),
+            },
+          },
+          include: {
+            trans_type: true,
+            trans_details_recurring:true
+          }
         });
 
         // If no errors occur, return the created transaction
@@ -159,7 +208,7 @@ export class TransactionService extends BaseService<Trans> {
           t.code as code, 
           t.trans_date as trans_date, 
           a.name as account_name, 
-          t.total as total, 
+          ABS(t.total) as total, 
           t.description as description, 
           t.created_by as created_by,
           td.kas
