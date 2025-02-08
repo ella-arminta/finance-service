@@ -18,6 +18,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TaskScheduleModule } from './task-schedule/task-schedule.module';
 import { SharedModule } from './shared.module';
 import { RecurringModule } from './recurring/recurring.module';
+import { ReportModule } from './report/report.module';
 
 @Module({
   imports: [
@@ -34,7 +35,7 @@ import { RecurringModule } from './recurring/recurring.module';
     JournalsModule, 
     ScheduleModule.forRoot(), 
     TaskScheduleModule, 
-    RecurringModule
+    RecurringModule, ReportModule
   ],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],

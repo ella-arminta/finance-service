@@ -12,6 +12,8 @@ async function main() {
       { name: 'Piutang', code:1 ,description:"Piutang" ,created_at: new Date(), updated_at: new Date() },
       { name: 'Pendapatan', code:4, description: "Pendapatan: Penjualan, Diskon penjualan, Pendapatan lain-lain, Retur penjualan, dll", created_at: new Date(), updated_at: new Date() },
       { name: 'Ekuitas', code:3,description: "Ekuitas: Prive, Modal Pemilik, dll", created_at: new Date(), updated_at: new Date() },
+      { name: 'Pendapatan non-operasional', code:7, description: "Pendapatan non-operasional: Bunga deposito, Bunga tabungan, dll", created_at: new Date(), updated_at: new Date() },
+      { name: 'Beban non-operasional', code:8, description: "Beban non-operasional: Bunga pinjaman, dll", created_at: new Date(), updated_at: new Date() },
     ],
     skipDuplicates: true,
   });

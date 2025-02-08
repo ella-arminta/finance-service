@@ -195,7 +195,27 @@ export class TransactionService extends BaseService<Trans> {
     const Store = await this.db.stores.findFirst({
       where: { id: store_id },
     });
-    const indexTransaction = await this.countThisMonthTransaction(store_id, year, month, transType.id) + 1;
+    // last transaction code
+    const lastTrans = await this.db.trans.findFirst({
+      where: {
+        store_id: store_id,
+        created_at: {
+          gte: new Date(year, month - 1, 1), // First day of the month
+          lt: new Date(year, month, 1),      // First day of the next month
+        },
+        trans_type_id: transType.id
+      },
+      orderBy: [
+        { code: 'desc'},
+        { created_at: 'desc'}
+      ]
+    })
+    // get the last index of the transaction code
+    var indexTransaction = 1;
+    if (lastTrans) {
+      const lastTransCode = lastTrans.code;
+      indexTransaction = parseInt(lastTransCode.split('/').pop()) + 1;
+    }
     var transactionCode = transType.code + '/' + Store.code.toUpperCase() + '/' + year.toString().slice(-2) + month.toString().padStart(2, '0') + '/' + indexTransaction.toString().padStart(5, '0');
     return transactionCode;
   }

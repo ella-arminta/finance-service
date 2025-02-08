@@ -25,6 +25,7 @@ export class AccountValidation {
     ),
     store_id: z.string().uuid().optional().nullable(),
     deactive: z.boolean().optional().nullable(),
+    description: z.string().optional().nullable(),
   });
 
   readonly FILTERS: ZodType = z.object({
@@ -62,5 +63,6 @@ export class AccountValidation {
     ),
     company_id: z.string().uuid().optional(),
     deactive: z.boolean().optional(),
+    description: z.string().optional().nullable(),
   });
 }
