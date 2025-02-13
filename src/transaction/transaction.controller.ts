@@ -1,5 +1,5 @@
 import { Controller } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { TransactionService } from './transaction.service';
 import { Describe } from 'src/decorator/describe.decorator';
 import { ValidationService } from 'src/common/validation.service';
@@ -8,6 +8,7 @@ import { ResponseDto } from 'src/common/response.dto';
 import { TransTypeService } from 'src/trans-type/trans-type.service';
 import { validate } from 'class-validator';
 import { filter } from 'rxjs';
+import { Exempt } from 'src/decorator/exempt.decorator';
 
 @Controller()
 export class TransactionController {
@@ -19,7 +20,10 @@ export class TransactionController {
   ) {}
 
   @MessagePattern({ cmd: 'post:uang-keluar-masuk' })
-  @Describe('Create a new transaction uang keluar or masuk lain')
+  @Describe({
+    description: 'Create a new transaction uang keluar or masuk lain',
+    fe: []
+  })
   async uangKeluarMasuk(@Payload() data: any) {
     var newdata = data.body;
     const params = data.params;
@@ -114,7 +118,10 @@ export class TransactionController {
 
 
   @MessagePattern({ cmd: 'put:uang-keluar-masuk/*' })
-  @Describe('Create a new transaction uang keluar or masuk lain')
+  @Describe({
+    description: 'Update transaction uang keluar or masuk lain',
+    fe: []
+  })
   async uangKeluarMasukUpdate(@Payload() data: any) {
     var newdata = data.body;
     const params = data.params;
@@ -156,7 +163,10 @@ export class TransactionController {
   }
 
   @MessagePattern({ cmd: 'get:uang-keluar-masuk' })
-  @Describe('Get Transaction uang keluar masuk')
+  @Describe({
+    description: 'Get Transaction uang keluar masuk',
+    fe: []
+  })
   async getUangKeluarMasuk(@Payload() data:any) {
     const params = data.params;
     const filters = data.body;
@@ -169,7 +179,10 @@ export class TransactionController {
   
 
   @MessagePattern({ cmd: 'get:trans-code' })
-  @Describe('Get Transaction Code')
+  @Describe({
+    description: 'Get Transaction Code',
+    fe: []
+  })
   async getTransCode(@Payload() data:any) {
     const newdata = data.body;
     const params = data.params;
@@ -194,7 +207,10 @@ export class TransactionController {
 
   
   @MessagePattern({ cmd: 'get:transaction' })
-  @Describe('Get All Transaction')
+  @Describe({
+    description: 'Get All Transaction',
+    fe: []
+  })
   async findAll(@Payload() data: any) {
     const params = data.params;
     const filters = data.body;
@@ -211,7 +227,10 @@ export class TransactionController {
   }
 
   @MessagePattern({ cmd: 'get:transaction/*' })
-  @Describe('Get All Transaction')
+  @Describe({
+    description: 'Get All Transaction',
+    fe: []
+  })
   async findOne(@Payload() data: any) {
     const params = data.params;
     const datas =  await this.transactionService.findOne(params.id);
@@ -219,7 +238,10 @@ export class TransactionController {
   }
 
   @MessagePattern({ cmd: 'delete:transaction/*' })
-  @Describe('Delete Transaction')
+  @Describe({
+    description: 'Delete Transaction',
+    fe: []
+  })
   async deleteTransaction(@Payload() data:any) {
     const params = data.params;
     const id = params.id;
@@ -236,14 +258,96 @@ export class TransactionController {
     return ResponseDto.success('Data Deleted!', {}, 200);
   }
 
+  @EventPattern({ cmd: 'transaction_created' })
+  @Exempt()  
+  async createTrans(@Payload() data: any) {
+    // Transaction details [
+    //   {
+    //     id: 'd7b0dafd-b23c-41b3-b34a-6dc6ab0bcf84',
+    //     transaction_id: '3cd6d626-caf3-4119-93c4-bcf21b006750',
+    //     product_code_id: 'e6a2dec4-076f-409a-aec6-558c76e047b0',
+    //     transaction_type: 1, 1: Sales, 2: Purchase, 3: Trade
+    //     name: 'INS0010100010001 - Tipe A Hello Kity Cincin',
+    //     type: 'INS00101 - Cincin',
+    //     weight: 46,
+    //     price: 100000,
+    //     adjustment_price: 0,
+    //     discount: 0,
+    //     total_price: 4600000,
+    //     status: 2,
+    //     comment: null,
+    //     created_at: 2025-02-12T07:11:33.689Z,
+    //     updated_at: 2025-02-12T07:11:33.689Z,
+    //     deleted_at: null
+    //   },
+    //   {
+    //     id: '3377e10c-716b-4870-a5c8-c09cad9a35d6',
+    //     transaction_id: '3cd6d626-caf3-4119-93c4-bcf21b006750',
+    //     operation_id: '2702c9f8-65e1-48ed-90fe-e2ca1dfa5e74',
+    //     name: 'SUBOP001 - Reparasi',
+    //     type: 'Operation',
+    //     unit: 1,
+    //     price: 2000,
+    //     adjustment_price: 0,
+    //     total_price: 2000,
+    //     comment: null,
+    //     created_at: 2025-02-12T07:11:33.704Z,
+    //     updated_at: 2025-02-12T07:11:33.704Z,
+    //     deleted_at: null
+    //   }
+    // ]
+    // this is reponse format CustomResponse {
+    //   success: true,
+    //   statusCode: 200,
+    //   message: 'Transaction created successfully',
+    //   data: {
+    //     auth: {
+    //       company_id: 'bb0471e8-ba93-4edc-8dea-4ccac84bd2a2',
+    //       store_id: 'edd09595-33d4-4e81-9e88-14b47612bee9'
+    //     },
+    //     owner_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+    //     code: 'SAL/SUB/2025/1/12/007',
+    //     employee: '',
+    //     date: '2025-02-12',
+    //     customer_id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
+    //     name: 'customer1',
+    //     email: 'customer@gmail.com',
+    //     phone: '089681551106',
+    //     store_id: 'edd09595-33d4-4e81-9e88-14b47612bee9',
+    //     employee_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+    //     payment_method: 1,
+    //     transaction_type: 1,
+    //     transaction_details: [ [Object], [Object] ],
+    //     weight_total: 46,
+    //     sub_total_price: 4602000,
+    //     tax_price: 1012220,
+    //     total_price: 5614220,
+    //     status: 0,
+    //     paid_amount: 5614220
+    //   },
+    //   errors: null
+    // }
+    var newdata = data.data;
+    // SALES
+    if (newdata.transaction_type == 1) {
+      var savedData = await this.transactionService.createSales(newdata);
+    }
+  }
+
   @MessagePattern({ cmd: 'put:trans/*' })
-  @Describe('update transaction by id')
+  @Describe({
+    description: 'update transaction by id',
+    fe: []
+  })
   async update(@Payload() data: any) {
     // return this.transactionService.update(updateTransactionDto.id, updateTransactionDto);
   }
 
   @MessagePattern({ cmd: 'delete:trans/*' })
-  @Describe('delete transaction by id')
+  @Describe({
+    description: 'delete transaction by id',
+    fe: []
+  })
   async remove(@Payload() id: number) {
     // return this.transactionService.remove(id);
   }

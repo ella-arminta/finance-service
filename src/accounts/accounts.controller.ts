@@ -1,12 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, Inject } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
 import { Prisma } from '@prisma/client';
 import { ValidationService } from '../common/validation.service';
 import { AccountValidation } from './account.validation';
 import { ResponseDto } from 'src/common/response.dto';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { ClientProxy, MessagePattern, Payload } from '@nestjs/microservices';
 import { Describe } from '../decorator/describe.decorator';
 import { StoresService } from 'src/stores/stores.service';
+import { Client } from '@nestjs/microservices/external/nats-client.interface';
 
 @Controller('accounts')
 export class AccountsController {
@@ -15,10 +16,15 @@ export class AccountsController {
     private validationService: ValidationService,
     private readonly storeService: StoresService,
     private readonly accountValidation: AccountValidation,
+    @Inject('TRANSACTION') private readonly transClient: ClientProxy,
+    @Inject('INVENTORY') private readonly inventoryClient: ClientProxy,
   ) {}
 
-  @MessagePattern({ cmd: 'post:account' })
-  @Describe('Create a new account')
+  @MessagePattern({ cmd: 'post:account'  })
+  @Describe({
+    description:'Create a new account', 
+    fe: ['master/account:add']
+  })
   async create(@Payload() data: any) {
     var newdata = data.body;
 
@@ -58,11 +64,20 @@ export class AccountsController {
     }
 
     newdata = await this.accountsService.create(newdata);
+    if (newdata) {
+      this.transClient.emit({ cmd: 'account_created' }, newdata);
+      this.inventoryClient.emit({ cmd: 'account_created' }, newdata);
+    }
     return ResponseDto.success('Data Created!', newdata, 201);
   }
 
   @MessagePattern({ cmd: 'get:account' })
-  @Describe('Get all account')
+  @Describe({
+    description:'Get all account', 
+    fe:[
+      'master/account:open',
+    ]
+  })
   async findAll(@Payload() data: any) {
     const params = data.params;
     var filters =  data.body || {};
@@ -88,7 +103,10 @@ export class AccountsController {
   
 
   @MessagePattern({ cmd: 'get:account/*' })
-  @Describe('Get a account by id')
+  @Describe({
+    description:'Get account by id',
+    fe: ['master/account:edit', 'master/account:detail']
+  })
   async findOne(@Payload() data: any) {
     const param = data.params;
     data =  await this.accountsService.findOne(param.id);
@@ -96,7 +114,10 @@ export class AccountsController {
   }
 
   @MessagePattern({ cmd: 'put:account/*' })
-  @Describe('update account by id')
+  @Describe({
+    description:'update account by id',
+    fe: ['master/account:edit']
+  })
   async update(@Payload() data: any) {
     const param = data.params;
     const newData = data.body;
@@ -131,22 +152,36 @@ export class AccountsController {
       }
     }
     var updatedData = await this.accountsService.update(param.id, validatedData);
+    if (updatedData) {
+      this.transClient.emit({ cmd: 'account_updated' }, updatedData);
+    }
     return ResponseDto.success('Data Updated!', updatedData, 201);
   }
 
   @MessagePattern({ cmd: 'delete:account/*' })
-  @Describe('Delete account')
+  @Describe({
+    description:'Delete account',
+    fe: ['master/account:delete']
+  })
   async remove(@Payload() data: any) {
     const param = data.params;
     const deletedData = await this.accountsService.delete(param.id);
     if (!deletedData) {
       return ResponseDto.error('Data not found!', null, 404);
     }
+
+    if (deletedData) {
+      this.transClient.emit({ cmd: 'account_deleted' }, deletedData.id);
+
+    }
     return ResponseDto.success('Data Deleted!', deletedData, 200);
   }
 
   @MessagePattern({ cmd: 'post:account-default-comp' })
-  @Describe('post account default company')
+  @Describe({
+    description:'post account default company',
+    fe: []
+  })
   async generateDefaultAccountsByComp(@Payload() data: any) {
     const company_id = data.body.company_id;
     var newData = await this.accountsService.generateDefaultAccountsByComp(company_id);
@@ -154,7 +189,10 @@ export class AccountsController {
   }
 
   @MessagePattern({ cmd: 'post:account-default-store' })
-  @Describe('post account default store')
+  @Describe({
+    description:'post account default store',
+    fe: []
+  })
   async generateDefaultAccountsByStore(@Payload() data: any) {
     const store_id = data.body.store_id;
     var newData = await this.accountsService.generateDefaultAccountsByStore(store_id);

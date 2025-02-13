@@ -5,6 +5,7 @@ import { DatabaseService } from 'src/database/database.service';
 import { TransTypeService } from 'src/trans-type/trans-type.service';
 import { Prisma } from '@prisma/client';
 import { filter } from 'rxjs';
+import { ResponseDto } from 'src/common/response.dto';
 
 @Injectable()
 export class TransactionService extends BaseService<Trans> {
@@ -260,5 +261,70 @@ export class TransactionService extends BaseService<Trans> {
       console.error('Error fetching report:', error);
       throw error;
     }
+  }
+
+  async createSales(data: any) {
+    // const transType = await this.transTypeService.findOne({ where: { code: 'SAL' } });
+    // const transTypeId = transType.id;
+    // const hasTax = true // TODOELLA: Check if the store has tax
+    // const store = await this.db.stores.findUnique({ where: { id: data.store_id } });
+    // var transDetailsFormated = [];
+
+    // // REFORMAT TRANSACTION DETAIL
+    // // Tax 
+    // if (hasTax) {
+    //   const taxAccount = await this.db.trans_Account_Settings.findUnique({where: {
+    //     company_id: data.auth.company_id,
+    //     action: 'tax'
+    //   }})
+    //   transDetailsFormated.push({
+    //     account_id: taxAccount.account_id,
+    //     amount:  Math.abs(data.tax_price) * -1,
+    //     description: 'Pajak Penjualan',
+    //     kas: false
+    //   })
+    // }
+    // // Details
+    // data.transaction_details.forEach(det => {
+    //   // Sales Operation
+    //   if ("operation_id" in det) {
+    //     transDetailsFormated.push({
+    //       account_id: det.account_id,
+    //       amount: Math.abs(det.amount),
+    //       description: det.description,
+    //       kas: true
+    //     })
+    //   } 
+    //   // Sales Emas
+    //   else {
+
+    //   }
+    // })
+
+    // // CREATE TRANSACTION
+    // try {
+    //   const trans = await this.db.trans.create({
+    //     data: {
+    //       code: data.code,
+    //       store: { connect: { id: data.store_id } },
+    //       trans_type: { connect: { id: transTypeId } },
+    //       total : data.total_price,
+    //       description: store.name + ' Sales',
+    //       trans_date: new Date(),
+    //       weight_total: data.weight_total,
+    //       sub_total_price: data.sub_total_price,
+    //       tax_price: data.tax_price,
+    //       created_by: data.employee_id,
+    //       updated_by: null,
+          
+    //       trans_details: {
+    //         create: {}
+    //       }
+    //     }
+    //   })
+
+    // }catch (error) {
+    //   return ResponseDto.error('Error creating sales transaction',null);
+    // }
   }
 }

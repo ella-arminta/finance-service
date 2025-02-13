@@ -25,6 +25,7 @@ model Companies {
   stores    Stores[]
   scheduled_trans Scheduled_Trans[]
   accounts Accounts[]
+  trans_account_settings Trans_Account_Settings[]
 
   @@index([owner_id, deleted_at])
 }
@@ -45,6 +46,7 @@ model Stores {
   company  Companies? @relation(fields: [company_id], references: [id])
   trans Trans[]
   trans_recurring Trans_Recurring[]
+  trans_account_settings Trans_Account_Settings[]
   @@index([company_id, deleted_at])
 }
 
@@ -86,6 +88,7 @@ model Accounts {
   trans_detail_recurring Trans_Details_Recurring[]
   tutup_kasir_acc_pusat TutupKasir[] @relation("AccountPusat")
   tutup_kasir_acc_kasir TutupKasir[] @relation("AccountKasir")
+  trans_account_settings Trans_Account_Settings[]
 
   @@index([company_id, deleted_at, store_id, account_type_id])
 }
@@ -151,20 +154,25 @@ model Trans_Type {
 
   trans Trans[]
   trans_recurring Trans_Recurring[]
+
+  @@unique([code])
 }
 
 model Trans {
   id String   @id @db.Uuid @default(uuid())
   code String
   store_id String @db.Uuid
-  trans_date DateTime
+  trans_date DateTime @default(now())
   trans_type_id Int
   total Float?
+  weight_total Float
+  sub_total_price Float
+  tax_price Float
   description String?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   created_by String @db.Uuid
-  updated_by String @db.Uuid
+  updated_by String? @db.Uuid
 
   trans_details Trans_Details[]
   trans_type Trans_Type @relation(fields: [trans_type_id], references: [id])
@@ -268,6 +276,20 @@ model Recurring_Period {
   updated_at DateTime @updatedAt
 
   trans_recurring Trans_Recurring[]
+}
+
+model Trans_Account_Settings {
+  id Int   @default(autoincrement()) @id
+  store_id String? @db.Uuid
+  company_id String @db.Uuid
+  account_id String @db.Uuid
+  description String
+  action String // tax, discount, etc
+
+  store Stores? @relation(fields: [store_id], references: [id])
+  company Companies @relation(fields: [company_id], references: [id])
+  account Accounts @relation(fields: [account_id], references: [id])
+  @@unique([store_id,company_id,action])
 }
 
 model Auto_Trans {

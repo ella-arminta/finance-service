@@ -13,7 +13,10 @@ export class TaskScheduleController {
   ) {}
 
   @MessagePattern({cmd: 'get:scrape-data' })
-  @Describe('Get scrape data')
+  @Describe({
+    description: 'Get scrape data',
+    fe: []
+  })
   async getScrapeData(@Payload() data: any) {
     const scrapedDaata = await this.taskScheduleService.scrapeDataGold();
     const svaedDb  = await this.taskScheduleService.handleCron();
@@ -22,7 +25,10 @@ export class TaskScheduleController {
 
   // get gold price
   @MessagePattern({cmd: 'get:gold-price' })
-  @Describe('Get gold price')
+  @Describe({
+    description: 'Get gold price',
+    fe: []
+  })
   async getGoldPrice(@Payload() data: any) {
     const filter = data.body;
     const goldPrice = await this.taskScheduleService.getGoldPrice(filter);

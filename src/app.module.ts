@@ -35,7 +35,9 @@ import { ReportModule } from './report/report.module';
     JournalsModule, 
     ScheduleModule.forRoot(), 
     TaskScheduleModule, 
-    RecurringModule, ReportModule
+    RecurringModule, 
+    ReportModule,
+    SharedModule
   ],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],

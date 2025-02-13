@@ -9,7 +9,10 @@ export class AccountTypesController {
   constructor(private readonly accountTypesService: AccountTypesService) {}
 
   @MessagePattern({ cmd: 'get:account-type' })
-  @Describe('Get all account type')
+  @Describe({
+    description: 'Get all account type',
+    fe: []
+  })
   async findAll(@Payload() data: any) {
     const filters = data.filters || {};
     const accountTypes = await this.accountTypesService.findAll(filters);
@@ -17,7 +20,10 @@ export class AccountTypesController {
   }
 
   @MessagePattern({ cmd: 'get:account-type/*' })
-  @Describe('get account type by id')
+  @Describe({
+    description: 'get account type by id',
+    fe: []
+  })
   async findOne(@Payload() data: any) {
     const param = data.params;
     const body = data.body;

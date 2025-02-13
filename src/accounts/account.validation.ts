@@ -51,16 +51,7 @@ export class AccountValidation {
         message: 'Account type ID does not exist',
       },
     ),
-    store_id: z.string().uuid().optional().refine(
-      async (store_id) => {
-        if (!store_id) return true;
-        const store = await this.storeService.findOne(store_id);
-        return !!store;
-      },
-      {
-        message: 'Store ID does not exist',
-      },
-    ),
+    store_id: z.string().uuid().optional().nullable(),
     company_id: z.string().uuid().optional(),
     deactive: z.boolean().optional(),
     description: z.string().optional().nullable(),

@@ -14,7 +14,10 @@ export class TransTypeController {
   // }
 
   @MessagePattern({ cmd: 'get:trans-type' })
-  @Describe('Get all trans type')
+  @Describe({
+    description: 'get trans type',
+    fe: []
+  })
   async findAll(@Payload() data: any) {
     const filters = data.filters || {};
     const transTypes = await this.transTypeService.findAll(filters);
@@ -22,7 +25,10 @@ export class TransTypeController {
   }
 
   @MessagePattern({ cmd: 'get:trans-type/*' })
-  @Describe('get trans type by id')
+  @Describe({
+    description: 'get trans type by id',
+    fe: []
+  })
   async findOne(@Payload() data: any) {
     const param = data.params;
     param.id = parseInt(param.id);

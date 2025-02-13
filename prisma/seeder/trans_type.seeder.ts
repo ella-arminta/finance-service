@@ -8,8 +8,8 @@ async function main() {
     data: [
       { name: 'Uang keluar lain', code: "UKL", created_at: new Date(), updated_at: new Date() },
       { name: 'Uang masuk lain', code: "UML", created_at: new Date(), updated_at: new Date() },
-      { name: 'Jual', code: "J", created_at: new Date(), updated_at: new Date() },
-      { name: 'Beli', code: "B", created_at: new Date(), updated_at: new Date() },
+      { name: 'Sales', code: "SAL", created_at: new Date(), updated_at: new Date() },
+      { name: 'Purchase', code: "PUR", created_at: new Date(), updated_at: new Date() },
       { name: 'Barang masuk dasaran', code: "MD", created_at: new Date(), updated_at: new Date() },
       { name: 'Barang keluar dasaran', code: "KD", created_at: new Date(), updated_at: new Date() },
       { name: 'Tukar tambah', code: "TT", created_at: new Date(), updated_at: new Date() },

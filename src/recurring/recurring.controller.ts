@@ -15,7 +15,10 @@ export class RecurringController {
   ) {}
 
     @MessagePattern({ cmd: 'get:recurring' })
-    @Describe('Get Recurring Transaction')
+    @Describe({
+      description: 'Get Recurring Transaction',
+      fe: []
+    })
     async getAllRecurring(@Payload() data: any) {
       var filters = data.body;
       var filtersValidated = await  this.validateService.validate(this.recurringValidation.FILTER, filters);
@@ -47,14 +50,20 @@ export class RecurringController {
     }
 
     @MessagePattern({ cmd: 'get:recurring-period' })
-    @Describe('Get Recurring Period Transaction')
+    @Describe({
+      description: 'Get Recurring Period Transaction',
+      fe: []
+    })
     async getAllRecurringPeriod(@Payload() data: any) {
       var result = await this.recurringService.findAllRecurringPeriod();
       return ResponseDto.success('Data Retrieved!', result, 200);
     }
   
     @MessagePattern({ cmd: 'get:recurring/*' })
-    @Describe('Get Recurring Transaction')
+    @Describe({
+      description: 'Get Recurring Transaction',
+      fe: []
+    })
     async findOne(@Payload() data: any) {
       var params = data.params;
       var result = await this.recurringService.findOne(params.id);
@@ -62,7 +71,10 @@ export class RecurringController {
     }
 
     @MessagePattern({ cmd: 'put:recurring/*' })
-    @Describe('Get Recurring Transaction')
+    @Describe({
+      description: 'Update Recurring Transaction',
+      fe: []
+    })
     async update(@Payload() data: any) {
       var params = data.params;
       var newdata = data.body;
@@ -106,7 +118,10 @@ export class RecurringController {
 
     // delete 
     @MessagePattern({ cmd: 'delete:recurring/*' })
-    @Describe('Delete Recurring Transaction')
+    @Describe({
+      description: 'Delete Recurring Transaction',
+      fe: []
+    })
     async delete(@Payload() data: any) {
       var params = data.params;
       var result = await this.recurringService.delete(params.id);
@@ -115,7 +130,10 @@ export class RecurringController {
 
     // create
     @MessagePattern({ cmd: 'post:recurring' })
-    @Describe('Create Recurring Transaction')
+    @Describe({
+      description: 'Create Recurring Transaction',
+      fe: []
+    })
     async add(@Payload() data: any) {
       var newdata = data.body;
       const params = data.params;

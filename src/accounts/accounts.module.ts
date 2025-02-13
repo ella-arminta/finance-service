@@ -10,9 +10,10 @@ import { AccountTypesService } from 'src/account-types/account-types.service';
 import { CompaniesModule } from 'src/companies/companies.module';
 import { StoresModule } from 'src/stores/stores.module';
 import { AccountTypesModule } from 'src/account-types/account-types.module';
+import { SharedModule } from 'src/shared.module';
 
 @Module({
-  imports: [CompaniesModule, StoresModule, AccountTypesModule],
+  imports: [CompaniesModule, StoresModule, AccountTypesModule, SharedModule],
   controllers: [AccountsController],
   providers: [AccountsService, AccountValidation],
   exports: [AccountsService]

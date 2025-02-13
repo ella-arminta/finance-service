@@ -13,9 +13,7 @@ export class AppController {
   @MessagePattern({ cmd: 'get_routes' })
   @Exempt()
   async getAllRoutes(): Promise<any> {
-    // console.log('helloo');
     const patterns = this.discovery.getMessagePatterns();
-    // console.log(patterns);
     return ResponseDto.success('Pattern Found!', patterns, 200);
   }
 }

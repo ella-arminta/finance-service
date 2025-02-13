@@ -15,7 +15,10 @@ export class ReportController {
   ) {}
 
     @MessagePattern({ cmd: 'get:profit-loss' })
-    @Describe('Get All Profit and Lostt Statement')
+    @Describe({
+      description: 'Get Profit and Lost Statement',
+      fe: []
+    })
     async findOne(@Payload() data: any) {
       const params = data.params;
       const filters = data.body;
@@ -27,7 +30,10 @@ export class ReportController {
     }
 
     @MessagePattern({ cmd: 'post:pdf-profit-loss'})
-    @Describe('Get All Profit and Lost Statement')
+    @Describe({
+        description: 'Generate PDF Profit and Lost Statement',
+        fe: []
+    })
     async postPdf(@Payload() data: any) {
       try {
         const filters = data.body.filters;

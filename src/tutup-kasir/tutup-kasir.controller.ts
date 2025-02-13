@@ -15,7 +15,10 @@ export class TutupKasirController {
   ) {}
 
   @MessagePattern({ cmd: 'post:tutup-kasir' })
-  @Describe('Create Tutup Kasir') // SCOPE CABANG
+  @Describe({
+    description: 'Create Tutup Kasir',
+    fe: []
+  }) // SCOPE CABANG
   async tutupKasir(@Payload() data: any) {
     // TODOELLA NGEFIX ANGKA DIFRONTEND (transaction_id, debit kreditnya)
     var newdata = data.body;
@@ -45,7 +48,10 @@ export class TutupKasirController {
   }
 
   @MessagePattern({ cmd: 'get:generate-tk-code' })
-  @Describe('Get tutup kasir code')
+  @Describe({
+    description: 'Generate Tutup Kasir Code',
+    fe: []
+  })
   async getTutupKasirCoded (data: any) {
     const params = data.params;
     const newdata = data.body;
@@ -64,7 +70,10 @@ export class TutupKasirController {
 
   // get tutupkasir
   @MessagePattern({ cmd: 'get:tutup-kasir' })
-  @Describe('Get All Tutup Kasir') // SCOPE CABANG
+  @Describe({
+    description: 'Get Tutup Kasir',
+    fe: []
+  }) // SCOPE CABANG
   async getTutupKasir(data: any) {
     const params = data.params;
     const filters = data.body;
@@ -90,7 +99,10 @@ export class TutupKasirController {
 
   // findone
   @MessagePattern({ cmd: 'get:tutup-kasir/*' })
-  @Describe('Get Tutup Kasir by id')
+  @Describe({
+    description: 'Get Tutup Kasir by ID',
+    fe: []
+  })
   async findOneTutupKasir(data: any) {
     const id = data.params.id;
     const result = await this.tutupKasirService.findOne(id);
@@ -99,7 +111,10 @@ export class TutupKasirController {
 
   // update
   @MessagePattern({ cmd: 'put:tutup-kasir/*' })
-  @Describe('Update Tutup Kasir')
+  @Describe({
+    description: 'Update Tutup Kasir',
+    fe: []
+  })
   async updateTutupKasir(data: any) {
     const newdata = data.body;
     const params = data.params;

@@ -11,14 +11,24 @@ export class JournalsController {
   ) {}
 
   @MessagePattern({ cmd: 'get:journal' })
-  @Describe('Get Journals')
+  @Describe({
+    description: 'Get Journals',
+    fe: [
+      'finance/journal:open'
+    ]
+  })
   async get() {
     const data = await this.journalsService.getReport();
     return ResponseDto.success('Data Found!', data, 200);
   }
 
   @MessagePattern({ cmd: 'get:ledger' })
-  @Describe('Get Journals')
+  @Describe({
+    description: 'Get Ledger',
+    fe: [
+      'finance/general-ledger:open'
+    ]
+  })
   async getLedger() {
     // { data: 'infoacc', title: 'Info Acc' },
     // { data: 'date', title: 'Date' },

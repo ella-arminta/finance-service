@@ -24,20 +24,19 @@ async function bootstrap() {
     },
   });
 
-  const rabbitMQService2 =
-    await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
-      transport: Transport.RMQ,
-      options: {
-        urls: ['amqp://localhost:5672'],
-        queue: 'auth_service_queue1',
-        noAck: false,
-      },
-    });
+  // const rabbitMQService2 =
+  //   await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+  //     transport: Transport.RMQ,
+  //     options: {
+  //       urls: ['amqp://localhost:5672'],
+  //       queue: 'auth_service_queue1',
+  //       noAck: false,
+  //     },
+  //   });
 
   await Promise.all([
     app.listen(), 
-    rabbitMQService.listen(), 
-    rabbitMQService2.listen()
+    rabbitMQService.listen()
   ]);
 }
 bootstrap();
