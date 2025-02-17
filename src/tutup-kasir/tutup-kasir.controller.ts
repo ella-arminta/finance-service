@@ -17,7 +17,9 @@ export class TutupKasirController {
   @MessagePattern({ cmd: 'post:tutup-kasir' })
   @Describe({
     description: 'Create Tutup Kasir',
-    fe: []
+    fe: [
+      'finance/cashier-closing:add'
+    ]
   }) // SCOPE CABANG
   async tutupKasir(@Payload() data: any) {
     // TODOELLA NGEFIX ANGKA DIFRONTEND (transaction_id, debit kreditnya)
@@ -50,7 +52,9 @@ export class TutupKasirController {
   @MessagePattern({ cmd: 'get:generate-tk-code' })
   @Describe({
     description: 'Generate Tutup Kasir Code',
-    fe: []
+    fe: [
+      'finance/cashier-closing:add'
+    ]
   })
   async getTutupKasirCoded (data: any) {
     const params = data.params;
@@ -58,7 +62,7 @@ export class TutupKasirController {
 
     const year = new Date().getFullYear();
     const month = new Date().getMonth() + 1;
-    var store_id =  (params.user.store_id && params.user.store_id.length > 0) ? params.user.store_id[0] : 'ea9bd13a-2ba6-4ec1-9bbf-225131d77ded';
+    var store_id =  newdata.auth.store_id;
     if (newdata.store_id) {
       store_id = newdata.store_id;
     }
@@ -72,7 +76,10 @@ export class TutupKasirController {
   @MessagePattern({ cmd: 'get:tutup-kasir' })
   @Describe({
     description: 'Get Tutup Kasir',
-    fe: []
+    fe: [
+      'finance/cashier-closing:open',
+      'finance.cashier-closing:detail'
+    ]
   }) // SCOPE CABANG
   async getTutupKasir(data: any) {
     const params = data.params;
@@ -92,7 +99,6 @@ export class TutupKasirController {
       filtersValidated.date.lte = new Date(filtersValidated.end_date);
       delete filtersValidated.end_date;
     }
-    console.log('filtersValidated', filtersValidated);
     const datas =  await this.tutupKasirService.findAll(filtersValidated);
     return ResponseDto.success('Data Retrieved!', datas, 200);
   }
@@ -101,7 +107,9 @@ export class TutupKasirController {
   @MessagePattern({ cmd: 'get:tutup-kasir/*' })
   @Describe({
     description: 'Get Tutup Kasir by ID',
-    fe: []
+    fe: [
+      'finance/cashier-closing:all',
+    ]
   })
   async findOneTutupKasir(data: any) {
     const id = data.params.id;
@@ -113,7 +121,9 @@ export class TutupKasirController {
   @MessagePattern({ cmd: 'put:tutup-kasir/*' })
   @Describe({
     description: 'Update Tutup Kasir',
-    fe: []
+    fe: [
+      'finance/cashier-closing:edit',
+    ]
   })
   async updateTutupKasir(data: any) {
     const newdata = data.body;

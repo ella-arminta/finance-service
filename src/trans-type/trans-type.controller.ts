@@ -16,7 +16,11 @@ export class TransTypeController {
   @MessagePattern({ cmd: 'get:trans-type' })
   @Describe({
     description: 'get trans type',
-    fe: []
+    fe: [
+      'master/account:detail',
+      'master/account:edit',
+      'master/account:add',
+    ]
   })
   async findAll(@Payload() data: any) {
     const filters = data.filters || {};
@@ -27,7 +31,11 @@ export class TransTypeController {
   @MessagePattern({ cmd: 'get:trans-type/*' })
   @Describe({
     description: 'get trans type by id',
-    fe: []
+    fe: [
+      'master/account:detail',
+      'master/account:edit',
+      'master/account:add',
+    ]
   })
   async findOne(@Payload() data: any) {
     const param = data.params;

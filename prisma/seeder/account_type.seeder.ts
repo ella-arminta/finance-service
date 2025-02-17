@@ -4,6 +4,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Create multiple account types
+  // misal diskon penjualan. dia itu di laba rugi masuk ke revenue, tapi dia terhitung sebagai beban. PERTANYAAN
+  // kalo di jurnal tinggal setting transaksi itu masuk jurnal mana ya. 
   const account_types = await prisma.account_Types.createMany({
     data: [
       { name: 'Cash', description: "Kas : Kas, Bank, Giro,Asset, dll", code:1 ,created_at: new Date(), updated_at: new Date() },

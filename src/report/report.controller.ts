@@ -17,7 +17,9 @@ export class ReportController {
     @MessagePattern({ cmd: 'get:profit-loss' })
     @Describe({
       description: 'Get Profit and Lost Statement',
-      fe: []
+      fe: [
+        'finance/profit-loss:open'
+      ]
     })
     async findOne(@Payload() data: any) {
       const params = data.params;
@@ -32,7 +34,9 @@ export class ReportController {
     @MessagePattern({ cmd: 'post:pdf-profit-loss'})
     @Describe({
         description: 'Generate PDF Profit and Lost Statement',
-        fe: []
+        fe: [
+          'finance/profit-loss:open'
+        ]
     })
     async postPdf(@Payload() data: any) {
       try {

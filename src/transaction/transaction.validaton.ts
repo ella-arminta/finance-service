@@ -86,6 +86,7 @@ export class TransactionValidation {
       }
       return val;
     }, z.string().optional()),
+    account_id: z.string().optional().nullable(),
   });
 
 

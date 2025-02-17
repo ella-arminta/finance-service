@@ -264,10 +264,10 @@ export class AccountsService extends BaseService<Accounts> {
         company : {
           connect: { id: store.company_id },
         },
-        code: codeBeban++,
+        code: codePendapatan++,
         name: 'DISKON PENJUALAN ' + store.name.toUpperCase(),
         account_type : {
-          connect: { id: 5 },
+          connect: { id: 4 },
         },
         deactive: false,
         created_at: new Date(),
@@ -303,6 +303,51 @@ export class AccountsService extends BaseService<Accounts> {
       }
       var newAccount = await this.create(account);
       result.push(newAccount);
+    }
+
+    // SET SETTINGS AKUN AUTOMATIS
+    var accountPenjualan = await this.db.accounts.findFirst({ where : {store_id: store_id, code: 4} });
+    if (accountPenjualan) {        
+      this.db.trans_Account_Settings.create({
+        data: {
+          store: {
+            connect: { id: store_id }
+          },
+          company: {
+            connect: {id: store.company_id}
+          },
+          account: {
+            connect: {id: accountPenjualan.id}
+          },
+          description: 'Default Akun Penjualan ' + store.name,
+          action: 'goldSales'
+        }
+      })
+    }
+    var diskonPenjualan = await this.db.accounts.findFirst({
+      where: {
+        name: {
+          startsWith: 'DISKON PENJUALAN'
+        },
+        store_id: store_id
+      }
+    })
+    if (diskonPenjualan) {
+      this.db.trans_Account_Settings.create({
+        data: {
+          store: {
+            connect: { id: store_id }
+          },
+          company: {
+            connect: {id: store.company_id}
+          },
+          account: {
+            connect: {id: diskonPenjualan.id}
+          },
+          description: 'Default Akun Diskon Penjualan ' + store.name,
+          action: 'discountSales'
+        }
+      });
     }
     return result;
   }

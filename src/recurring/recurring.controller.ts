@@ -17,7 +17,9 @@ export class RecurringController {
     @MessagePattern({ cmd: 'get:recurring' })
     @Describe({
       description: 'Get Recurring Transaction',
-      fe: []
+      fe: [
+        'finance/recurring:open'
+      ]
     })
     async getAllRecurring(@Payload() data: any) {
       var filters = data.body;
@@ -44,7 +46,6 @@ export class RecurringController {
       
         delete filtersValidated.end_date;
       }
-      console.log('filtersvalidated',filtersValidated);
       var result = await this.recurringService.findAll(filtersValidated);
       return ResponseDto.success('Data Retrieved!', result, 200);
     }
@@ -52,7 +53,12 @@ export class RecurringController {
     @MessagePattern({ cmd: 'get:recurring-period' })
     @Describe({
       description: 'Get Recurring Period Transaction',
-      fe: []
+      fe: [
+        'finance/recurring:open',
+        'finance/recurring:add',
+        'finance/recurring:edit',
+        'finance/recurring:detail',
+      ]
     })
     async getAllRecurringPeriod(@Payload() data: any) {
       var result = await this.recurringService.findAllRecurringPeriod();
@@ -62,7 +68,10 @@ export class RecurringController {
     @MessagePattern({ cmd: 'get:recurring/*' })
     @Describe({
       description: 'Get Recurring Transaction',
-      fe: []
+      fe: [
+        'finance/recurring:edit',
+        'finance/recurring:detail',
+      ]
     })
     async findOne(@Payload() data: any) {
       var params = data.params;
@@ -73,7 +82,10 @@ export class RecurringController {
     @MessagePattern({ cmd: 'put:recurring/*' })
     @Describe({
       description: 'Update Recurring Transaction',
-      fe: []
+      fe: [
+        'finance/recurring:edit',
+        'finance/recurring:detail',
+      ]
     })
     async update(@Payload() data: any) {
       var params = data.params;
@@ -120,7 +132,9 @@ export class RecurringController {
     @MessagePattern({ cmd: 'delete:recurring/*' })
     @Describe({
       description: 'Delete Recurring Transaction',
-      fe: []
+      fe: [
+        'finance/recurring:delete'
+      ]
     })
     async delete(@Payload() data: any) {
       var params = data.params;
@@ -132,13 +146,15 @@ export class RecurringController {
     @MessagePattern({ cmd: 'post:recurring' })
     @Describe({
       description: 'Create Recurring Transaction',
-      fe: []
+      fe: [
+        'finance/recurring:add'
+      ]
     })
     async add(@Payload() data: any) {
       var newdata = data.body;
       const params = data.params;
       
-      var store_id =  (params.user.store_id && params.user.store_id.length > 0) ? params.user.store_id[0] : 'ea9bd13a-2ba6-4ec1-9bbf-225131d77ded';
+      var store_id =  newdata.auth.store_id;
       if (newdata.store_id) {
         store_id = newdata.store_id;
       }

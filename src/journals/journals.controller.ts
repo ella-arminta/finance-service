@@ -14,7 +14,8 @@ export class JournalsController {
   @Describe({
     description: 'Get Journals',
     fe: [
-      'finance/journal:open'
+      'finance/journal:open',
+      'finance/journal:detail'
     ]
   })
   async get() {
@@ -26,7 +27,8 @@ export class JournalsController {
   @Describe({
     description: 'Get Ledger',
     fe: [
-      'finance/general-ledger:open'
+      'finance/general-ledger:open',
+      'finance/general-ledger:detail'
     ]
   })
   async getLedger() {

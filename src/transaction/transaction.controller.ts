@@ -22,7 +22,10 @@ export class TransactionController {
   @MessagePattern({ cmd: 'post:uang-keluar-masuk' })
   @Describe({
     description: 'Create a new transaction uang keluar or masuk lain',
-    fe: []
+    fe: [
+      'finance/mexpenses:add',
+      'finance/mincomes:add',
+    ]
   })
   async uangKeluarMasuk(@Payload() data: any) {
     var newdata = data.body;
@@ -46,11 +49,10 @@ export class TransactionController {
           code: 'not_found',
         }], 400);
       }
-    var store_id =  (params.user.store_id && params.user.store_id.length > 0) ? params.user.store_id[0] : 'ea9bd13a-2ba6-4ec1-9bbf-225131d77ded';
+    var store_id = newdata.auth.store_id;
     if (newdata.store_id) {
       store_id = newdata.store_id;
     }
-    console.log('store_id nih', store_id);
     var transactionCode = await this.transactionService.getTransCode(transtype, store_id);
 
     // SANITIZE DATA
@@ -120,7 +122,10 @@ export class TransactionController {
   @MessagePattern({ cmd: 'put:uang-keluar-masuk/*' })
   @Describe({
     description: 'Update transaction uang keluar or masuk lain',
-    fe: []
+    fe: [
+      'finance/mexpenses:edit',
+      'finance/mincomes:edit',
+    ]
   })
   async uangKeluarMasukUpdate(@Payload() data: any) {
     var newdata = data.body;
@@ -156,22 +161,79 @@ export class TransactionController {
       description: ''
     })
     delete validatedData.account_cash_id;
-    console.log('validatedData', validatedData);
 
     newdata = await this.transactionService.update(params.id, validatedData);
     return ResponseDto.success('Data Created!', newdata, 201);
   }
 
+  // Set status approve / disapprove / draft
+  @MessagePattern({ cmd: 'put:uang-keluar-masuk-approve/*' })
+  @Describe({
+    description: 'Update transaction uang keluar or masuk lain',
+    fe: [
+      'finance/mexpenses:approve',
+      'finance/mincomes:approve',
+    ]
+  })
+  async uangKeluarMasukApprove(@Payload() data: any) {
+    var newdata = data.body;
+    const params = data.params;
+    var newstatus = newdata.approve;
+    
+    // Validation
+    if (!Number.isInteger(newstatus) || newstatus < 0 || newstatus > 2) {
+      return ResponseDto.error('Status not valid!', 
+        [{
+          message: 'Status not valid!',
+          field: 'approve',
+          code: 'not_valid',
+        }], 400);
+    }
+
+    newdata = await this.transactionService.updateStatus(params.id, newstatus);
+    return ResponseDto.success('Data Updated!', newdata, 201);
+  }
+  @MessagePattern({ cmd: 'put:uang-keluar-masuk-disapprove/*' })
+  @Describe({
+    description: 'Update transaction uang keluar or masuk lain',
+    fe: [
+      'finance/mexpenses:disapprove',
+      'finance/mincomes:disapprove',
+    ]
+  })
+  async uangKeluarMasukDisapprove(@Payload() data: any) {
+    var newdata = data.body;
+    const params = data.params;
+    var newstatus = newdata.approve;
+    
+    // Validation
+    if (!Number.isInteger(newstatus) || newstatus < 0 || newstatus > 2) {
+      return ResponseDto.error('Status not valid!', 
+        [{
+          message: 'Status not valid!',
+          field: 'approve',
+          code: 'not_valid',
+        }], 400);
+    }
+
+    newdata = await this.transactionService.updateStatus(params.id, newstatus);
+    return ResponseDto.success('Data Updated!', newdata, 201);
+  }
+
   @MessagePattern({ cmd: 'get:uang-keluar-masuk' })
   @Describe({
     description: 'Get Transaction uang keluar masuk',
-    fe: []
+    fe: [
+      'finance/mexpenses:open',
+      'finance/mincomes:open',
+      'finance/mexpenses:detail',
+      'finance/mincomes:detail',
+    ]
   })
   async getUangKeluarMasuk(@Payload() data:any) {
     const params = data.params;
     const filters = data.body;
     var filtersValidated = await this.validateService.validate(this.transactionValidation.FILTER, filters);
-    console.log('filtersValidated', filtersValidated);
     const datas =  await this.transactionService.getReportUangKeluarMasuk(filtersValidated);
 
     return ResponseDto.success('Data Retrieved!', datas, 200);
@@ -181,13 +243,17 @@ export class TransactionController {
   @MessagePattern({ cmd: 'get:trans-code' })
   @Describe({
     description: 'Get Transaction Code',
-    fe: []
+    fe: [
+      'finance/mexpenses:open',
+      'finance/mincomes:open',
+      'finance/mexpenses:add',
+      'finance/mincomes:add',
+    ]
   })
   async getTransCode(@Payload() data:any) {
     const newdata = data.body;
     const params = data.params;
     newdata.trans_type_id = parseInt(newdata.trans_type_id);
-    console.log('hai', newdata); 
     const transType = await this.transTypeService.findOne(newdata.trans_type_id);
     if (!transType) {
       return ResponseDto.error('Transaction Type Not Found!', 
@@ -197,7 +263,7 @@ export class TransactionController {
           code: 'not_found',
         }], 400);
     }
-    var store_id =  (params.user.store_id && params.user.store_id.length > 0) ? params.user.store_id[0] : 'ea9bd13a-2ba6-4ec1-9bbf-225131d77ded';
+    var store_id =  newdata.auth.store_id;
     if (newdata.store_id) {
       store_id = newdata.store_id;
     }
@@ -240,7 +306,10 @@ export class TransactionController {
   @MessagePattern({ cmd: 'delete:transaction/*' })
   @Describe({
     description: 'Delete Transaction',
-    fe: []
+    fe: [
+      'finance/mexpenses:delete',
+      'finance/mincomes:delete',
+    ]
   })
   async deleteTransaction(@Payload() data:any) {
     const params = data.params;
@@ -341,14 +410,5 @@ export class TransactionController {
   })
   async update(@Payload() data: any) {
     // return this.transactionService.update(updateTransactionDto.id, updateTransactionDto);
-  }
-
-  @MessagePattern({ cmd: 'delete:trans/*' })
-  @Describe({
-    description: 'delete transaction by id',
-    fe: []
-  })
-  async remove(@Payload() id: number) {
-    // return this.transactionService.remove(id);
   }
 }

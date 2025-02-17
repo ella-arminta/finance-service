@@ -76,6 +76,10 @@ export class AccountsController {
     description:'Get all account', 
     fe:[
       'master/account:open',
+      'inventory/operation:open',
+      'inventory/operation:add',
+      'inventory/operation:edit',
+      'inventory/operation:detail',
     ]
   })
   async findAll(@Payload() data: any) {
@@ -105,7 +109,14 @@ export class AccountsController {
   @MessagePattern({ cmd: 'get:account/*' })
   @Describe({
     description:'Get account by id',
-    fe: ['master/account:edit', 'master/account:detail']
+    fe: [
+      'master/account:edit', 
+      'master/account:detail',
+      'inventory/operation:open',
+      'inventory/operation:add',
+      'inventory/operation:edit',
+      'inventory/operation:detail',
+    ]
   })
   async findOne(@Payload() data: any) {
     const param = data.params;
