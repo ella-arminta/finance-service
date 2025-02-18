@@ -6,13 +6,13 @@ async function main() {
   // Create multiple account types
   const trans_types = await prisma.trans_Type.createMany({
     data: [
-      { name: 'Uang keluar lain', code: "UKL", created_at: new Date(), updated_at: new Date() },
-      { name: 'Uang masuk lain', code: "UML", created_at: new Date(), updated_at: new Date() },
-      { name: 'Sales', code: "SAL", created_at: new Date(), updated_at: new Date() },
-      { name: 'Purchase', code: "PUR", created_at: new Date(), updated_at: new Date() },
-      { name: 'Barang masuk dasaran', code: "MD", created_at: new Date(), updated_at: new Date() },
-      { name: 'Barang keluar dasaran', code: "KD", created_at: new Date(), updated_at: new Date() },
-      { name: 'Tukar tambah', code: "TT", created_at: new Date(), updated_at: new Date() },
+      { name: 'Uang keluar lain', code: "UKL", created_at: new Date(), updated_at: new Date(), id: 1 },
+      { name: 'Uang masuk lain', code: "UML", created_at: new Date(), updated_at: new Date(), id: 2 },
+      { name: 'Sales', code: "SAL", created_at: new Date(), updated_at: new Date(), id: 3 },
+      { name: 'Purchase', code: "PUR", created_at: new Date(), updated_at: new Date(), id: 4 },
+      { name: 'Barang masuk dasaran', code: "MD", created_at: new Date(), updated_at: new Date(), id: 5 },
+      { name: 'Barang keluar dasaran', code: "KD", created_at: new Date(), updated_at: new Date(), id: 6 },
+      { name: 'Tukar tambah', code: "TT", created_at: new Date(), updated_at: new Date(), id: 7 },
     ],
     skipDuplicates: true,
   });

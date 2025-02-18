@@ -22,7 +22,6 @@ export class TutupKasirController {
     ]
   }) // SCOPE CABANG
   async tutupKasir(@Payload() data: any) {
-    // TODOELLA NGEFIX ANGKA DIFRONTEND (transaction_id, debit kreditnya)
     var newdata = data.body;
     const params = data.params;
 
@@ -40,6 +39,7 @@ export class TutupKasirController {
       created_at: new Date(),
       updated_at: new Date(),
       tanggal_buka : new Date(newdata.tanggal_buka),
+      store_id: newdata.auth.store_id,
       date: new Date(newdata.date),
     }
 
@@ -98,6 +98,9 @@ export class TutupKasirController {
       }
       filtersValidated.date.lte = new Date(filtersValidated.end_date);
       delete filtersValidated.end_date;
+    }
+    if (filters.auth && filters.auth.store_id) {
+      filtersValidated.store_id = filters.auth.store_id;
     }
     const datas =  await this.tutupKasirService.findAll(filtersValidated);
     return ResponseDto.success('Data Retrieved!', datas, 200);

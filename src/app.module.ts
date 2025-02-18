@@ -19,6 +19,7 @@ import { TaskScheduleModule } from './task-schedule/task-schedule.module';
 import { SharedModule } from './shared.module';
 import { RecurringModule } from './recurring/recurring.module';
 import { ReportModule } from './report/report.module';
+import { TransAccountSettingsModule } from './trans-account-settings/trans-account-settings.module';
 
 @Module({
   imports: [
@@ -37,7 +38,8 @@ import { ReportModule } from './report/report.module';
     TaskScheduleModule, 
     RecurringModule, 
     ReportModule,
-    SharedModule
+    SharedModule,
+    TransAccountSettingsModule
   ],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],

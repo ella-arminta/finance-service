@@ -1,12 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import * as pdf from 'html-pdf';
+import { BaseService } from 'src/common/base.service';
+import { Report_Journals } from '@prisma/client';
 
 @Injectable()
-export class ReportService {
+export class ReportService extends BaseService<Report_Journals> {
     constructor(
         db: DatabaseService,
-    ){}
+    ) {
+        const relations = {
+        }
+        super('report_Journals', db, relations);
+    }
 
     async getProfitLoss(userId:string, filters: any = {}) {
         return [
@@ -223,7 +229,7 @@ export class ReportService {
         });
     }
     
-    formatAmount(amount) {
+    private formatAmount(amount) {
         // amount is type integer
         var positive = amount >= 0;
         amount = Math.abs(amount);

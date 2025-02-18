@@ -6,12 +6,13 @@ import { TransTypeService } from 'src/trans-type/trans-type.service';
 import { Prisma } from '@prisma/client';
 import { filter } from 'rxjs';
 import { ResponseDto } from 'src/common/response.dto';
+import { TransAccountSettingsService } from 'src/trans-account-settings/trans-account-settings.service';
 
 @Injectable()
 export class TransactionService extends BaseService<Trans> {
   constructor(
     db: DatabaseService,
-    private readonly transTypeService: TransTypeService,
+    private readonly transAccountSettingsServ: TransAccountSettingsService,
   ) {
     const relations = {
       trans_type: true,
@@ -98,7 +99,7 @@ export class TransactionService extends BaseService<Trans> {
           },
           include: {
             trans_type: true,
-            trans_details_recurring:true
+            trans_details_recurring: true
           }
         });
 
@@ -123,8 +124,8 @@ export class TransactionService extends BaseService<Trans> {
         // all data but remove accounts
         var updatedTrans = { ...data };
         delete updatedTrans.accounts;
-        
-        const  trans = await this.db.trans.update({
+
+        const trans = await this.db.trans.update({
           where: { id: id },
           data: {
             ...updatedTrans,
@@ -135,7 +136,7 @@ export class TransactionService extends BaseService<Trans> {
           // delete all transaction details before
           const prevTransDetails = await this.db.trans_Details.deleteMany({
             where: {
-              trans_id: id 
+              trans_id: id
             }
           });
           // then create new transaction details
@@ -192,7 +193,7 @@ export class TransactionService extends BaseService<Trans> {
         trans.trans_details.forEach(async (row) => {
           const data = {
             trans_id: trans.id,
-            code: trans.code, 
+            code: trans.code,
             company_id: trans.store.company.id,
             company_name: trans.store.company.name,
             store_id: trans.store_id,
@@ -211,7 +212,7 @@ export class TransactionService extends BaseService<Trans> {
           const result = await this.db.report_Journals.create({
             data: {
               trans_id: trans.id,
-              code: trans.code, 
+              code: trans.code,
               company_id: trans.store.company.id,
               company_name: trans.store.company.name,
               store_id: trans.store_id,
@@ -223,16 +224,17 @@ export class TransactionService extends BaseService<Trans> {
               description: trans.description,
               account_id: row.account_id,
               account_name: row.account.name,
+              account_code: row.account.code,
               amount: row.amount,
               detail_description: row.description,
               cash_bank: row.kas,
             }
           });
-  
+
         });
       }
       // Status == 0/ rejected -> deleted from  report journals
-      else  if (status == 0) {
+      else if (status == 0) {
         // Delete from report journals
         const result = await this.db.report_Journals.deleteMany({
           where: {
@@ -247,7 +249,7 @@ export class TransactionService extends BaseService<Trans> {
 
     // Update trans
     const updatedTrans = await this.update(id, { approve: status });
-  
+
     return updatedTrans;
   }
 
@@ -263,7 +265,7 @@ export class TransactionService extends BaseService<Trans> {
       },
     });
     return count;
-  }  
+  }
 
   async getTransCode(transType, store_id: string) {
     const year = new Date().getFullYear();
@@ -282,8 +284,8 @@ export class TransactionService extends BaseService<Trans> {
         trans_type_id: transType.id
       },
       orderBy: [
-        { code: 'desc'},
-        { created_at: 'desc'}
+        { code: 'desc' },
+        { created_at: 'desc' }
       ]
     })
     // get the last index of the transaction code
@@ -296,7 +298,7 @@ export class TransactionService extends BaseService<Trans> {
     return transactionCode;
   }
 
-  async getReportUangKeluarMasuk(filters: any) {    
+  async getReportUangKeluarMasuk(filters: any) {
     try {
       let query = Prisma.sql`
         SELECT 
@@ -314,7 +316,7 @@ export class TransactionService extends BaseService<Trans> {
         JOIN "Accounts" a ON td.account_id = a.id
         WHERE td.kas = true
       `;
-  
+
       if (filters.account_id && filters.account_od !== '') {
         query = Prisma.sql`${query} AND td.account_id = ${filters.account_id}::uuid`;
       }
@@ -330,10 +332,14 @@ export class TransactionService extends BaseService<Trans> {
         query = Prisma.sql`${query} AND t.trans_date <= ${filters.end_date}::date`;
       }
 
+      if (filters.auth && filters.auth.store_id) {
+        query = Prisma.sql`${query} AND t.store_id = ${filters.auth.store_id}::uuid`;
+      }
+
       query = Prisma.sql`${query} AND t.deleted_at IS NULL`;
-  
+
       const result = await this.db.$queryRaw(query);
-  
+
       return result;
     } catch (error) {
       console.error('Error fetching report:', error);
@@ -341,52 +347,49 @@ export class TransactionService extends BaseService<Trans> {
     }
   }
 
+
   async createSales(data: any) {
-    // Kas / Piutang Usaha     (D)  9.990  
-    // Diskon Penjualan        (D)  1.000  
-    // Pendapatan                         (K) 10.000  (gk termasuk diskon)
-    // Utang Pajak (PPN)                  (K)    990  
-    const transType = await this.transTypeService.findOne({ where: { code: 'SAL' } });
-    const transTypeId = transType.id;
+    const transType = await this.db.trans_Type.findUnique({ where: { code: 'SAL' } });
     const hasTax = true // TODOELLA: Check if the store has tax
-    const store = await this.db.stores.findUnique({ where: { id: data.store_id } });
+    const store = await this.db.stores.findUnique({ where: { id: data.store_id }, include: { company: true } });
     var diskonTotal = 0;
     var salesEmasTotal = 0;
     data.store = store;
     var transDetailsFormated = [];
 
     // REFORMAT TRANSACTION DETAIL
+    // Kas / Piutang Usaha     (D)  9.990  
+    // Diskon Penjualan        (D)  1.000  
+    // Pendapatan                         (K) 10.000  (gk termasuk diskon)
+    // Hutang Pajak Penjualan             (K)    990  
+
     // JOURNAL ENTRY (KREDIT)
     // Tax yg dibayar customer
     if (hasTax) {
-      const taxAccount = await this.db.trans_Account_Settings.findUnique({
-        where: {
-          store_id_company_id_action: { 
-            store_id: null, 
-            company_id: data.auth.company_id, 
-            action: 'tax' 
-          }
-        }
-      });
-      
+      const taxAccount = await this.transAccountSettingsServ.getTaxAccount(data);
+
       transDetailsFormated.push({
         account_id: taxAccount.account_id,
-        amount:  Math.abs(data.tax_price) * -1,
-        description: 'Pajak Penjualan',
-        kas: false
+        account_name: taxAccount.account.name,
+        amount: Math.abs(data.tax_price) * -1,
+        detail_description: 'Pajak Penjualan',
+        cash_bank: false,
+        account_code: taxAccount.account.code
       })
     }
-    // Details / Journal Entry operation
+    // Details / Journal Entry
     data.transaction_details.forEach(det => {
       // Sales Operation
       if ("operation_id" in det) {
         transDetailsFormated.push({
-          account_id: det.account_id,
+          account_id: det.operation.account_id,
+          account_name: det.operation.account.name,
           amount: Math.abs(det.total_price) * -1,
-          description: det.name,
-          kas: false,
+          detail_description: det.name,
+          cash_bank: false,
+          account_code: det.operation.account.code
         })
-      } 
+      }
       // Sales Emas
       else {
         salesEmasTotal += (Math.abs(det.total_price) + Math.abs(det.discount)) * -1;
@@ -394,177 +397,85 @@ export class TransactionService extends BaseService<Trans> {
       }
     })
     // Journal entry sales emas
-    const goldSalesAccount = await this.getGoldSalesAccount(data);
+    const goldSalesAccount = await this.transAccountSettingsServ.getGoldSalesAccount(data);
     transDetailsFormated.push({
       account_id: goldSalesAccount.account_id,
+      account_name: goldSalesAccount.account.name,
       amount: salesEmasTotal,
-      description: 'Penjualan Emas',
-      kas: false,
+      detail_description: 'Penjualan Emas',
+      cash_bank: false,
+      account_code: goldSalesAccount.account.code
     })
 
     // JOURNAL ENTRY (DEBIT)
     // Diskon Penjualan
-    const discountAccount = await this.getDiscountAccount(data);
+    const discountAccount = await this.transAccountSettingsServ.getDiscountAccount(data);
     if (diskonTotal > 0) {
       transDetailsFormated.push({
         account_id: discountAccount.account_id,
+        account_name: discountAccount.account.name,
         amount: diskonTotal,
-        description: 'Diskon penjualan',
-        kas:true        
+        detail_description: 'Diskon penjualan',
+        cash_bank: true,
+        account_code: discountAccount.account.code
       })
     }
-    // Account Debit
-    // payment_method   Int // 1: Cash, 2: Bank Transfer, 3: Credit Card, 4: Debit Card
-    
+    // PIUTANG
+    if (data.status == 0) {
+      const piutangAccount = await this.transAccountSettingsServ.getPiutangAccount(data);
+      transDetailsFormated.push({
+        account_id: piutangAccount.account_id,
+        account_name: piutangAccount.account.name,
+        amount: data.total_price, // TODOELLA : Check if this is correct
+        description: 'Piutang Usaha',
+        cash_bank: true,
+        account_code: piutangAccount.account.code
+      })
+    }
+    // CASH
+    else {
+      // payment_method   Int // 1: Cash, 2: Bank Transfer, 3: Credit Card, 4: Debit Card
+      const PaymentMethodAccount = await this.transAccountSettingsServ.getPaymentMethodAccount(data);
+      transDetailsFormated.push({
+        account_id: PaymentMethodAccount.account_id,
+        account_name: PaymentMethodAccount.account.name,
+        amount: data.total_price,  // (sub_price - diskon_price + tax_price)
+        description: 'Pembayaran ' + data.payment_method,
+        cash_bank: true,
+        account_code: PaymentMethodAccount.account.code
+      })
+    }
 
     // CREATE TRANSACTION
+    var reportJournal;
     try {
-      const trans = await this.db.trans.create({
-        data: {
+      console.log('transType', transType)
+      reportJournal = await this.db.report_Journals.createMany({
+        data: transDetailsFormated.map(row => ({
+          trans_id: data.id,
           code: data.code,
-          store: { connect: { id: data.store_id } },
-          trans_type: { connect: { id: transTypeId } },
-          total : data.total_price,
-          description: store.name + ' Sales',
-          trans_date: new Date(),
-          weight_total: data.weight_total,
-          sub_total_price: data.sub_total_price,
-          tax_price: data.tax_price,
-          created_by: data.employee_id,
-          updated_by: null,
-          
-          // trans_details: {
-          //   create: {}
-          // }
-        }
-      })
-
-    }catch (error) {
-      return ResponseDto.error('Error creating sales transaction',null);
+          company_id: store.company_id,
+          company_name: store.company.name,
+          store_id: store.id,
+          store_name: store.name,
+          trans_date: data.created_at,
+          trans_type_id: transType.id, // SALES
+          trans_type_code: transType.code,
+          trans_type_name: transType.name,
+          description: data.description,
+          account_id: row.account_id,
+          account_name: row.account_name,
+          account_code: row.account_code,
+          amount: row.amount,
+          detail_description: row.detail_description,
+          cash_bank: row.cash_bank,
+        })),
+      });
+    } catch (error) {
+      console.error('Error creating sales transaction:', error);
+      throw new Error(`Error creating sales transaction: ${error.message}`);
     }
 
-    // INPUT TO JOURNAL
-  }
-
-
-  async getGoldSalesAccount(data: any) {
-    var goldSalesAccount = await this.db.trans_Account_Settings.findUnique({
-      where: {
-        store_id_company_id_action: { 
-          store_id: data.store_id, 
-          company_id: data.auth.company_id, 
-          action: 'goldSales' 
-        }
-      }
-    });
-    // create an account and set is as gold sales what if foldS
-    if (!goldSalesAccount) {
-      // Generate Account Code
-      var lastCodeForPendapatan = await this.db.accounts.findMany({
-        where: {
-          company_id: data.store.company_id,
-          account_type_id: 5
-        },
-        orderBy: {
-          code: 'desc'
-        }
-      });
-      var codePendapatan = 40000;
-      if (lastCodeForPendapatan.length > 0) {
-        var lastCode = lastCodeForPendapatan[0].code;
-        codePendapatan = lastCode + 1;
-      }
-      // Create new account
-      const newAccount = await this.db.accounts.create({
-        data: {
-          code: codePendapatan,
-          name: 'Penjualan Emas ' + data.store.name,
-          account_type: { connect: { id: 5 } },
-          description: 'Default Akun Penjualan ' + data.store.name,
-          store: { connect: { id: data.store_id } },
-          company: { connect: { id: data.auth.company_id } },
-          deactive: false,
-          // created_by: data.employee_id,
-        }
-      })
-
-      // Assign to trans_account_settings 
-      goldSalesAccount = await this.db.trans_Account_Settings.create({
-        data: {
-          store: {
-            connect: { id: data.store_id }
-          },
-          company: {
-            connect: {id: data.auth.company_id}
-          },
-          account: {
-            connect: {id: newAccount.id}
-          },
-          description: 'Default Akun Penjualan ' + data.store.name,
-          action: 'goldSales'
-        }
-      });
-    }
-
-    return goldSalesAccount;
-  }
-
-  async getDiscountAccount(data: any) {
-    var discountAccount = await this.db.trans_Account_Settings.findUnique({
-      where: {
-        store_id_company_id_action: { 
-          store_id: data.store_id, 
-          company_id: data.auth.company_id, 
-          action: 'discountSales' 
-        }
-      }
-    });
-    if (!discountAccount)  {
-      // Create new pendapatan account
-      var lastCodeForPendapatan = await this.db.accounts.findMany({
-          where: {
-            company_id: data.store.company_id,
-            account_type_id: 5
-          },
-          orderBy: {
-            code: 'desc'
-          }
-      });
-      var codePendapatan = 40000;
-      if (lastCodeForPendapatan.length > 0) {
-        var lastCode = lastCodeForPendapatan[0].code;
-        codePendapatan = lastCode + 1;
-      }
-      const newAccount = await this.db.accounts.create({
-        data: {
-          code: codePendapatan,
-          name: 'Penjualan Emas ' + data.store.name,
-          account_type: { connect: { id: 5 } },
-          description: 'Default Akun Penjualan ' + data.store.name,
-          store: { connect: { id: data.store_id } },
-          company: { connect: { id: data.auth.company_id } },
-          deactive: false,
-          // created_by: data.employee_id
-        }
-      });
-      // Assign to trans_account_settings 
-      discountAccount = await this.db.trans_Account_Settings.create({
-        data: {
-          store: {
-            connect: { id: data.store_id }
-          },
-          company: {
-            connect: {id: data.auth.company_id}
-          },
-          account: {
-            connect: {id: newAccount.id}
-          },
-          description: 'Default Akun Diskon Penjualan ' + data.store.name,
-          action: 'discountSales'
-        }
-      });
-    }
-
-    return discountAccount;
+    return reportJournal;
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Accounts } from '@prisma/client';
+import { connect } from 'http2';
 import { BaseService } from 'src/common/base.service';
 import { CompaniesService } from 'src/companies/companies.service';
 import { DatabaseService } from 'src/database/database.service';
@@ -33,6 +34,7 @@ export class AccountsService extends BaseService<Accounts> {
       var lastCode = lastCodeForHutang[0].code;
       codeHutang = lastCode + 1;
     }
+
     var defaultAccount = [
       {
         code: codeKas,
@@ -49,8 +51,22 @@ export class AccountsService extends BaseService<Accounts> {
         }
       },
       {
-        code: codeHutang,
+        code: codeHutang++,
         name: 'HUTANG DAGANG PERUSAHAAN X',
+        deactive: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+        deleted_at: null,
+        company: {
+          connect: { id: company_id },
+        },
+        account_type: {
+          connect: { id: 3 },
+        }
+      },
+      {
+        code: codeHutang,
+        name: 'HUTANG PAJAK PENJUALAN',
         deactive: false,
         created_at: new Date(),
         updated_at: new Date(),
@@ -72,6 +88,31 @@ export class AccountsService extends BaseService<Accounts> {
       var newAccount = await this.create(account);
       result.push(newAccount);
     }
+
+    // Set Account Transaction Settings
+    var accountPajak = await this.db.accounts.findFirst({
+      where: {
+        name: {
+          startsWith: 'HUTANG PAJAK PENJUALAN'
+        },
+        company_id: company_id
+      }
+    })
+    if (accountPajak) {
+      this.db.trans_Account_Settings.create({
+        data: {
+          company: {
+            connect: {id: company_id}
+          },
+          account: {
+            connect: {id: accountPajak.id}
+          },
+          description: 'Default Akun Tax Penjualan ',
+          action: 'tax'
+        }
+      });
+    }
+
     return result;
   }
 
@@ -98,13 +139,19 @@ export class AccountsService extends BaseService<Accounts> {
       var lastCode = lastCodeForBeban[0].code;
       codeBeban = lastCode + 1;
     }
-
     // code piutang
     var lastCodeForPiutang = await this.findAll({ company_id: store.company_id, account_type_id: 4 }, true, { code: 'desc' });
     var codePiutang = 12000;
     if (lastCodeForPiutang.length > 0) {
       var lastCode = lastCodeForPiutang[0].code;
       codePiutang = lastCode + 1;
+    }
+    // code hutang
+    var lastCodeForHutang = await this.findAll({ company_id: store.company_id, account_type_id: 3 }, true, { code: 'desc' });
+    var codeHutang = 21001;
+    if (lastCodeForHutang.length > 0) {
+      var lastCode = lastCodeForHutang[0].code;
+      codeHutang = lastCode + 1;
     }
 
     var defaultAccount = [
@@ -114,6 +161,54 @@ export class AccountsService extends BaseService<Accounts> {
         },
         code: codeKas++,
         name: 'KAS ' + store.name.toUpperCase(),
+        account_type : {
+          connect: { id: 1 },
+        },
+        deactive: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+        store: {
+          connect: { id: store_id },
+        },
+      },
+      {
+        company: {
+          connect: { id: store.company_id },
+        },
+        code: codeKas++,
+        name: 'BANK ' + store.name.toUpperCase(),
+        account_type : {
+          connect: { id: 1 },
+        },
+        deactive: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+        store: {
+          connect: { id: store_id },
+        },
+      },
+      {
+        company: {
+          connect: { id: store.company_id },
+        },
+        code: codeKas++,
+        name: 'KAS CREDIT CARD ' + store.name.toUpperCase(),
+        account_type : {
+          connect: { id: 1 },
+        },
+        deactive: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+        store: {
+          connect: { id: store_id },
+        },
+      },
+      {
+        company: {
+          connect: { id: store.company_id },
+        },
+        code: codeKas++,
+        name: 'KAS DEBIT CARD ' + store.name.toUpperCase(),
         account_type : {
           connect: { id: 1 },
         },
@@ -148,7 +243,7 @@ export class AccountsService extends BaseService<Accounts> {
         code: codePendapatan++,
         name: 'PENDAPATAN LAIN-LAIN ' + store.name.toUpperCase(),
         account_type : {
-          connect: { id: 5 },
+          connect: { id: 7 },
         },
         deactive: false,
         created_at: new Date(),
@@ -233,7 +328,7 @@ export class AccountsService extends BaseService<Accounts> {
         code: codeBeban++,
         name: 'BIAYA LAIN-LAIN ' +store.code.toUpperCase(),
         account_type : {
-          connect: { id: 2 },
+          connect: { id: 8 },
         },
         deactive: false,
         created_at: new Date(),
@@ -264,10 +359,27 @@ export class AccountsService extends BaseService<Accounts> {
         company : {
           connect: { id: store.company_id },
         },
+        code: codeHutang,
+        name: 'HUTANG ' + store.name.toUpperCase(),
+        account_type : {
+          connect: { id: 3 },
+        },
+        deactive: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+        store: {
+          connect: { id: store_id },
+        },
+        deleted_at: null,
+      },
+      {
+        company : {
+          connect: { id: store.company_id },
+        },
         code: codePendapatan++,
         name: 'DISKON PENJUALAN ' + store.name.toUpperCase(),
         account_type : {
-          connect: { id: 4 },
+          connect: { id: 5 },
         },
         deactive: false,
         created_at: new Date(),
@@ -295,6 +407,8 @@ export class AccountsService extends BaseService<Accounts> {
         deleted_at: null,
       },
     ]
+
+    // STORE
     var result = [];
     for (let account of defaultAccount) {
       var accountExist = await this.findAll({ code: account.code, company_id: account.company.connect.id }, true);
@@ -306,6 +420,7 @@ export class AccountsService extends BaseService<Accounts> {
     }
 
     // SET SETTINGS AKUN AUTOMATIS
+    // Set Sales Account
     var accountPenjualan = await this.db.accounts.findFirst({ where : {store_id: store_id, code: 4} });
     if (accountPenjualan) {        
       this.db.trans_Account_Settings.create({
@@ -324,6 +439,7 @@ export class AccountsService extends BaseService<Accounts> {
         }
       })
     }
+    // Set Discount Account
     var diskonPenjualan = await this.db.accounts.findFirst({
       where: {
         name: {
@@ -346,6 +462,162 @@ export class AccountsService extends BaseService<Accounts> {
           },
           description: 'Default Akun Diskon Penjualan ' + store.name,
           action: 'discountSales'
+        }
+      });
+    }
+    // Set Payment Method Cash Account
+    var pm1 = await this.db.accounts.findFirst({
+      where: {
+        name: {
+          startsWith: 'KAS'
+        },
+        store_id: store_id
+      }
+    })
+    if (pm1) {
+      this.db.trans_Account_Settings.create({
+        data: {
+          store: {
+            connect: { id: store_id }
+          },
+          company: {
+            connect: {id: store.company_id}
+          },
+          account: {
+            connect: {id: pm1.id}
+          },
+          description: 'Default Akun Cash ' + store.name,
+          action: 'pm1'
+        }
+      });
+    }
+    // Set Payment Method Bank Transfer Account
+    var pm2 = await this.db.accounts.findFirst({
+      where: {
+        name: {
+          startsWith: 'BANK'
+        },
+        store_id: store_id
+      }
+    })
+    if (pm2) {
+      this.db.trans_Account_Settings.create({
+        data: {
+          store: {
+            connect: { id: store_id }
+          },
+          company: {
+            connect: {id: store.company_id}
+          },
+          account: {
+            connect: {id: pm2.id}
+          },
+          description: 'Default Akun Bank Transfer ' + store.name,
+          action: 'pm2'
+        }
+      });
+    }
+    // Set Payment Method Credit Card Account
+    var pm3 = await this.db.accounts.findFirst({
+      where: {
+        name: {
+          startsWith: 'KAS CREDIT CARD'
+        },
+        store_id: store_id
+      }
+    })
+    if (pm3) {
+      this.db.trans_Account_Settings.create({
+        data: {
+          store: {
+            connect: { id: store_id }
+          },
+          company: {
+            connect: {id: store.company_id}
+          },
+          account: {
+            connect: {id: pm3.id}
+          },
+          description: 'Default Akun Kas Credit Card ' + store.name,
+          action: 'pm3'
+        }
+      });
+    }
+    // Set Payment Method Debit Card Account
+    var pm4 = await this.db.accounts.findFirst({
+      where: {
+        name: {
+          startsWith: 'KAS DEBIT CARD'
+        },
+        store_id: store_id
+      }
+    })
+    if (pm4) {
+      this.db.trans_Account_Settings.create({
+        data: {
+          store: {
+            connect: { id: store_id }
+          },
+          company: {
+            connect: {id: store.company_id}
+          },
+          account: {
+            connect: {id: pm4.id}
+          },
+          description: 'Default Akun Kas Debit Card ' + store.name,
+          action: 'pm4'
+        }
+      });
+    }
+    // Set Hutang Account
+    var hutang = await this.db.accounts.findFirst({
+      where: {
+        name: {
+          startsWith: 'HUTANG'
+        },
+        store_id: store_id
+      }
+    })
+    if (hutang) {
+      this.db.trans_Account_Settings.create({
+        data: {
+          store: {
+            connect: { id: store_id }
+          },
+          company: {
+            connect: {id: store.company_id}
+          },
+          account: {
+            connect: {id: hutang.id}
+          },
+          description: 'Default Hutang ' + store.name,
+          action: 'hutang'
+        }
+      });
+    }
+    // Set Piutang Account
+    var piutang = await this.db.accounts.findFirst({
+      where: {
+        name: {
+          startsWith: 'PIUTANG'
+        },
+        store_id: store_id
+      }
+    })
+    if (piutang) {
+      this.db.trans_Account_Settings.create({
+        data: {
+          store: {
+            connect: { id: store_id }
+          },
+          company: {
+            connect: {id: store.company_id}
+          },
+          account: {
+            connect: {id: piutang.id}
+          },
+          description: 'Default Piutang ' + store.name,
+          action: 'piutang'
         }
       });
     }

@@ -59,6 +59,7 @@ export class TutupKasirValidation {
       return val;
     }, z.number()),
     tanggal_buka: z.date(),
+    store_id: z.string().uuid(),
   });
 
   readonly FILTER: ZodType = z.object({
@@ -140,5 +141,6 @@ export class TutupKasirValidation {
       return val;
     }, z.number()).optional(),
     tanggal_buka: z.date().optional(),
+    store_id: z.string().uuid().optional(),
   });
 }

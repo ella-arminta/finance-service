@@ -1,5 +1,5 @@
 import { Controller } from '@nestjs/common';
-import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
+import { Ctx, EventPattern, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import { TransactionService } from './transaction.service';
 import { Describe } from 'src/decorator/describe.decorator';
 import { ValidationService } from 'src/common/validation.service';
@@ -50,9 +50,6 @@ export class TransactionController {
         }], 400);
       }
     var store_id = newdata.auth.store_id;
-    if (newdata.store_id) {
-      store_id = newdata.store_id;
-    }
     var transactionCode = await this.transactionService.getTransCode(transtype, store_id);
 
     // SANITIZE DATA
@@ -327,79 +324,111 @@ export class TransactionController {
     return ResponseDto.success('Data Deleted!', {}, 200);
   }
 
+  private async handleEvent(
+    context: RmqContext,
+    callback: () => Promise<{ data: any }>,
+    errorMessage: string,
+  ) {
+    const channel = context.getChannelRef();
+    const originalMsg = context.getMessage();
+
+    try {
+      const response = await callback();
+      console.log('response callback', response);
+      // const response = true;
+      if (response) {
+        channel.ack(originalMsg);
+      }
+    } catch (error) {
+      console.error(errorMessage, error.stack);
+      channel.nack(originalMsg);
+    }
+  }
+
   @EventPattern({ cmd: 'transaction_created' })
   @Exempt()  
-  async createTrans(@Payload() data: any) {
-    // Transaction details [
-    //   {
-    //     id: 'd7b0dafd-b23c-41b3-b34a-6dc6ab0bcf84',
-    //     transaction_id: '3cd6d626-caf3-4119-93c4-bcf21b006750',
-    //     product_code_id: 'e6a2dec4-076f-409a-aec6-558c76e047b0',
-    //     transaction_type: 1, 1: Sales, 2: Purchase, 3: Trade
-    //     name: 'INS0010100010001 - Tipe A Hello Kity Cincin',
-    //     type: 'INS00101 - Cincin',
-    //     weight: 46,
-    //     price: 100000,
-    //     adjustment_price: 0,
-    //     discount: 0,
-    //     total_price: 4600000,
-    //     status: 2,
-    //     comment: null,
-    //     created_at: 2025-02-12T07:11:33.689Z,
-    //     updated_at: 2025-02-12T07:11:33.689Z,
-    //     deleted_at: null
-    //   },
-    //   {
-    //     id: '3377e10c-716b-4870-a5c8-c09cad9a35d6',
-    //     transaction_id: '3cd6d626-caf3-4119-93c4-bcf21b006750',
-    //     operation_id: '2702c9f8-65e1-48ed-90fe-e2ca1dfa5e74',
-    //     name: 'SUBOP001 - Reparasi',
-    //     type: 'Operation',
-    //     unit: 1,
-    //     price: 2000,
-    //     adjustment_price: 0,
-    //     total_price: 2000,
-    //     comment: null,
-    //     created_at: 2025-02-12T07:11:33.704Z,
-    //     updated_at: 2025-02-12T07:11:33.704Z,
-    //     deleted_at: null
-    //   }
-    // ]
-    // this is reponse format CustomResponse {
-    //   success: true,
-    //   statusCode: 200,
-    //   message: 'Transaction created successfully',
-    //   data: {
-    //     auth: {
-    //       company_id: 'bb0471e8-ba93-4edc-8dea-4ccac84bd2a2',
-    //       store_id: 'edd09595-33d4-4e81-9e88-14b47612bee9'
+  async createTrans(@Payload() data: any, @Ctx() context: RmqContext) {
+    // newdata {
+    //   id: '8e0a4ce4-45a5-4ec8-b163-323e253d3f1b',
+    //   date: '2025-02-18T00:00:00.000Z',
+    //   code: 'SAL/SUB/2025/1/18/001',
+    //   transaction_type: 1,
+    //   payment_method: 1,
+    //   paid_amount: '5108220',
+    //   payment_link: null,
+    //   poin_earned: 0,
+    //   expired_at: null,
+    //   status: 0,
+    //   sub_total_price: '4602000',
+    //   tax_price: '506220',
+    //   total_price: '5108220',
+    //   comment: null,
+    //   store_id: 'edd09595-33d4-4e81-9e88-14b47612bee9',
+    //   customer_id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
+    //   voucher_own_id: null,
+    //   employee_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+    //   created_at: '2025-02-18T02:09:43.599Z',
+    //   updated_at: '2025-02-18T02:09:43.599Z',
+    //   deleted_at: null,
+    //   transaction_details: [
+    //     {
+    //       id: '311f6f56-89bc-4615-bdeb-1e1f13bab01a',
+    //       transaction_id: '8e0a4ce4-45a5-4ec8-b163-323e253d3f1b',
+    //       product_code_id: 'e6a2dec4-076f-409a-aec6-558c76e047b0',
+    //       transaction_type: 1,
+    //       name: 'INS0010100010001 - Tipe A Hello Kity Cincin',
+    //       type: 'INS00101 - Cincin',
+    //       weight: '46',
+    //       price: '100000',
+    //       adjustment_price: '0',
+    //       discount: '0',
+    //       total_price: '4600000',
+    //       status: 1,
+    //       comment: null,
+    //       created_at: '2025-02-18T02:09:43.626Z',
+    //       updated_at: '2025-02-18T02:09:43.626Z',
+    //       deleted_at: null,
+    //       transaction: [Object]
     //     },
-    //     owner_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
-    //     code: 'SAL/SUB/2025/1/12/007',
-    //     employee: '',
-    //     date: '2025-02-12',
-    //     customer_id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
-    //     name: 'customer1',
-    //     email: 'customer@gmail.com',
-    //     phone: '089681551106',
-    //     store_id: 'edd09595-33d4-4e81-9e88-14b47612bee9',
-    //     employee_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
-    //     payment_method: 1,
-    //     transaction_type: 1,
-    //     transaction_details: [ [Object], [Object] ],
-    //     weight_total: 46,
-    //     sub_total_price: 4602000,
-    //     tax_price: 1012220,
-    //     total_price: 5614220,
-    //     status: 0,
-    //     paid_amount: 5614220
-    //   },
-    //   errors: null
+    //     {
+    //       id: '25c00fdc-249c-4928-9a4d-7a3f7b92e94f',
+    //       transaction_id: '8e0a4ce4-45a5-4ec8-b163-323e253d3f1b',
+    //       operation_id: '2702c9f8-65e1-48ed-90fe-e2ca1dfa5e74',
+    //       name: 'SUBOP001 - Reparasi',
+    //       type: 'Operation',
+    //       unit: '1',
+    //       price: '2000',
+    //       adjustment_price: '0',
+    //       total_price: '2000',
+    //       comment: null,
+    //       created_at: '2025-02-18T02:09:43.655Z',
+    //       updated_at: '2025-02-18T02:09:43.655Z',
+    //       deleted_at: null,
+    //       transaction: [Object],
+    //       operation: 
+    //     }
+    //   ]
     // }
     var newdata = data.data;
-    // SALES
+    // validate new data
+    newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
+    console.log('validatedData', newdata);
+
+    // SALES Trans
     if (newdata.transaction_type == 1) {
-      var savedData = await this.transactionService.createSales(newdata);
+      await this.handleEvent(
+        context,
+        () => this.transactionService.createSales(newdata),
+        'Error processing transaction_created event',
+      )
+    }
+    // PURCHASE TRANS
+    else if (newdata.transaction_type == 2) {
+
+    }
+    // TRADE TRANS
+    else {
+
     }
   }
 

@@ -56,7 +56,6 @@ export class TransactionValidation {
   });
 
   readonly FILTER: ZodType = z.object({
-    store_id: z.string().uuid().optional(),
     trans_type_id: z.preprocess((val) => {
       if (typeof val === 'string') {
         const parsed = parseInt(val, 10);
@@ -87,6 +86,10 @@ export class TransactionValidation {
       return val;
     }, z.string().optional()),
     account_id: z.string().optional().nullable(),
+    auth: z.object({
+      company_id: z.string().uuid().optional(),
+      store_id: z.string().uuid().optional(),
+    })
   });
 
 
@@ -121,6 +124,47 @@ export class TransactionValidation {
         description: z.string(),
       }),
     ).min(1, { message: 'At least one account is required' }),
+  });
+
+  readonly CREATESALES: ZodType = z.object({
+    store_id: z.string().uuid(),
+    tax_price: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid tax_price" }),
+    transaction_details: z.array(
+      z.object({
+        operation_id: z.string().uuid().optional().nullable(),
+        operation: z.record(z.any()).optional().nullable(),
+        total_price: z 
+          .union([z.string(), z.number()])
+          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+          .refine((val) => !isNaN(val), { message: "Invalid total_price" }),
+        name: z.string(),
+        discount: z 
+          .union([z.string(), z.number()])
+          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+          .refine((val) => !isNaN(val), { message: "Invalid discount" })
+          .optional(),
+      })
+    ), 
+    status: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseInt(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid status" }),
+    total_price: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid total_price" }),
+    payment_method: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseInt(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid payment method" }),
+    id: z.string().uuid(),
+    code: z.string(),
+    created_at: z.any(),
+    description: z.string().optional().nullable(),
+    transaction_type: z.number(),
   });
 
 }
