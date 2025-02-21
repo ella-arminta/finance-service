@@ -1,10 +1,10 @@
 import { Controller } from '@nestjs/common';
-import { ReportService } from './report.service';
+import { ReportService } from './report-journals.service';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { Describe } from 'src/decorator/describe.decorator';
 import { ResponseDto } from 'src/common/response.dto';
 import { ValidationService } from 'src/common/validation.service';
-import { ReportValidation } from './report.validation';
+import { ReportValidation } from './report-journals.validation';
 
 @Controller()
 export class ReportController {

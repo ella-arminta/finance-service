@@ -78,7 +78,7 @@ export class TutupKasirController {
     description: 'Get Tutup Kasir',
     fe: [
       'finance/cashier-closing:open',
-      'finance.cashier-closing:detail'
+      'finance/cashier-closing:detail'
     ]
   }) // SCOPE CABANG
   async getTutupKasir(data: any) {

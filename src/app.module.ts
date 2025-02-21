@@ -18,8 +18,9 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TaskScheduleModule } from './task-schedule/task-schedule.module';
 import { SharedModule } from './shared.module';
 import { RecurringModule } from './recurring/recurring.module';
-import { ReportModule } from './report/report.module';
+import { ReportModule } from './report-journals/report-journals.module';
 import { TransAccountSettingsModule } from './trans-account-settings/trans-account-settings.module';
+import { ReportStocksModule } from './report-stocks/report-stocks.module';
 
 @Module({
   imports: [
@@ -39,7 +40,8 @@ import { TransAccountSettingsModule } from './trans-account-settings/trans-accou
     RecurringModule, 
     ReportModule,
     SharedModule,
-    TransAccountSettingsModule
+    TransAccountSettingsModule,
+    ReportStocksModule,
   ],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],

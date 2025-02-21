@@ -41,6 +41,7 @@ model Stores {
 
   journals    Journals[]
   accounts    Accounts[]
+  report_stocks Report_Stocks[]
 
   company  Companies? @relation(fields: [company_id], references: [id])
   trans Trans[]
@@ -133,10 +134,11 @@ model Trans {
   store_id String @db.Uuid
   trans_date DateTime @default(now())
   trans_type_id Int
-  total Float?
-  weight_total Float?
-  sub_total_price Float?
-  tax_price Float?
+  total Decimal?
+  // TODOELLA weight_total, sub_total_price, tax_price dihapus
+  weight_total Decimal?
+  sub_total_price Decimal?
+  tax_price Decimal?
   description String?
   approve Int @default(0) // 0 = draft, 1 = approve, 0 = dissaprove
 
@@ -160,7 +162,7 @@ model Trans_Details {
   trans_id String @db.Uuid
   account_id String @db.Uuid
   kas Boolean @default(false)
-  amount Float
+  amount Decimal
   description String?
   
   deleted_at DateTime?
@@ -177,17 +179,17 @@ model TutupKasir {
   account_id String @db.Uuid
   code String
   date DateTime
-  saldo_awal Float
-  penjualan_cash Float
-  penjualan_transfer Float
-  total_penjualan Float
-  pembelian Float
-  pengeluaran Float
-  gadai Float
-  ambil_gadai Float
-  setor_pusat Float
+  saldo_awal Decimal
+  penjualan_cash Decimal
+  penjualan_transfer Decimal
+  total_penjualan Decimal
+  pembelian Decimal
+  pengeluaran Decimal
+  gadai Decimal
+  ambil_gadai Decimal
+  setor_pusat Decimal
   account_pusat_id String @db.Uuid
-  saldo_akhir Float
+  saldo_akhir Decimal
   tanggal_buka DateTime
 
   created_at DateTime
@@ -202,8 +204,8 @@ model TutupKasir {
 
 model GoldPrice {
   id Int   @default(autoincrement()) @id
-  sellPrice Float
-  buyPrice Float
+  sellPrice Decimal
+  buyPrice Decimal
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
@@ -215,7 +217,7 @@ model Trans_Recurring {
     trans_last_date  DateTime?
     recurring_period_code String
     trans_type_id Int
-    total Float?
+    total Decimal?
     description String?
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
@@ -234,7 +236,7 @@ model Trans_Details_Recurring {
   trans_id String @db.Uuid
   account_id String @db.Uuid
   kas Boolean @default(false)
-  amount Float
+  amount Decimal
   description String?
   
   trans_recurring Trans_Recurring? @relation(fields: [trans_id], references: [id], map:"Trans_Details_trans_id_fkey_Trans_Recurring")
@@ -289,9 +291,48 @@ model Report_Journals {
   account_id String @db.Uuid
   account_code Int
   account_name String
-  amount Float
+  amount Decimal
   detail_description String?
   cash_bank Boolean @default(false) // true = Cash/Bank Account, false = Destination Account
 
   @@index([code, company_id, store_id, trans_id])
 }
+
+model Stock_Source {
+  id            Int             @id @default(autoincrement())
+  name          String
+  code         String
+  report_stocks Report_Stocks[]
+}
+
+model Report_Stocks {
+  id                String       @id @default(uuid()) @db.Uuid
+  company_id        String       @db.Uuid
+  company_code      String
+  company_name      String
+  store_id          String       @db.Uuid
+  store_code        String
+  store_name        String
+  source_id         Int
+  source_name       String
+  trans_id          String       @db.Uuid
+  trans_code        String
+  trans_date        DateTime
+  category_id       String       @db.Uuid
+  category_code     String
+  category_name     String
+  type_id           String       @db.Uuid
+  type_code         String
+  type_name         String
+  product_id        String       @db.Uuid
+  product_name      String
+  product_code_code String
+  product_code_id   String       @db.Uuid
+  weight            Decimal      @db.Decimal
+  price             Decimal      @db.Decimal
+  
+  source            Stock_Source @relation(fields: [source_id], references: [id])
+  store             Stores        @relation(fields: [store_id], references: [id])
+}
+
+// duplicate ke piutang / hutang
