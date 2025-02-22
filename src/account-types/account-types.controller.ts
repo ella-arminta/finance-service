@@ -27,7 +27,7 @@ export class AccountTypesController {
   async findOne(@Payload() data: any) {
     const param = data.params;
     const body = data.body;
-    console.log('body', body);
+    // console.log('body', body);
     param.id = parseInt(param.id);
     const accountTypes = await this.accountTypesService.findOne(param.id);
 

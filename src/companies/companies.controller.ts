@@ -22,7 +22,7 @@ export class CompaniesController {
   @EventPattern({ cmd: 'company_created' })
   @Exempt()  
   async companyCreated(@Payload() data: any , @Ctx() context: RmqContext) {
-    console.log('Company created emit received:', data);
+    // console.log('Company created emit received:', data);
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
 
@@ -39,7 +39,7 @@ export class CompaniesController {
       const newData = await this.companiesService.create(validatedData);
       if (newData) {
         channel.ack(originalMsg);
-        console.log('Company created successfully acked:', newData);
+        // console.log('Company created successfully acked:', newData);
         // create default accounts for this company
         this.accountService.generateDefaultAccountsByComp(newData.id);
       }
@@ -52,7 +52,7 @@ export class CompaniesController {
   @EventPattern( {cmd: 'company_updated'})
   @Exempt()
   async update(@Payload() data: any, @Ctx() context: RmqContext) {
-    console.log('Company updated emit received:', data);
+    // console.log('Company updated emit received:', data);
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
 
@@ -65,11 +65,11 @@ export class CompaniesController {
     }
 
     try {
-      console.log('SanitizedData',sanitizedData);
+      // console.log('SanitizedData',sanitizedData);
       let validatedData = await this.validationService.validate(this.companyValidation.UPDATE, sanitizedData);
 
       const newData = await this.companiesService.update(data.id,validatedData);
-      console.log('new data',newData);
+      // console.log('new data',newData);
       if (newData) {
         channel.ack(originalMsg);
         console.log('Company created successfully acked:', newData);
@@ -84,7 +84,7 @@ export class CompaniesController {
   @EventPattern({cmd:'company_deleted'})
   @Exempt()
   async remove(@Payload() data: any, @Ctx() context: RmqContext) {
-    console.log('Company deleted emit received', data);
+    // console.log('Company deleted emit received', data);
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
 

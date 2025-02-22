@@ -10,7 +10,7 @@ export class BaseService<T> {
   ) {}
 
   async create(data: any): Promise<T> {
-    console.log('data in base service', data);
+    // console.log('data in base service', data);
     return (this.db[this.prismaModel] as any).create({ 
       data,
       include: this.relations
@@ -38,7 +38,7 @@ export class BaseService<T> {
         }
       }
     }
-    console.log('where conditions',whereConditions);
+    // console.log('where conditions',whereConditions);
   
     return (this.db[this.prismaModel] as any).findMany({
       where: whereConditions,
@@ -48,16 +48,25 @@ export class BaseService<T> {
   }
   
 
-  async findOne(id: any) {
-    const whereConditions: Record<string, any> = {
-      ...(this.isSoftDelete ? { id: id, deleted_at: null } : { id }),
-    };
-    console.log('where conditions',whereConditions);
-    return (this.db[this.prismaModel] as any).findUnique({
-      where: whereConditions,
-      include: this.relations,
-    });
+  async findOne(id?: any, query?: Record<string, any>) {
+      // Gabungkan id dan query jika ada
+      const whereConditions: Record<string, any> = {
+          ...(id ? { id } : {}), // Hanya tambahkan `id` jika ada
+          ...(this.isSoftDelete ? { deleted_at: null } : {}), // Tambahkan filter soft delete
+          ...(query ?? {}), // Gabungkan query jika ada
+      };
+
+      return id 
+          ? (this.db[this.prismaModel] as any).findUnique({
+              where: { id },
+              include: this.relations,
+          })
+          : (this.db[this.prismaModel] as any).findFirst({ // Use findFirst() instead of findUnique()
+              where: whereConditions,
+              include: this.relations,
+          });
   }
+
 
   async update(id: any, data: Partial<T>) {
     return (this.db[this.prismaModel] as any).update({ where: { id }, data });
@@ -78,6 +87,17 @@ export class BaseService<T> {
     }
     return (this.db[this.prismaModel] as any).delete({
       where: { id },
+    });
+  }
+
+  async deleteAll(params = {}) {
+    const whereConditions: Record<string, any> = {
+      ...(this.isSoftDelete ? { deleted_at: null } : {}),
+      ...params,
+    };
+  
+    return (this.db[this.prismaModel] as any).deleteMany({
+      where: whereConditions,
     });
   }
 }

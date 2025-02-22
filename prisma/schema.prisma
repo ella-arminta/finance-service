@@ -277,12 +277,14 @@ model Trans_Account_Settings {
 
 model Report_Journals {
   id String @id @db.Uuid @default(uuid())
-  trans_id String @db.Uuid
+  trans_id String? @db.Uuid
   code String 
   company_id String @db.Uuid
   company_name String
+  company_code String?
   store_id String @db.Uuid
   store_name String
+  store_code String?
   trans_date DateTime
   trans_type_id Int
   trans_type_code String  // Uang keluar lain / Uang masuk lain / Sales
@@ -303,6 +305,8 @@ model Stock_Source {
   name          String
   code         String
   report_stocks Report_Stocks[]
+
+  @@unique([code])
 }
 
 model Report_Stocks {
@@ -314,10 +318,11 @@ model Report_Stocks {
   store_code        String
   store_name        String
   source_id         Int
+  source_code       String?
   source_name       String
-  trans_id          String       @db.Uuid
-  trans_code        String
-  trans_date        DateTime
+  trans_id          String?      @db.Uuid
+  trans_code        String?
+  trans_date        DateTime    // product created_at
   category_id       String       @db.Uuid
   category_code     String
   category_name     String
@@ -326,10 +331,11 @@ model Report_Stocks {
   type_name         String
   product_id        String       @db.Uuid
   product_name      String
-  product_code_code String
+  product_code_code String // barcode
   product_code_id   String       @db.Uuid
   weight            Decimal      @db.Decimal
-  price             Decimal      @db.Decimal
+  price             Decimal      @db.Decimal // INSTOCK -> buy price, SALES -> fixed price
+  total_price       Decimal?      @db.Decimal // SALES -> total_price
   
   source            Stock_Source @relation(fields: [source_id], references: [id])
   store             Stores        @relation(fields: [store_id], references: [id])

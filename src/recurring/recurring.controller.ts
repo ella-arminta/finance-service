@@ -122,7 +122,7 @@ export class RecurringController {
         description: ''
       })
       delete validatedData.account_cash_id;
-      console.log('validatedData', validatedData);
+      // console.log('validatedData', validatedData);
 
       var result = await this.recurringService.update(params.id, validatedData);
       return ResponseDto.success('Data Retrieved!', result, 200);

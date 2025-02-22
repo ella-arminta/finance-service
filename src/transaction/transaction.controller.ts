@@ -9,6 +9,9 @@ import { TransTypeService } from 'src/trans-type/trans-type.service';
 import { validate } from 'class-validator';
 import { filter } from 'rxjs';
 import { Exempt } from 'src/decorator/exempt.decorator';
+import { LoggerService } from 'src/common/logger.service';
+import { ReportService } from 'src/report-journals/report-journals.service';
+import { ReportStocksService } from 'src/report-stocks/report-stocks.service';
 
 @Controller()
 export class TransactionController {
@@ -16,8 +19,47 @@ export class TransactionController {
     private readonly transactionService: TransactionService,
     private readonly validateService: ValidationService,
     private readonly transactionValidation: TransactionValidation,
-    private readonly transTypeService: TransTypeService
+    private readonly transTypeService: TransTypeService,
+    private readonly loggerService: LoggerService,
+    private readonly reportJournalsService: ReportService,
+    private readonly reportStockService: ReportStocksService,
   ) {}
+
+  private async handleEvent(
+    context: RmqContext,
+    callback: () => Promise<any>,
+    errorMessage: string,
+  ) {
+    const channel = context.getChannelRef();
+    const originalMsg = context.getMessage();
+    const maxRetries = 5;
+    const headers = originalMsg.properties.headers || {};
+    const retryCount = headers['x-retry-count'] ? headers['x-retry-count'] + 1 : 1;
+
+    try {
+      const response = await callback();
+      if (response.success) {
+        channel.ack(originalMsg);
+      }
+    } catch (error) {
+      console.error(`${errorMessage}. Retry attempt: ${retryCount}`, error.stack);
+
+      // Simpan log error ke file
+      this.loggerService.logErrorToFile(errorMessage, error);
+
+      if (retryCount >= maxRetries) {
+        console.error(`Max retries (${maxRetries}) reached. Logging error and acknowledging message.`);
+        channel.ack(originalMsg);
+      } else {
+        console.warn(`Retrying message (${retryCount}/${maxRetries})...`);
+        channel.sendToQueue(originalMsg.fields.routingKey, originalMsg.content, {
+          persistent: true,
+          headers: { ...headers, 'x-retry-count': retryCount },
+        });
+        channel.nack(originalMsg, false, false);
+      }
+    }
+  }
 
   @MessagePattern({ cmd: 'post:uang-keluar-masuk' })
   @Describe({
@@ -324,56 +366,82 @@ export class TransactionController {
     return ResponseDto.success('Data Deleted!', {}, 200);
   }
 
-  private async handleEvent(
-    context: RmqContext,
-    callback: () => Promise<{ data: any }>,
-    errorMessage: string,
-  ) {
-    const channel = context.getChannelRef();
-    const originalMsg = context.getMessage();
-
-    try {
-      const response = await callback();
-      console.log('response callback', response);
-      // const response = true;
-      if (response) {
-        channel.ack(originalMsg);
-      }
-    } catch (error) {
-      console.error(errorMessage, error.stack);
-      channel.nack(originalMsg);
-    }
-  }
-
-  @EventPattern({ cmd: 'transaction_created' })
+  @EventPattern({ cmd: 'sales_approved' })
   @Exempt()  
   async createTrans(@Payload() data: any, @Ctx() context: RmqContext) {
     // newdata {
-    //   id: '8e0a4ce4-45a5-4ec8-b163-323e253d3f1b',
-    //   date: '2025-02-18T00:00:00.000Z',
-    //   code: 'SAL/SUB/2025/1/18/001',
+    //   id: '76861a32-62eb-42cf-b471-7925401087a4',
+    //   date: '2025-02-12T00:00:00.000Z',
+    //   code: 'SAL/SUB/2025/1/12/004',
     //   transaction_type: 1,
-    //   payment_method: 1,
-    //   paid_amount: '5108220',
+    //   payment_method: 2,
+    //   paid_amount: '5108440',
     //   payment_link: null,
     //   poin_earned: 0,
     //   expired_at: null,
-    //   status: 0,
+    //   status: 1,
     //   sub_total_price: '4602000',
-    //   tax_price: '506220',
-    //   total_price: '5108220',
+    //   tax_price: '506440',
+    //   total_price: '5108440',
     //   comment: null,
     //   store_id: 'edd09595-33d4-4e81-9e88-14b47612bee9',
     //   customer_id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
     //   voucher_own_id: null,
     //   employee_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
-    //   created_at: '2025-02-18T02:09:43.599Z',
-    //   updated_at: '2025-02-18T02:09:43.599Z',
+    //   created_at: '2025-02-12T06:55:33.225Z',
+    //   updated_at: '2025-02-22T08:21:51.223Z',
     //   deleted_at: null,
-    //   transaction_details: [
+    //   approve: 1,
+    //   approve_by: null,
+    //   store: {
+    //     id: 'edd09595-33d4-4e81-9e88-14b47612bee9',
+    //     code: 'SUB',
+    //     name: 'SURABAYA',
+    //     company_id: 'bb0471e8-ba93-4edc-8dea-4ccac84bd2a2',
+    //     is_active: true,
+    //     is_flex_price: false,
+    //     is_float_price: false,
+    //     poin_config: 0,
+    //     tax_percentage: '11',
+    //     balance: '0',
+    //     created_at: '2025-02-09T14:26:48.117Z',
+    //     updated_at: '2025-02-09T14:26:48.117Z',
+    //     deleted_at: null
+    //   },
+    //   customer: {
+    //     id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
+    //     name: 'customer1',
+    //     email: 'customer@gmail.com',
+    //     phone: '089681551106',
+    //     is_verified: false,
+    //     device_token: [],
+    //     created_at: '2025-02-12T11:29:52.945Z',
+    //     updated_at: '2025-02-12T01:01:01.000Z',
+    //     deleted_at: null
+    //   },
+    //   voucher_used: null,
+    //   transaction_operations: [
     //     {
-    //       id: '311f6f56-89bc-4615-bdeb-1e1f13bab01a',
-    //       transaction_id: '8e0a4ce4-45a5-4ec8-b163-323e253d3f1b',
+    //       id: 'b8a1b5ec-c110-4b3d-a8b1-93c8963e810d',
+    //       transaction_id: '76861a32-62eb-42cf-b471-7925401087a4',
+    //       operation_id: '2702c9f8-65e1-48ed-90fe-e2ca1dfa5e74',
+    //       name: 'SUBOP001 - Reparasi',
+    //       type: 'Operation',
+    //       unit: '1',
+    //       price: '2000',
+    //       adjustment_price: '0',
+    //       total_price: '2000',
+    //       comment: null,
+    //       created_at: '2025-02-12T06:55:33.244Z',
+    //       updated_at: '2025-02-12T06:55:33.244Z',
+    //       deleted_at: null,
+    //       operation: [Object]
+    //     }
+    //   ],
+    //   transaction_products: [
+    //     {
+    //       id: '3ed073fc-07bd-41aa-9d22-49a2348d36d9',
+    //       transaction_id: '76861a32-62eb-42cf-b471-7925401087a4',
     //       product_code_id: 'e6a2dec4-076f-409a-aec6-558c76e047b0',
     //       transaction_type: 1,
     //       name: 'INS0010100010001 - Tipe A Hello Kity Cincin',
@@ -383,61 +451,133 @@ export class TransactionController {
     //       adjustment_price: '0',
     //       discount: '0',
     //       total_price: '4600000',
-    //       status: 1,
+    //       status: 2,
     //       comment: null,
-    //       created_at: '2025-02-18T02:09:43.626Z',
-    //       updated_at: '2025-02-18T02:09:43.626Z',
+    //       created_at: '2025-02-12T06:55:33.257Z',
+    //       updated_at: '2025-02-12T06:55:33.257Z',
     //       deleted_at: null,
-    //       transaction: [Object]
-    //     },
-    //     {
-    //       id: '25c00fdc-249c-4928-9a4d-7a3f7b92e94f',
-    //       transaction_id: '8e0a4ce4-45a5-4ec8-b163-323e253d3f1b',
-    //       operation_id: '2702c9f8-65e1-48ed-90fe-e2ca1dfa5e74',
-    //       name: 'SUBOP001 - Reparasi',
-    //       type: 'Operation',
-    //       unit: '1',
-    //       price: '2000',
-    //       adjustment_price: '0',
-    //       total_price: '2000',
-    //       comment: null,
-    //       created_at: '2025-02-18T02:09:43.655Z',
-    //       updated_at: '2025-02-18T02:09:43.655Z',
-    //       deleted_at: null,
-    //       transaction: [Object],
-    //       operation: 
+    //       product_code: [Object],
+    //       TransactionReview: null
     //     }
-    //   ]
+    //   ],
+    //   employee: {
+    //     id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+    //     name: 'ownera',
+    //     email: 'ownera@gmail.com',
+    //     created_at: '2025-02-12T13:33:54.629Z',
+    //     updated_at: '2025-02-12T00:00:00.000Z',
+    //     deleted_at: null
+    //   }
     // }
-    var newdata = data.data;
-    // validate new data
-    newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
-    console.log('validatedData', newdata);
+    let newdata = data.data;
 
     // SALES Trans
-    if (newdata.transaction_type == 1) {
-      await this.handleEvent(
-        context,
-        () => this.transactionService.createSales(newdata),
-        'Error processing transaction_created event',
-      )
-    }
-    // PURCHASE TRANS
-    else if (newdata.transaction_type == 2) {
-
-    }
-    // TRADE TRANS
-    else {
-
-    }
+    await this.handleEvent(
+      context,
+      async () => {
+        newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
+        const result = await this.transactionService.createSales(newdata);
+        return ResponseDto.success('Transaction Created!', result, 201);
+      },
+      'Error processing transaction_sales_approved event'
+    );
   }
 
-  @MessagePattern({ cmd: 'put:trans/*' })
-  @Describe({
-    description: 'update transaction by id',
-    fe: []
-  })
-  async update(@Payload() data: any) {
-    // return this.transactionService.update(updateTransactionDto.id, updateTransactionDto);
+  @EventPattern({ cmd: 'sales_disapproved' })
+  @Exempt()
+  async deleteTrans(@Payload() data: any, @Ctx() context: RmqContext) {
+    let deleted_data = data.data;
+    console.log('deleted_data', deleted_data);
+
+    // SALES Trans
+    await this.handleEvent(
+      context,
+      async () => {
+        // Cancel Report Journal
+        await this.reportJournalsService.deleteAll({ 
+          trans_id: deleted_data.id,
+          trans_type_code: 'SAL'
+        });
+        // Cancel Stock Sold
+        await this.reportStockService.deleteAll({
+          trans_id: deleted_data.id,
+          source_code:  'SALES'
+        });
+        return ResponseDto.success('Transaction Deleted!', {}, 200);
+      },
+      'Error processing transaction_sales_approved event'
+    );
+
   }
+  
+  // PURCHASE GOODS
+  @EventPattern({ cmd: 'product_code_generated' })
+  @Exempt()
+  async handleProductCodeCreated(@Payload() data: any, @Ctx() context: RmqContext) {
+    console.log('generated product', data);
+    // generated product {
+    //   id: '3650376a-3800-484f-9c7c-2acea4cf7121',
+    //   barcode: 'CHER0010100010006',
+    //   product_id: '87958f93-183e-44af-bd5c-51ad8baa4391',
+    //   weight: '12',
+    //   fixed_price: '100000',
+    //   status: 0,
+    //   buy_price: '123',
+    //   created_at: '2025-02-21T15:37:29.964Z',
+    //   updated_at: '2025-02-21T15:37:29.964Z',
+    //   deleted_at: null,
+    //   product: {
+    //     id: '87958f93-183e-44af-bd5c-51ad8baa4391',
+    //     code: 'CHER001010001',
+    //     name: 'Gelang Hello Kitty Biru',
+    //     description: 'kjh',
+    //     images: [ 'uploads\\product\\9ff93394-482a-4586-8c56-af9c9bea7bb5.png' ],
+    //     status: 1,
+    //     type_id: 'd69d62c7-5a16-4b8d-9aab-081055ea1c34',
+    //     store_id: 'e344156f-49d6-4179-87b9-03d22cc18ebf',
+    //     created_at: '2025-02-19T08:35:31.340Z',
+    //     updated_at: '2025-02-19T08:35:31.340Z',
+    //     deleted_at: null,
+    //     type: {
+    //       id: 'd69d62c7-5a16-4b8d-9aab-081055ea1c34',
+    //       code: 'CHER00101',
+    //       name: 'Hello Kitty',
+    //       description: 'gelang hello kitty',
+    //       category_id: 'de069412-d0da-4518-8a6d-e1368d2076d4',
+    //       created_at: '2025-02-19T08:33:06.933Z',
+    //       updated_at: '2025-02-19T08:33:06.933Z',
+    //       deleted_at: null,
+    //       prices: [Array],
+    //       category: [Object]
+    //     },
+    //     store: {
+    //       id: 'e344156f-49d6-4179-87b9-03d22cc18ebf',
+    //       code: 'SUBCH',
+    //       name: 'Surabaya Cabang',
+    //       is_active: true,
+    //       is_flex_price: false,
+    //       is_float_price: false,
+    //       tax_percentage: '2',
+    //       company_id: 'e043ef91-9501-4b2e-8a08-3424174eef23',
+    //       created_at: '2025-02-19T08:32:10.258Z',
+    //       updated_at: '2025-02-19T08:32:10.258Z',
+    //       deleted_at: null,
+    //       company: [Object]
+    //     }
+    //   }
+    // }
+    await this.handleEvent(
+      context,
+      async () => {
+        const result = await this.transactionService.buyProduct(data);
+        return ResponseDto.success('Product Code Created!', result, 200);
+      },
+      'Error processing product_code_generated event',
+    );
+  }
+
+  // PURCHASE FROM CUSTOMER
+  // TRADE TRANS
+
+
 }

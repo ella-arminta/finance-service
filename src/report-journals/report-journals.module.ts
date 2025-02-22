@@ -6,5 +6,6 @@ import { ReportValidation } from './report-journals.validation';
 @Module({
   controllers: [ReportController],
   providers: [ReportService, ReportValidation],
+  exports: [ReportService]
 })
 export class ReportModule {}

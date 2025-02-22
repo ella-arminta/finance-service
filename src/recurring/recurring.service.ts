@@ -42,7 +42,7 @@ export class RecurringService extends BaseService<Trans_Recurring> {
                     ...updatedTrans,
                     }
                 });
-                console.log('udpatedTrans', trans);
+                // console.log('udpatedTrans', trans);
                 // Update the transaction details
                 // delete all transaction details before
                 const prevTransDetails = await this.db.trans_Details_Recurring.deleteMany({
@@ -57,7 +57,7 @@ export class RecurringService extends BaseService<Trans_Recurring> {
                         ...account
                     })),
                 });
-                console.log('updated TransDetails', transDetails);
+                // console.log('updated TransDetails', transDetails);
             });
 
             return result;

@@ -85,10 +85,9 @@ export class AccountsController {
   async findAll(@Payload() data: any) {
     const params = data.params;
     var filters =  data.body || {};
-    console.log('data', data);
-    // if (params.user.company) {
-    //   filters.company_id = { in: params.user.company };
-    // }
+    // console.log('data', data);
+    filters.company_id = filters.auth.company_id;
+
     if (filters.account_type_id) {
       try {
         filters.account_type_id = parseInt(filters.account_type_id);

@@ -7,10 +7,68 @@ export class ReportStockValidation {
   ) { }
 
   readonly CREATE: ZodType = z.object({
-    company_id: z.string().uuid(),
-    store_id: z.string().uuid(),
-    start_date: z.string(),
-    end_date: z.string(),
+    product: z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+      code: z.string(),
+      store: z.object({
+        id: z.string().uuid(),
+        name: z.string(),
+        code: z.string(), // Added `store_code`
+        company: z.object({
+          id: z.string().uuid(),
+          name: z.string(),
+          code: z.string(),
+        }),
+      }),
+      type: z.object({
+        id: z.string().uuid(),
+        name: z.string(),
+        code: z.string(),
+        category_id: z.string().uuid(),
+        category: z.object({
+          id: z.string().uuid(),
+          name: z.string(),
+          code: z.string(),
+        }),
+      }),
+    }),
+    id: z.string().uuid(),
+    barcode: z.string(),
+    weight: z.preprocess(
+      (val) => {
+        if (typeof val === "string") {
+          const num = parseFloat(val);
+          return isNaN(num) ? undefined : num; // Convert valid strings to decimal
+        } else if (typeof val === "number") {
+          return val; // Return if already a number
+        }
+        return undefined; // Trigger Zod error for invalid types
+      },
+      z.number() // Ensure the final value is a valid number
+    ),
+    buy_price: z.preprocess(
+      (val) => {
+        if (typeof val === "string") {
+          const num = parseFloat(val);
+          return isNaN(num) ? undefined : num; // Convert valid strings to decimal
+        } else if (typeof val === "number") {
+          return val; // Return if already a number
+        }
+        return undefined; // Trigger Zod error for invalid types
+      },
+      z.number() // Ensure the final value is a valid number
+    ),
+    created_at: z.preprocess(
+      (val) => {
+        if (typeof val === "string") {
+          const date = new Date(val);
+          return isNaN(date.getTime()) ? undefined : date; // Ensure valid Date
+        }
+        return val;
+      },
+      z.date().optional()
+    ),
   });
 
   readonly FILTER: ZodType = z.object({

@@ -7,11 +7,13 @@ import { Prisma } from '@prisma/client';
 import { filter } from 'rxjs';
 import { ResponseDto } from 'src/common/response.dto';
 import { TransAccountSettingsService } from 'src/trans-account-settings/trans-account-settings.service';
+import { ReportStocksService } from 'src/report-stocks/report-stocks.service';
 
 @Injectable()
 export class TransactionService extends BaseService<Trans> {
   constructor(
     db: DatabaseService,
+    private readonly reportStockService: ReportStocksService,
     private readonly transAccountSettingsServ: TransAccountSettingsService,
   ) {
     const relations = {
@@ -378,24 +380,23 @@ export class TransactionService extends BaseService<Trans> {
       })
     }
     // Details / Journal Entry
-    data.transaction_details.forEach(det => {
-      // Sales Operation
-      if ("operation_id" in det) {
-        transDetailsFormated.push({
-          account_id: det.operation.account_id,
-          account_name: det.operation.account.name,
-          amount: Math.abs(det.total_price) * -1,
-          detail_description: det.name,
-          cash_bank: false,
-          account_code: det.operation.account.code
-        })
-      }
-      // Sales Emas
-      else {
-        salesEmasTotal += (Math.abs(det.total_price) + Math.abs(det.discount)) * -1;
-        diskonTotal += Math.abs(det.discount);
-      }
+    // Sales Operation
+    data.transaction_operations.forEach(det => {
+      transDetailsFormated.push({
+        account_id: det.operation.account_id,
+        account_name: det.operation.account.name,
+        amount: Math.abs(det.total_price) * -1,
+        detail_description: det.name,
+        cash_bank: false,
+        account_code: det.operation.account.code
+      })
     })
+    // Sales Emas 
+    data.transaction_products.forEach(det => {
+      salesEmasTotal += (Math.abs(det.total_price) + Math.abs(det.discount)) * -1;
+      diskonTotal += Math.abs(det.discount);
+    })
+
     // Journal entry sales emas
     const goldSalesAccount = await this.transAccountSettingsServ.getGoldSalesAccount(data);
     transDetailsFormated.push({
@@ -448,28 +449,36 @@ export class TransactionService extends BaseService<Trans> {
 
     // CREATE TRANSACTION
     var reportJournal;
+    var reportStock;
     try {
-      console.log('transType', transType)
-      reportJournal = await this.db.report_Journals.createMany({
-        data: transDetailsFormated.map(row => ({
-          trans_id: data.id,
-          code: data.code,
-          company_id: store.company_id,
-          company_name: store.company.name,
-          store_id: store.id,
-          store_name: store.name,
-          trans_date: data.created_at,
-          trans_type_id: transType.id, // SALES
-          trans_type_code: transType.code,
-          trans_type_name: transType.name,
-          description: data.description,
-          account_id: row.account_id,
-          account_name: row.account_name,
-          account_code: row.account_code,
-          amount: row.amount,
-          detail_description: row.detail_description,
-          cash_bank: row.cash_bank,
-        })),
+      await this.db.$transaction(async (prisma) => {
+        // Insert report journal entries
+        reportJournal = await prisma.report_Journals.createMany({
+          data: transDetailsFormated.map(row => ({
+            trans_id: data.id,
+            code: data.code,
+            company_id: store.company_id,
+            company_name: store.company.name,
+            company_code: store.company.code,
+            store_id: store.id,
+            store_name: store.name,
+            store_code: store.code,
+            trans_date: data.created_at,
+            trans_type_id: transType.id, // SALES
+            trans_type_code: transType.code,
+            trans_type_name: transType.name,
+            description: data.description,
+            account_id: row.account_id,
+            account_name: row.account_name,
+            account_code: row.account_code,
+            amount: row.amount,
+            detail_description: row.detail_description,
+            cash_bank: row.cash_bank,
+          })),
+        });
+
+        // Call handleSoldStock inside the transaction
+        reportStock = await this.reportStockService.handleSoldStock(data);
       });
     } catch (error) {
       console.error('Error creating sales transaction:', error);
@@ -477,5 +486,16 @@ export class TransactionService extends BaseService<Trans> {
     }
 
     return reportJournal;
+  }
+
+  // BUY PRODUCT
+  async buyProduct(data: any) {
+    // Persediaan Barang Dagang    (D) Rp10.000.000  
+    // PPN Masukan                 (D) Rp1.000.000  
+    //       Kas/Bank/Utang Dagang            (K) Rp11.000.000  
+    
+    // Signal Stock In 
+    var stockIn = await this.reportStockService.handleBuyStock(data);
+    return stockIn;
   }
 }
