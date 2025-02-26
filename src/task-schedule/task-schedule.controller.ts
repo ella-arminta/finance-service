@@ -27,11 +27,25 @@ export class TaskScheduleController {
   @MessagePattern({cmd: 'get:gold-price' })
   @Describe({
     description: 'Get gold price',
-    fe: []
+    fe: [
+      'home:open'
+    ]
   })
   async getGoldPrice(@Payload() data: any) {
     const filter = data.body;
     const goldPrice = await this.taskScheduleService.getGoldPrice(filter);
     return ResponseDto.success('Gold price',goldPrice);
+  }
+
+  @MessagePattern({cmd: 'get:current-gold-price' })
+  @Describe({
+    description: 'Get current gold price',
+    fe: [
+      'home:open'
+    ]
+  })
+  async getCurrentGoldPrice(@Payload() data: any) {
+    const currentGoldPrice = await this.taskScheduleService.getCurrentGoldPrice();
+    return ResponseDto.success('Current gold price',currentGoldPrice);
   }
 }

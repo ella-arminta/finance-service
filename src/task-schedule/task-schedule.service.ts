@@ -12,7 +12,7 @@ export class TaskScheduleService {
         private readonly db: DatabaseService,
     ) { }
 
-    @Cron('50 11 * * *', {
+    @Cron('*/10 * * * *', {
         timeZone: 'Asia/Jakarta',
     })
     async handleCron() {
@@ -25,6 +25,7 @@ export class TaskScheduleService {
     }
 
     async scrapeDataGold(): Promise<any> {
+        console.log('scraping gold value...');
         const url = 'https://anekalogam.co.id/id';
 
         try {
@@ -88,6 +89,14 @@ export class TaskScheduleService {
                     lte: filter.end_date ? new Date(filter.end_date) : undefined,
                 },
             },    
+            orderBy: {
+                created_at: 'asc',
+            },
+        });
+    }
+
+    async getCurrentGoldPrice() {
+        return this.db.goldPrice.findFirst({
             orderBy: {
                 created_at: 'desc',
             },

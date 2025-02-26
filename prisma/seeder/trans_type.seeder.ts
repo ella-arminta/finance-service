@@ -9,10 +9,11 @@ async function main() {
       { name: 'Uang keluar lain', code: "UKL", created_at: new Date(), updated_at: new Date(), id: 1 },
       { name: 'Uang masuk lain', code: "UML", created_at: new Date(), updated_at: new Date(), id: 2 },
       { name: 'Sales', code: "SAL", created_at: new Date(), updated_at: new Date(), id: 3 },
-      { name: 'Purchase', code: "PUR", created_at: new Date(), updated_at: new Date(), id: 4 },
+      { name: 'Purchase', code: "PUR", created_at: new Date(), updated_at: new Date(), id: 4 }, // purchase customer
       { name: 'Barang masuk dasaran', code: "MD", created_at: new Date(), updated_at: new Date(), id: 5 },
       { name: 'Barang keluar dasaran', code: "KD", created_at: new Date(), updated_at: new Date(), id: 6 },
       { name: 'Tukar tambah', code: "TT", created_at: new Date(), updated_at: new Date(), id: 7 },
+      { name: 'Purchase from Supplier', code: "PURSUP", created_at: new Date(), updated_at: new Date(), id: 8 }, // purchase supplier
     ],
     skipDuplicates: true,
   });

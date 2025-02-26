@@ -621,6 +621,32 @@ export class AccountsService extends BaseService<Accounts> {
         }
       });
     }
+    // Set persediaan account
+    var persediaan = await this.db.accounts.findFirst({
+      where: {
+        name: {
+          startsWith: 'PERSEDIAAN'
+        },
+        store_id: store_id
+      }
+    })
+    if (persediaan) {
+      this.db.trans_Account_Settings.create({
+        data: {
+          store: {
+            connect: { id: store_id }
+          },
+          company: {
+            connect: {id: store.company_id}
+          },
+          account: {
+            connect: {id: persediaan.id}
+          },
+          description: 'Default Persediaan ' + store.name,
+          action: 'persediaan'
+        }
+      });
+    }
     return result;
   }
 }

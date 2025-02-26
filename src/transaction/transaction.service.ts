@@ -422,7 +422,7 @@ export class TransactionService extends BaseService<Trans> {
       })
     }
     // PIUTANG
-    if (data.status == 0) {
+    if (data.status == 0) { // draft / pending
       const piutangAccount = await this.transAccountSettingsServ.getPiutangAccount(data);
       transDetailsFormated.push({
         account_id: piutangAccount.account_id,
@@ -433,7 +433,7 @@ export class TransactionService extends BaseService<Trans> {
         account_code: piutangAccount.account.code
       })
     }
-    // CASH
+    // status: paid / done
     else {
       // payment_method   Int // 1: Cash, 2: Bank Transfer, 3: Credit Card, 4: Debit Card
       const PaymentMethodAccount = await this.transAccountSettingsServ.getPaymentMethodAccount(data);
@@ -493,9 +493,129 @@ export class TransactionService extends BaseService<Trans> {
     // Persediaan Barang Dagang    (D) Rp10.000.000  
     // PPN Masukan                 (D) Rp1.000.000  
     //       Kas/Bank/Utang Dagang            (K) Rp11.000.000  
+  
+    // console.log('buyProduct',data);
+    // buyProduct {
+    //   id: '0c5fd3ec-50fc-4f6d-b311-2f403d009a9d',
+    //   barcode: 'CHER0010100010009',
+    //   product_id: '87958f93-183e-44af-bd5c-51ad8baa4391',
+    //   weight: '12',
+    //   fixed_price: '100000',
+    //   status: 0,
+    //   taken_out_at: null,
+    //   buy_price: '100000',
+    //   tax_purchase: '13000',
+    //   created_at: '2025-02-23T13:19:20.806Z',
+    //   updated_at: '2025-02-23T13:19:20.806Z',
+    //   deleted_at: null,
+    //   product: {
+    //     id: '87958f93-183e-44af-bd5c-51ad8baa4391',
+    //     code: 'CHER001010001',
+    //     name: 'Gelang Hello Kitty Biru',
+    //     description: 'kjh',
+    //     images: [ 'uploads\\product\\9ff93394-482a-4586-8c56-af9c9bea7bb5.png' ],
+    //     status: 1,
+    //     type_id: 'd69d62c7-5a16-4b8d-9aab-081055ea1c34',
+    //     store_id: 'e344156f-49d6-4179-87b9-03d22cc18ebf',
+    //     created_at: '2025-02-19T08:35:31.340Z',
+    //     updated_at: '2025-02-19T08:35:31.340Z',
+    //     deleted_at: null,
+    //     type: {
+    //       id: 'd69d62c7-5a16-4b8d-9aab-081055ea1c34',
+    //       code: 'CHER00101',
+    //       name: 'Hello Kitty',
+    //       description: 'gelang hello kitty',
+    //       category_id: 'de069412-d0da-4518-8a6d-e1368d2076d4',
+    //       created_at: '2025-02-19T08:33:06.933Z',
+    //       updated_at: '2025-02-19T08:33:06.933Z',
+    //       deleted_at: null,
+    //       category: [Object]
+    //     }
+    //   }
+    // }
+    const store = await this.db.stores.findFirst({
+      where: {
+        id: data.product.store_id
+      },
+      include: { company: true }
+    });
+    const transType = await this.db.trans_Type.findUnique({ where: { code: 'PURSUP' } });
+    var transDetailsFormated = [];
+    const inventoryAccount = await this.transAccountSettingsServ.getInventoryAccount(data);
+    transDetailsFormated.push({
+      account_id: inventoryAccount.account_id,
+      account_name: inventoryAccount.account.name,
+      amount: Math.abs(parseFloat(data.buy_price)),
+      detail_description: 'Persediaan Barang Dagang',
+      cash_bank: false,
+      account_code: inventoryAccount.account.code
+    })
+    const taxAccount = await this.transAccountSettingsServ.getTaxAccount(data);
+    transDetailsFormated.push({
+      account_id: taxAccount.account_id,
+      account_name: taxAccount.account.name,
+      amount: Math.abs(parseFloat(data.tax_purchase)),
+      detail_description: 'PPN Masukan',
+      cash_bank: false,
+      account_code: taxAccount.account.code
+    })
+    const kasBankAccount = await this.db.accounts.findFirst({
+      where: {
+        id: data.account_id
+      }
+    })
+    transDetailsFormated.push({
+      account_id: kasBankAccount.id,
+      account_name: kasBankAccount.name,
+      amount: (Math.abs(parseFloat(data.tax_purchase)) + Math.abs(parseFloat(data.buy_price))) * -1,
+      detail_description: 'Pembelian ' + data.product.name,
+      cash_bank: true,
+      account_code: kasBankAccount.code
+    })
+
+    const generatedCode = await this.getTransCode(transType, data.store_id);
+
+    // CREATE TRANSACTION
+    var reportJournal;
+    var stockIn;
+    try {
+      await this.db.$transaction(async (prisma) => {
+        // Insert report journal entries
+        reportJournal = await prisma.report_Journals.createMany({
+          data: transDetailsFormated.map(row => ({
+            trans_id: null,
+            code: generatedCode,
+            company_id: store.company_id,
+            company_name: store.company.name,
+            company_code: store.company.code,
+            store_id: store.id,
+            store_name: store.name,
+            store_code: store.code,
+            trans_date: data.created_at,
+            trans_type_id: transType.id,
+            trans_type_code: transType.code,
+            trans_type_name: transType.name,
+            description: 'Pembelian ' + data.product.name,
+            account_id: row.account_id,
+            account_name: row.account_name,
+            account_code: row.account_code,
+            amount: row.amount,
+            detail_description: row.detail_description,
+            cash_bank: row.cash_bank,
+          })),
+        });
+        // Signal Stock In 
+        stockIn = await this.reportStockService.handleBuyStock(data);
+      });
+    } catch (error) {
+      console.error('Error creating sales transaction:', error);
+      throw new Error(`Error creating sales transaction: ${error.message}`);
+    }
     
-    // Signal Stock In 
-    var stockIn = await this.reportStockService.handleBuyStock(data);
-    return stockIn;
+    return reportJournal;
+  }
+
+  async cancelBuyProduct(data) {
+
   }
 }

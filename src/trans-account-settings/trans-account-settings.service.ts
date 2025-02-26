@@ -214,10 +214,11 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
         return piutangAccount;
     }
 
+    //TODOELLA BUTUH LIHAT LAGI INI ASUMSI SOALNYA , GIMANA KALO MISAL TAX NYA ADA STORE_IDNYA
     async getTaxAccount(data: any) {
         var taxAccount = await this.db.trans_Account_Settings.findFirst({
             where: {
-                store_id: null,
+                store_id: data.store.id,
                 company_id: data.store.company_id,
                 action: 'tax'
             },
@@ -258,6 +259,9 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 data: {
                     company: {
                         connect: { id: data.store.company_id }
+                    },
+                    store: {
+                        connect: { id: data.store.id }
                     },
                     account: {
                         connect: { id: newAccount.id }
@@ -355,5 +359,69 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
         }
 
         return paymentMethodAccount;
+    }
+
+    async getInventoryAccount(data) {
+        data.store = await this.db.stores.findUnique({
+            where: {
+                id: data.product.store_id
+            }
+        });
+        var inventoryAccount = await this.db.trans_Account_Settings.findFirst({
+            where: {
+                store_id: data.product.store_id,
+                company_id: data.store.company_id,
+                action: 'persediaan'
+            },
+            include: {
+                account: true
+            }
+        });
+
+        if (!inventoryAccount) {
+            // Create new tax account
+            var lastCodeForInventory = await this.db.accounts.findMany({
+                where: {
+                    company_id: data.store.company_id,
+                    account_type_id: 1
+                },
+                orderBy: {
+                    code: 'desc'
+                }
+            });
+            var codeStock = 11001;
+            if (lastCodeForInventory.length > 0) {
+                var lastCode = lastCodeForInventory[0].code;
+                codeStock = lastCode + 1;
+            }
+            const newAccount = await this.db.accounts.create({
+                data: {
+                    code: codeStock,
+                    name: 'PERSEDIAAN ' + data.store.name,
+                    account_type: { connect: { id: 1 } },
+                    description: 'Akun persediaan toko ',
+                    company: { connect: { id: data.store.company_id } },
+                    deactive: false,
+                    // created_by: data.employee_id
+                }
+            });
+            // Assign
+            inventoryAccount = await this.db.trans_Account_Settings.create({
+                data: {
+                    company: {
+                        connect: { id: data.store.company_id }
+                    },
+                    account: {
+                        connect: { id: newAccount.id }
+                    },
+                    description: 'Default Akun persediaan toko ' + data.store.name,
+                    action: 'persediaan'
+                },
+                include: {
+                    account: true
+                }
+            });
+        }
+        return inventoryAccount;
     }
 }

@@ -51,4 +51,63 @@ export class ReportController {
         return ResponseDto.error('Failed to generate PDF', error, 500);
       }
     }
+
+    // Ledger
+    @MessagePattern({ cmd: 'get:trial-balance'})
+    @Describe({
+        description: 'Get Trial Balance',
+        fe: [
+          'finance/trial-balance:open'
+        ]
+    })
+    async trialBalance(@Payload() data: any) {
+      const params = data.params;
+      const filters = data.body;
+      const userId = params.user.id;
+      console.log('filters',filters);
+
+      // Change Filter Date Format
+      if (filters.dateStart != null) {
+        filters.dateStart = new Date(filters.dateStart);
+      }
+      if (filters.dateEnd != null) {
+        var endDate = new Date(filters.dateEnd);
+        endDate.setHours(23, 59, 59, 0); // Sets time to 23:59:59.000
+        filters.dateEnd = endDate;
+      }
+      
+      const datas =  await this.reportService.getTrialBalance(filters);
+      return ResponseDto.success('Data Retrieved!', datas, 200);
+    }
+    
+    @MessagePattern({ cmd: 'get:ledger'})
+    @Describe({
+        description: 'Get Ledger',
+        fe: [
+          'finance/general-ledger/detail:open',
+          'finance/general-ledger:detail',
+        ]
+    })
+    async ledgerDetail(@Payload() data: any) {
+      const params = data.params;
+      const filters = data.body;
+      const userId = params.user.id;
+
+      // Change Filter Date Format
+      if (filters.dateStart != null) {
+        filters.dateStart = new Date(filters.dateStart);
+      }
+      if (filters.dateEnd != null) {
+        var endDate = new Date(filters.dateEnd);
+        endDate.setHours(23, 59, 59, 0); // Sets time to 23:59:59.000
+        filters.dateEnd = endDate;
+      }
+
+      // filters.account_id = data.params.id;
+      console.log(params);
+
+      const datas =  await this.reportService.getLedger(filters);
+
+      return ResponseDto.success('Data Retrieved!', datas, 200);
+    }
 }

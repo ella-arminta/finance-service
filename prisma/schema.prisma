@@ -257,6 +257,7 @@ model Recurring_Period {
 }
 
 // Accounts used for transactions
+// Notes: PPN dibayar = PPN keluar(kredit) - PPN Masukan(debit)
 model Trans_Account_Settings {
   id Int   @default(autoincrement()) @id
   store_id String? @db.Uuid
@@ -297,7 +298,7 @@ model Report_Journals {
   detail_description String?
   cash_bank Boolean @default(false) // true = Cash/Bank Account, false = Destination Account
 
-  @@index([code, company_id, store_id, trans_id])
+  @@index([code, company_id, store_id, trans_id, account_id, trans_date])
 }
 
 model Stock_Source {
@@ -311,7 +312,7 @@ model Stock_Source {
 
 model Report_Stocks {
   id                String       @id @default(uuid()) @db.Uuid
-  company_id        String       @db.Uuid
+  company_id        String       @db.Uuid // TODOELLA company_id dihapus saja bahaya duplikasi
   company_code      String
   company_name      String
   store_id          String       @db.Uuid
@@ -341,4 +342,34 @@ model Report_Stocks {
   store             Stores        @relation(fields: [store_id], references: [id])
 }
 
-// duplicate ke piutang / hutang
+// Hutang
+model Report_Payable {
+  id String @id @db.Uuid @default(uuid())
+  store_id String @db.Uuid
+  created_at DateTime @default(now())
+  record_type String  // Nota beli / Nota bayar beli
+  trans_code String
+  trans_date DateTime
+  due_date DateTime
+  amount Decimal
+  payment_id String? @db.Uuid
+  payment_code String?
+  payment_date DateTime?
+  payment_amount Decimal?
+}
+
+// Piutang
+model Report_Receivable {
+  id String @id @db.Uuid @default(uuid())
+  store_id String @db.Uuid
+  created_at DateTime @default(now())
+  record_type String  // Nota beli / nota bayar
+  trans_code String
+  trans_date DateTime
+  due_date DateTime
+  amount Decimal
+  payment_id String? @db.Uuid
+  payment_code String?
+  payment_date DateTime?
+  payment_amount Decimal?
+}

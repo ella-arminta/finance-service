@@ -245,4 +245,129 @@ export class ReportService extends BaseService<Report_Journals> {
             return '(' + amountFormated + ' )';
         }
     };
+
+    // Ledger 
+    async getTrialBalance(data: any) {
+        let query = `
+        SELECT 
+            a.code,
+            rj.account_id as id, 
+            a.name, 
+            SUM(CASE WHEN rj.amount >= 0 THEN rj.amount ELSE 0 END) AS debit, 
+            SUM(CASE WHEN rj.amount < 0 THEN rj.amount ELSE 0 END) AS credit, 
+            SUM(rj.amount) AS balance
+        FROM "Report_Journals" rj  
+        JOIN "Accounts" a ON rj.account_id = a.id  
+        JOIN "Stores" s ON rj.store_id = s.id
+        JOIN "Companies" c ON s.company_id = c.id
+        `;
+    
+        // Build the WHERE clause conditions and parameters
+        const conditions: string[] = [];
+        const params: any[] = [];
+    
+        if (data.dateStart) {
+            conditions.push(`rj.trans_date > $${params.length + 1}`);
+            params.push(data.dateStart);
+        }
+    
+        if (data.dateEnd) {
+            conditions.push(`rj.trans_date <= $${params.length + 1}`);
+            params.push(data.dateEnd);
+        }
+    
+        if (data.company_id) {
+            const companyId = data.company_id.replace(/^"|"$/g, ''); // Removes leading/trailing double quotes
+            conditions.push(`s.company_id = $${params.length + 1}::uuid`);
+            params.push(companyId);
+        }        
+    
+        if (data.store_id) {
+            conditions.push(`rj.store_id = $${params.length + 1}::uuid`);
+            params.push(data.store_id);
+        }
+
+        // Store with owner_id tersebut
+        conditions.push(`c.owner_id = $${params.length + 1}::uuid`);
+        params.push(data.owner_id);
+    
+        // Append the WHERE clause if there are any conditions
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+    
+        // Append GROUP BY
+        query += ' GROUP BY rj.account_id, a.name, a.code';
+    
+        // console.log("Final Query:", query);
+        // console.log("Parameters:", params);
+
+        const result = await this.db.$queryRawUnsafe(query, ...params);
+    
+        return result;
+    }
+    async getLedger(data:any) {
+        let query = `
+          SELECT 
+            a.code as infoacc,
+            a.name as account_name,
+            rj.trans_date  as date,
+            rj.code as code,
+            rj.detail_description as description,
+            CASE WHEN rj.amount >= 0 THEN rj.amount ELSE 0 END AS debit, 
+            CASE WHEN rj.amount < 0 THEN rj.amount ELSE 0 END AS credit, 
+            rj.amount AS balance
+        from "Report_Journals" rj 
+        join "Accounts" a on rj.account_id  = a.id 
+        join "Stores" s on rj.store_id = s.id
+        join "Companies" c on s.company_id = c.id
+        `;
+
+        // Build the WHERE clause conditions and parameters
+        const conditions: string[] = [];
+        const params: any[] = [];
+    
+        if (data.dateStart) {
+            conditions.push(`rj.trans_date > $${params.length + 1}`);
+            params.push(data.dateStart);
+        }
+    
+        if (data.dateEnd) {
+            conditions.push(`rj.trans_date <= $${params.length + 1}`);
+            params.push(data.dateEnd);
+        }
+    
+        if (data.company_id) {
+            const companyId = data.company_id.replace(/^"|"$/g, ''); // Removes leading/trailing double quotes
+            conditions.push(`s.company_id = $${params.length + 1}::uuid`);
+            params.push(companyId);
+        }        
+    
+        if (data.store_id) {
+            conditions.push(`rj.store_id = $${params.length + 1}::uuid`);
+            params.push(data.store_id);
+        }
+
+        if (data.account_id) {
+            conditions.push(`rj.account_id = $${params.length + 1}::uuid`);
+            params.push(data.account_id);
+        }
+    
+        // Append the WHERE clause if there are any conditions
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+
+        // Store with owner_id tersebut
+        conditions.push(`c.owner_id = $${params.length + 1}::uuid`);
+        params.push(data.owner_id);
+
+        // console.log("Final Query:", query);
+        // console.log("Parameters:", params);
+
+        const result = await this.db.$queryRawUnsafe(query, ...params);
+    
+        return result;
+    }
+      
 }

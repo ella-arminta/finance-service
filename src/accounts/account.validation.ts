@@ -36,6 +36,8 @@ export class AccountValidation {
     store_id: z.string().uuid().optional().nullable(),
     company_id: z.any().optional().nullable(),
     deactive: z.boolean().optional().nullable(),
+    OR: z.array(z.any()).optional().nullable(),
+    company: z.any().optional().nullable(),
   });
 
   readonly UPDATE: ZodType = z.object({
