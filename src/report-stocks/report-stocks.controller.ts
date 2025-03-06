@@ -1,12 +1,13 @@
 import { Controller } from '@nestjs/common';
 import { ReportStocksService } from './report-stocks.service';
-import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
+import { Ctx, EventPattern, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import { Exempt } from 'src/decorator/exempt.decorator';
 import { ReportStockValidation } from './report-stocks.validation';
 import { ValidationService } from 'src/common/validation.service';
 import { LoggerService } from 'src/common/logger.service';
 import { StockSourceService } from './stock-source.service';
 import { ResponseDto } from 'src/common/response.dto';
+import { Describe } from 'src/decorator/describe.decorator';
 
 @Controller()
 export class ReportStocksController {
@@ -52,6 +53,28 @@ export class ReportStocksController {
         channel.nack(originalMsg, false, false);
       }
     }
+  }
+
+  @MessagePattern({ cmd: 'get:stock-card' })
+  @Describe({
+      description: 'Get stock card',
+      fe: ['finance/stock-card:open'],
+  })
+  async getStockCard(@Payload() data: any): Promise<ResponseDto> {
+      const filters = data.body;
+
+      if (filters.dateStart != null) {
+        filters.dateStart = new Date(filters.dateStart);
+      }
+      if (filters.dateEnd != null) {
+        var endDate = new Date(filters.dateEnd);
+        endDate.setHours(23, 59, 59, 0); // Sets time to 23:59:59.000
+        filters.dateEnd = endDate;
+      }
+
+      const result = await this.reportStocksService.getStockCard(filters);
+      console.log('result', result);
+      return result;
   }
 
 }

@@ -352,15 +352,16 @@ export class ReportService extends BaseService<Report_Journals> {
             conditions.push(`rj.account_id = $${params.length + 1}::uuid`);
             params.push(data.account_id);
         }
+        
+        // Store with owner_id tersebut
+        conditions.push(`c.owner_id = $${params.length + 1}::uuid`);
+        params.push(data.owner_id);
     
         // Append the WHERE clause if there are any conditions
         if (conditions.length > 0) {
             query += ' WHERE ' + conditions.join(' AND ');
         }
 
-        // Store with owner_id tersebut
-        conditions.push(`c.owner_id = $${params.length + 1}::uuid`);
-        params.push(data.owner_id);
 
         // console.log("Final Query:", query);
         // console.log("Parameters:", params);

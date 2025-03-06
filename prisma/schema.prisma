@@ -312,32 +312,27 @@ model Stock_Source {
 
 model Report_Stocks {
   id                String       @id @default(uuid()) @db.Uuid
-  company_id        String       @db.Uuid // TODOELLA company_id dihapus saja bahaya duplikasi
-  company_code      String
-  company_name      String
   store_id          String       @db.Uuid
-  store_code        String
-  store_name        String
   source_id         Int
-  source_code       String?
-  source_name       String
   trans_id          String?      @db.Uuid
   trans_code        String?
   trans_date        DateTime    // product created_at
   category_id       String       @db.Uuid
-  category_code     String
-  category_name     String
+  category_code     String?
+  category_name     String?
   type_id           String       @db.Uuid
-  type_code         String
-  type_name         String
+  type_code         String?
+  type_name         String?
   product_id        String       @db.Uuid
-  product_name      String
-  product_code_code String // barcode
+  product_name      String?
+  product_code_code String? // barcode
   product_code_id   String       @db.Uuid
   weight            Decimal      @db.Decimal
   price             Decimal      @db.Decimal // INSTOCK -> buy price, SALES -> fixed price
   total_price       Decimal?      @db.Decimal // SALES -> total_price
-  
+  qty               Int         @default(1)
+  created_at        DateTime    @default(now())
+  created_by        String?       @db.Uuid
   source            Stock_Source @relation(fields: [source_id], references: [id])
   store             Stores        @relation(fields: [store_id], references: [id])
 }

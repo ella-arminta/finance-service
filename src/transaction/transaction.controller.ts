@@ -44,12 +44,12 @@ export class TransactionController {
     } catch (error) {
       console.error(`${errorMessage}. Retry attempt: ${retryCount}`, error.stack);
 
-      // Simpan log error ke file
-      this.loggerService.logErrorToFile(errorMessage, error);
-
+      
       if (retryCount >= maxRetries) {
         console.error(`Max retries (${maxRetries}) reached. Logging error and acknowledging message.`);
-        channel.ack(originalMsg);
+        // Simpan log error ke file
+        this.loggerService.logErrorToFile(errorMessage, error);
+        // channel.ack(originalMsg);
       } else {
         console.warn(`Retrying message (${retryCount}/${maxRetries})...`);
         channel.sendToQueue(originalMsg.fields.routingKey, originalMsg.content, {
@@ -501,7 +501,7 @@ export class TransactionController {
         // Cancel Stock Sold
         await this.reportStockService.deleteAll({
           trans_id: deleted_data.id,
-          source_code:  'SALES'
+          source_id: 3
         });
         return ResponseDto.success('Transaction Deleted!', {}, 200);
       },

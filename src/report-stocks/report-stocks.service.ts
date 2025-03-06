@@ -5,6 +5,8 @@ import { DatabaseService } from 'src/database/database.service';
 import { StockSourceService } from './stock-source.service';
 import { ReportStockValidation } from './report-stocks.validation';
 import { ValidationService } from 'src/common/validation.service';
+import { ResponseDto } from 'src/common/response.dto';
+import { filter } from 'cheerio/dist/commonjs/api/traversing';
 
 @Injectable()
 export class ReportStocksService extends BaseService<Report_Stocks> {
@@ -71,15 +73,8 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 //     }
                 //   }
                 const mappedData = {
-                    company_id: data.store.company_id,
-                    company_code: data.store.company.code,
-                    company_name: data.store.company.name,
                     store_id : data.store.id,
-                    store_code : data.store.code,
-                    store_name: data.store.name,
                     source_id: source.id,
-                    source_code: source.code,
-                    source_name : source.name,
                     trans_id : data.id,
                     trans_code: data.code,
                     trans_date: new Date(data.created_at),
@@ -96,6 +91,8 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     weight : parseFloat(prod.product_code.weight),
                     total_price  : parseFloat(prod.total_price),
                     price: parseFloat(prod.product_code.fixed_price),
+                    qty: -1,
+                    created_at: new Date(data.created_at),
                 }
                 stocksReports.push(mappedData);
             });
@@ -107,7 +104,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             return reportStocks;
 
         } catch (error) {
-            console.log('Error handle stock sold:' , error);
+            console.log('Error handle stock sold:', error);
             throw new Error(`Error handle stock sold: ${error.message}`);
         }
     }
@@ -116,15 +113,8 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         const source = await this.stockSourceService.findOne(undefined, { code: 'INSTOCK' });
         const validData = await this.validationService.validate(this.reportStockValidation.CREATE, data);
         const MappedData = {
-            company_id: validData.product.store.company.id,
-            company_code: validData.product.store.company.code,
-            company_name: validData.product.store.company.name,
             store_id: validData.product.store.id,
-            store_code: validData.product.store.code,
-            store_name: validData.product.store.name,
             source_id: source.id,
-            source_code: source.code,
-            source_name: source.name,
             trans_id: null,
             trans_date: validData.created_at,
             category_id: validData.product.type.category_id,
@@ -139,8 +129,113 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             product_code_id: validData.id,
             weight: validData.weight,
             price: validData.buy_price,
+            qty: 1,
+            created_at: new Date(validData.created_at),
         }
         const result = await this.create(MappedData);
         return result;
+    }
+
+    async getStockCard(filters: any) {
+        console.log('filters in getStockCard:', filters);
+        // filters in getStockCard: {
+        //   auth: {
+        //     company_id: 'e043ef91-9501-4b2e-8a08-3424174eef23',
+        //     store_id: 'e344156f-49d6-4179-87b9-03d22cc18ebf'
+        //   },
+        //   dateStart: 2025-02-27T17:00:00.000Z,
+        //   dateEnd: 2025-03-30T16:59:59.000Z,
+        //   company_id: 'e043ef91-9501-4b2e-8a08-3424174eef23',
+        //   store_id: 'e344156f-49d6-4179-87b9-03d22cc18ebf',
+        //   category_id: 'de069412-d0da-4518-8a6d-e1368d2076d4',
+        //   type_id: 'd69d62c7-5a16-4b8d-9aab-081055ea1c34',
+        //   product_id: '87958f93-183e-44af-bd5c-51ad8baa4391',
+        //   owner_id: 'd643abb7-2944-4412-8bb5-5475679f5ade'
+        // }
+
+        let query = `
+            SELECT 
+                rs.product_id,
+                rs.created_at AS date,
+                rs.product_code_code AS code,
+                rs.product_name AS name,
+                ss.name AS description, 
+                CASE 
+                    WHEN rs.qty >= 0 THEN rs.qty 
+                    ELSE 0 
+                END AS "in",
+                CASE 
+                    WHEN rs.qty < 0 THEN rs.qty
+                    ELSE 0 
+                END AS "out",
+                SUM(rs.qty) OVER (
+                    PARTITION BY rs.product_id 
+                    ORDER BY rs.product_id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                )::NUMERIC AS balance
+            FROM "Report_Stocks" rs
+            JOIN "Stock_Source" ss ON rs.source_id = ss.id
+            JOIN "Stores" st ON rs.store_id = st.id
+            JOIN "Companies" com ON st.company_id = com.id
+        `;
+
+        // Build the WHERE clause conditions and parameters
+        const conditions: string[] = [];
+        const params: any[] = [];
+    
+        if (filters.dateStart) {
+            const dateStart = new Date(filters.dateStart);
+            conditions.push(`rs.created_at > $${params.length + 1}`);
+            params.push(dateStart);
+        }
+    
+        if (filters.dateEnd) {
+            const dateEnd = new Date(filters.dateEnd);
+            conditions.push(`rs.created_at <= $${params.length + 1}`);
+            params.push(dateEnd);
+        }
+    
+        if (filters.company_id) {
+            const companyId = filters.company_id.replace(/^"|"$/g, ''); // Removes leading/trailing double quotes
+            conditions.push(`st.company_id = $${params.length + 1}::uuid`);
+            params.push(companyId);
+        }        
+    
+        if (filters.store_id) {
+            conditions.push(`rs.store_id = $${params.length + 1}::uuid`);
+            params.push(filters.store_id);
+        }
+
+        if(filters.category_id) {
+            conditions.push(`rs.category_id = $${params.length + 1}::uuid`);
+            params.push(filters.category_id);
+        }
+
+        if (filters.type_id) {
+            conditions.push(`rs.type_id = $${params.length + 1}::uuid`);
+            params.push(filters.type_id);
+        }
+
+        if (filters.product_id) {
+            conditions.push(`rs.product_id = $${params.length + 1}::uuid`);
+            params.push(filters.product_id);
+        }
+
+        conditions.push(`com.owner_id = $${params.length + 1}::uuid`);
+        params.push(filters.owner_id);
+   
+        // Append the WHERE clause if there are any conditions
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+
+        // Order By created_at
+        query += ' ORDER BY rs.created_at';
+
+        // console.log("Final Query:", query);
+        // console.log("Parameters:", params);
+
+        const result:any = await this.db.$queryRawUnsafe(query, ...params);
+        
+        return ResponseDto.success('Stock mutation fetched!', result, 200);
     }
 }
