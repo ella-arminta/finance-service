@@ -73,23 +73,24 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 //     }
                 //   }
                 const mappedData = {
-                    store_id : data.store.id,
+                    store_id: data.store.id,
                     source_id: source.id,
-                    trans_id : data.id,
+                    trans_id: data.id,
                     trans_code: data.code,
                     trans_date: new Date(data.created_at),
-                    category_id : prod.product_code.product.type.category.id,
+                    category_id: prod.product_code.product.type.category.id,
                     category_code: prod.product_code.product.type.category.code,
                     category_name: prod.product_code.product.type.category.name,
-                    type_id : prod.product_code.product.type.id,
-                    type_code : prod.product_code.product.type.code,
-                    type_name : prod.product_code.product.type.name,
-                    product_id  : prod.product_code.product.id,
-                    product_name : prod.product_code.product.name,
-                    product_code_code : prod.product_code.barcode,
-                    product_code_id : prod.product_code.id,
-                    weight : parseFloat(prod.product_code.weight),
-                    total_price  : parseFloat(prod.total_price),
+                    type_id: prod.product_code.product.type.id,
+                    type_code: prod.product_code.product.type.code,
+                    type_name: prod.product_code.product.type.name,
+                    product_id: prod.product_code.product.id,
+                    product_name: prod.product_code.product.name,
+                    product_code: prod.product_code.product.code,
+                    product_code_code: prod.product_code.barcode,
+                    product_code_id: prod.product_code.id,
+                    weight: parseFloat(prod.product_code.weight) * -1,
+                    total_price: parseFloat(prod.total_price),
                     price: parseFloat(prod.product_code.fixed_price),
                     qty: -1,
                     created_at: new Date(data.created_at),
@@ -124,6 +125,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             type_code: validData.product.type.code,
             type_name: validData.product.type.name,
             product_id: validData.product.id,
+            product_code: validData.product.code,
             product_name: validData.product.name,
             product_code_code: validData.barcode,
             product_code_id: validData.id,
@@ -181,31 +183,31 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         // Build the WHERE clause conditions and parameters
         const conditions: string[] = [];
         const params: any[] = [];
-    
+
         if (filters.dateStart) {
             const dateStart = new Date(filters.dateStart);
             conditions.push(`rs.created_at > $${params.length + 1}`);
             params.push(dateStart);
         }
-    
+
         if (filters.dateEnd) {
             const dateEnd = new Date(filters.dateEnd);
             conditions.push(`rs.created_at <= $${params.length + 1}`);
             params.push(dateEnd);
         }
-    
+
         if (filters.company_id) {
             const companyId = filters.company_id.replace(/^"|"$/g, ''); // Removes leading/trailing double quotes
             conditions.push(`st.company_id = $${params.length + 1}::uuid`);
             params.push(companyId);
-        }        
-    
+        }
+
         if (filters.store_id) {
             conditions.push(`rs.store_id = $${params.length + 1}::uuid`);
             params.push(filters.store_id);
         }
 
-        if(filters.category_id) {
+        if (filters.category_id) {
             conditions.push(`rs.category_id = $${params.length + 1}::uuid`);
             params.push(filters.category_id);
         }
@@ -222,7 +224,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
 
         conditions.push(`com.owner_id = $${params.length + 1}::uuid`);
         params.push(filters.owner_id);
-   
+
         // Append the WHERE clause if there are any conditions
         if (conditions.length > 0) {
             query += ' WHERE ' + conditions.join(' AND ');
@@ -234,8 +236,105 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         // console.log("Final Query:", query);
         // console.log("Parameters:", params);
 
-        const result:any = await this.db.$queryRawUnsafe(query, ...params);
-        
+        const result: any = await this.db.$queryRawUnsafe(query, ...params);
+
+        return ResponseDto.success('Stock mutation fetched!', result, 200);
+    }
+
+    async getStockMutation(filters: any) {
+        const { company_id, dateStart, dateEnd, category_id, store_id } = filters;
+    
+        let query = `
+            SELECT 
+                rs.product_id, 
+                rs.product_code, 
+                rs.product_name, 
+                rs.category_id,
+                rs.category_name,
+                s.id AS store_id,
+                s.company_id AS company_id,
+                c.owner_id,
+    
+                COALESCE(SUM(CASE WHEN rs.trans_date < $1::timestamp THEN rs.qty ELSE 0 END), 0)::numeric AS initial_stock,
+                COALESCE(SUM(CASE WHEN rs.trans_date < $1::timestamp THEN rs.weight ELSE 0 END), 0)::numeric AS initial_stock_gram,
+    
+                COALESCE(SUM(CASE WHEN rs.source_id = 1 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.qty ELSE 0 END), 0)::numeric AS in_goods,
+                COALESCE(SUM(CASE WHEN rs.source_id = 1 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.weight ELSE 0 END), 0)::numeric AS in_goods_gram,
+    
+                COALESCE(SUM(CASE WHEN rs.source_id = 3 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.qty ELSE 0 END), 0)::numeric AS sales,
+                COALESCE(SUM(CASE WHEN rs.source_id = 3 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.weight ELSE 0 END), 0)::numeric AS sales_gram,
+    
+                COALESCE(SUM(CASE WHEN rs.source_id = 2 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.qty ELSE 0 END), 0)::numeric AS out_goods,
+                COALESCE(SUM(CASE WHEN rs.source_id = 2 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.weight ELSE 0 END), 0)::numeric AS out_goods_gram,
+    
+                COALESCE(SUM(CASE WHEN rs.source_id = 5 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.qty ELSE 0 END), 0)::numeric AS purchase,
+                COALESCE(SUM(CASE WHEN rs.source_id = 5 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.weight ELSE 0 END), 0)::numeric AS purchase_gram,
+    
+                COALESCE(SUM(CASE WHEN rs.source_id = 4 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.qty ELSE 0 END), 0)::numeric AS trade,
+                COALESCE(SUM(CASE WHEN rs.source_id = 4 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.weight ELSE 0 END), 0)::numeric AS trade_gram,
+    
+                COALESCE(SUM(CASE WHEN rs.trans_date < $4 THEN rs.qty ELSE 0 END), 0)::numeric AS final,
+                COALESCE(SUM(CASE WHEN rs.trans_date < $4 THEN rs.weight ELSE 0 END), 0)::numeric AS final_gram,
+    
+                COALESCE(
+                  SUM(
+                    CASE 
+                      WHEN (rs.source_id IN (1, 5) OR (rs.source_id = 4 AND rs.qty > 0))
+                        AND rs.trans_date < $4
+                      THEN rs.weight * rs.price
+                      ELSE 0
+                    END
+                  ) / NULLIF(
+                    SUM(
+                      CASE 
+                        WHEN (rs.source_id IN (1, 5) OR (rs.source_id = 4 AND rs.qty > 0))
+                          AND rs.trans_date < $4
+                        THEN rs.weight
+                        ELSE 0
+                      END
+                    ), 0)
+                , 0)::numeric AS unit_price
+            FROM "Report_Stocks" rs
+            JOIN "Stores" s ON s.id = rs.store_id
+            JOIN "Companies" c ON s.company_id = c.id
+            WHERE s.company_id = $5::uuid
+        `;
+    
+        const params = [dateStart, dateStart, dateEnd, dateEnd, company_id];
+        let paramIndex = params.length + 1;
+    
+        if (category_id && category_id != '') {
+            query += ` AND rs.category_id = $${paramIndex}::uuid`;
+            params.push(category_id);
+            paramIndex++;
+        }
+    
+        if (store_id && store_id != '') {
+            query += ` AND rs.store_id = $${paramIndex}::uuid`;
+            params.push(store_id);
+        }
+    
+        query += `
+            GROUP BY rs.product_id, rs.product_code, rs.product_name, rs.category_id, rs.category_name, s.id, s.company_id, c.owner_id
+        `;
+    
+        const result = await this.db.$queryRawUnsafe(query, ...params);
+    
+        // Log formatted SQL query
+        // const formattedQuery = query.replace(/\$\d+/g, (match) => {
+        //     const index = parseInt(match.slice(1)) - 1;
+        //     const value = params[index];
+    
+        //     if (typeof value === 'string') {
+        //         return `'${value}'`;
+        //     }
+        //     if (value instanceof Date) {
+        //         return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`; // Format to 'YYYY-MM-DD HH:mm:ss'
+        //     }
+        //     return value;
+        // });
+        // console.log('Generated SQL Query:', formattedQuery);
+    
         return ResponseDto.success('Stock mutation fetched!', result, 200);
     }
 }

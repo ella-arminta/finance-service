@@ -325,11 +325,12 @@ model Report_Stocks {
   type_name         String?
   product_id        String       @db.Uuid
   product_name      String?
+  product_code      String?
   product_code_code String? // barcode
   product_code_id   String       @db.Uuid
   weight            Decimal      @db.Decimal
-  price             Decimal      @db.Decimal // INSTOCK -> buy price, SALES -> fixed price
-  total_price       Decimal?      @db.Decimal // SALES -> total_price
+  price             Decimal      @db.Decimal // INSTOCK -> buy price (total jd kalo qty 2 brt total price 2 qty), SALES -> fixed price
+  total_price       Decimal?      @db.Decimal // SALES -> total_price (termasuk diskon dll)
   qty               Int         @default(1)
   created_at        DateTime    @default(now())
   created_by        String?       @db.Uuid
