@@ -297,11 +297,17 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             FROM "Report_Stocks" rs
             JOIN "Stores" s ON s.id = rs.store_id
             JOIN "Companies" c ON s.company_id = c.id
-            WHERE s.company_id = $5::uuid
+            WHERE rs.trans_date <= $4::timestamp
         `;
     
-        const params = [dateStart, dateStart, dateEnd, dateEnd, company_id];
+        const params = [dateStart, dateStart, dateEnd, dateEnd];
         let paramIndex = params.length + 1;
+
+        if (company_id && company_id != '') {
+            query += ` AND s.company_id = $${paramIndex}::uuid`;
+            params.push(company_id);
+            paramIndex++;
+        }
     
         if (category_id && category_id != '') {
             query += ` AND rs.category_id = $${paramIndex}::uuid`;
@@ -312,6 +318,12 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         if (store_id && store_id != '') {
             query += ` AND rs.store_id = $${paramIndex}::uuid`;
             params.push(store_id);
+            paramIndex++;
+        }
+
+        if (dateEnd) {
+            query += ` AND rs.trans_date <= $${paramIndex}::timestamp`;
+            params.push(dateEnd);
         }
     
         query += `
@@ -336,5 +348,42 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         // console.log('Generated SQL Query:', formattedQuery);
     
         return ResponseDto.success('Stock mutation fetched!', result, 200);
+    }
+
+    async getHPP(filters: any) {
+         // console.log('this is filters',filters);
+        // store: 'edd09595-33d4-4e81-9e88-14b47612bee9',
+        // company: 'bb0471e8-ba93-4edc-8dea-4ccac84bd2a2',
+        // owner_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+        // start_date: 2025-02-28T00:00:00.000Z,
+        // end_date: 2025-03-30T00:00:00.000Z
+
+        // Persediaan Awal
+        // Pembelian Barang Dagangan
+        // Persediaan Akhir
+        // HPP = Persediaan Awal + Pembelian Barang Dagangan - Persediaan Akhir
+
+        var result = [];
+        const filters2 = {
+            store_id: filters.store ?? undefined,
+            company_id: filters.company ?? undefined,
+            owner_id: filters.owner_id,
+            dateStart: filters.start_date,
+            dateEnd: filters.end_date
+        }
+        var hpp = 0;
+        var mutasi = await this.getStockMutation(filters2);
+        if (mutasi.success) {
+            var rowdata = mutasi.data;
+            rowdata.forEach((row) => {
+                hpp += row.final_gram * row.unit_price;
+            });
+        }
+        result.push({
+            name: 'HPP',
+            amount: Math.abs(hpp) * -1
+        })
+
+        return result;        
     }
 }

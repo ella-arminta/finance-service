@@ -89,35 +89,11 @@ export class AccountsService extends BaseService<Accounts> {
       result.push(newAccount);
     }
 
-    // Set Account Transaction Settings
-    var accountPajak = await this.db.accounts.findFirst({
-      where: {
-        name: {
-          startsWith: 'HUTANG PAJAK PENJUALAN'
-        },
-        company_id: company_id
-      }
-    })
-    if (accountPajak) {
-      this.db.trans_Account_Settings.create({
-        data: {
-          company: {
-            connect: {id: company_id}
-          },
-          account: {
-            connect: {id: accountPajak.id}
-          },
-          description: 'Default Akun Tax Penjualan ',
-          action: 'tax'
-        }
-      });
-    }
-
     return result;
   }
 
   async generateDefaultAccountsByStore(store_id: string) {
-    var store = await this.storeService.findOne(store_id);
+    const store = await this.storeService.findOne(store_id);
     // code kas
     var lastCodeForKas = await this.findAll({ company_id: store.company_id, account_type_id: 1 }, true, { code: 'desc' });
     var codeKas = 11001;
@@ -428,9 +404,6 @@ export class AccountsService extends BaseService<Accounts> {
           store: {
             connect: { id: store_id }
           },
-          company: {
-            connect: {id: store.company_id}
-          },
           account: {
             connect: {id: accountPenjualan.id}
           },
@@ -453,9 +426,6 @@ export class AccountsService extends BaseService<Accounts> {
         data: {
           store: {
             connect: { id: store_id }
-          },
-          company: {
-            connect: {id: store.company_id}
           },
           account: {
             connect: {id: diskonPenjualan.id}
@@ -480,9 +450,6 @@ export class AccountsService extends BaseService<Accounts> {
           store: {
             connect: { id: store_id }
           },
-          company: {
-            connect: {id: store.company_id}
-          },
           account: {
             connect: {id: pm1.id}
           },
@@ -505,9 +472,6 @@ export class AccountsService extends BaseService<Accounts> {
         data: {
           store: {
             connect: { id: store_id }
-          },
-          company: {
-            connect: {id: store.company_id}
           },
           account: {
             connect: {id: pm2.id}
@@ -532,9 +496,6 @@ export class AccountsService extends BaseService<Accounts> {
           store: {
             connect: { id: store_id }
           },
-          company: {
-            connect: {id: store.company_id}
-          },
           account: {
             connect: {id: pm3.id}
           },
@@ -557,9 +518,6 @@ export class AccountsService extends BaseService<Accounts> {
         data: {
           store: {
             connect: { id: store_id }
-          },
-          company: {
-            connect: {id: store.company_id}
           },
           account: {
             connect: {id: pm4.id}
@@ -584,9 +542,6 @@ export class AccountsService extends BaseService<Accounts> {
           store: {
             connect: { id: store_id }
           },
-          company: {
-            connect: {id: store.company_id}
-          },
           account: {
             connect: {id: hutang.id}
           },
@@ -609,9 +564,6 @@ export class AccountsService extends BaseService<Accounts> {
         data: {
           store: {
             connect: { id: store_id }
-          },
-          company: {
-            connect: {id: store.company_id}
           },
           account: {
             connect: {id: piutang.id}
@@ -636,14 +588,34 @@ export class AccountsService extends BaseService<Accounts> {
           store: {
             connect: { id: store_id }
           },
-          company: {
-            connect: {id: store.company_id}
-          },
           account: {
             connect: {id: persediaan.id}
           },
           description: 'Default Persediaan ' + store.name,
           action: 'persediaan'
+        }
+      });
+    }
+    // Set Akun Pajak Store
+    var accountPajak = await this.db.accounts.findFirst({
+      where: {
+        name: {
+          startsWith: 'HUTANG PAJAK PENJUALAN'
+        },
+        company_id: store.company.id
+      }
+    })
+    if (accountPajak) {
+      this.db.trans_Account_Settings.create({
+        data: {
+          store: {
+            connect: {id: store_id}
+          },
+          account: {
+            connect: {id: accountPajak.id}
+          },
+          description: 'Default Akun Tax Penjualan ',
+          action: 'tax'
         }
       });
     }

@@ -1,21 +1,17 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class DatabaseService extends PrismaClient implements OnModuleInit {
-    async onModuleInit() {
-        await this.$connect()
-        .then()
-        .catch((error) => console.log('Database connection error', error));
+export class DatabaseService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+    constructor() {
+        super(); // Ensure PrismaClient is initialized once
     }
 
-    // Method to truncate a table dynamically
-    async truncateTable(tableName: string): Promise<void> {
-        if (!(this as any)[tableName]) {
-            throw new Error(`Table "${tableName}" does not exist in Prisma Client.`);
-        }
+    async onModuleInit() {
+        await this.$connect().catch((error) => console.error('Database connection error', error));
+    }
 
-        await this.$queryRawUnsafe(`TRUNCATE TABLE "${tableName}" CASCADE`);
-        console.log(`Table "${tableName}" truncated successfully.`);
+    async onModuleDestroy() {
+        await this.$disconnect(); // Prevent connection leaks
     }
 }

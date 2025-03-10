@@ -21,6 +21,7 @@ import { RecurringModule } from './recurring/recurring.module';
 import { ReportModule } from './report-journals/report-journals.module';
 import { TransAccountSettingsModule } from './trans-account-settings/trans-account-settings.module';
 import { ReportStocksModule } from './report-stocks/report-stocks.module';
+import { OperationModule } from './operation/operation.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ReportStocksModule } from './report-stocks/report-stocks.module';
     SharedModule,
     TransAccountSettingsModule,
     ReportStocksModule,
+    OperationModule,
   ],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],

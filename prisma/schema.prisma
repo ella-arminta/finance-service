@@ -24,7 +24,7 @@ model Companies {
 
   stores    Stores[]
   accounts Accounts[]
-  trans_account_settings Trans_Account_Settings[]
+  // trans_account_settings Trans_Account_Settings[]
 
   @@index([owner_id, deleted_at])
 }
@@ -47,6 +47,7 @@ model Stores {
   trans Trans[]
   trans_recurring Trans_Recurring[]
   trans_account_settings Trans_Account_Settings[]
+  operations Operations[]
   @@index([company_id, deleted_at])
 }
 
@@ -60,6 +61,7 @@ model Account_Types {
   deleted_at   DateTime?
 
   accounts Accounts[]
+  @@index([code, deleted_at])
 }
 
 model Accounts {
@@ -81,6 +83,7 @@ model Accounts {
   company Companies @relation(fields: [company_id], references: [id])
   account_type Account_Types @relation(fields: [account_type_id], references: [id])
   journal_accounts Journal_Accounts[]
+  operation Operations[]
 
   trans_detail Trans_Details[]
   trans_detail_recurring Trans_Details_Recurring[]
@@ -257,11 +260,11 @@ model Recurring_Period {
 }
 
 // Accounts used for transactions
-// Notes: PPN dibayar = PPN keluar(kredit) - PPN Masukan(debit)
+// Notes: PPN dibayar = PPN keluar(kredit) - PPN Masukan(debit).
 model Trans_Account_Settings {
   id Int   @default(autoincrement()) @id
-  store_id String? @db.Uuid
-  company_id String @db.Uuid
+  store_id String @db.Uuid
+  // company_id String? @db.Uuid // Kesimpulan: frontend pengaturan otomatis transaksi per account di atur per toko jadi gk mungin ada scope company_id
   account_id String @db.Uuid
   description String
   action String // tax, discount, pm1 (cash), pm2 (bank transfer), pm3 (Credit Card), pm4 (Debit Card) 
@@ -270,10 +273,10 @@ model Trans_Account_Settings {
   updated_at DateTime @updatedAt
   deleted_at DateTime?
 
-  store Stores? @relation(fields: [store_id], references: [id])
-  company Companies @relation(fields: [company_id], references: [id])
+  store Stores @relation(fields: [store_id], references: [id])
+  // company Companies? @relation(fields: [company_id], references: [id])
   account Accounts @relation(fields: [account_id], references: [id])
-  @@unique([store_id,company_id,action])
+  @@unique([store_id,action])
 }
 
 model Report_Journals {
@@ -336,6 +339,28 @@ model Report_Stocks {
   created_by        String?       @db.Uuid
   source            Stock_Source @relation(fields: [source_id], references: [id])
   store             Stores        @relation(fields: [store_id], references: [id])
+
+  @@index([trans_date])
+}
+
+model Operations {
+  id          String  @id @default(uuid()) @db.Uuid
+  code        String
+  name        String
+  price       Decimal @db.Decimal
+  uom         String
+  description String? @db.Text
+  store_id    String  @db.Uuid
+  account_id  String? @db.Uuid
+
+  store   Stores    @relation(fields: [store_id], references: [id])
+  account Accounts? @relation(fields: [account_id], references: [id])
+
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  @@index([deleted_at])
 }
 
 // Hutang

@@ -6,27 +6,26 @@ export class ReportValidation {
   constructor(
   ) { }
   readonly FILTER: ZodType = z.object({
-    store_id: z.string().uuid().optional(),
-    company_id: z.string().uuid().optional(),
+    store: z.string().uuid().optional(),
+    company: z.string().uuid().optional(),
+    owner_id: z.string().uuid(),
     start_date: z.preprocess((val) => {
-      if (typeof val === 'string') {
-        const parsed = new Date(val);
-        if (!isNaN(parsed.getTime())) {
-          // Ensure the date is in 'YYYY-MM-DD' format
-          return parsed.toISOString().split('T')[0];
+        if (typeof val === 'string') {
+            const parsed = new Date(val);
+            if (!isNaN(parsed.getTime())) {
+                return parsed; // Return as Date object
+            }
         }
-      }
-      return val;
-    }, z.string().optional()),
+        return val;
+    }, z.date().optional()),
     end_date: z.preprocess((val) => {
-      if (typeof val === 'string') {
-        const parsed = new Date(val);
-        if (!isNaN(parsed.getTime())) {
-          // Ensure the date is in 'YYYY-MM-DD' format
-          return parsed.toISOString().split('T')[0];
+        if (typeof val === 'string') {
+            const parsed = new Date(val);
+            if (!isNaN(parsed.getTime())) {
+                return parsed; // Return as Date object
+            }
         }
-      }
-      return val;
-    }, z.string().optional()),
+        return val;
+    }, z.date().optional()),
   });
 }

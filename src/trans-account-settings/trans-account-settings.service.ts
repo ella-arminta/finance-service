@@ -10,18 +10,68 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
     ) {
         const relations = {
             store: true,
-            company: true,
             account: true,
         }
         super('trans_Account_Settings', db, relations, true);
     }
 
+    async getAllAccountIdByAction(action, owner_id ,store_id = null, company_id = null): Promise<string[]> {
+        const whereQuery: any = { action };
+    
+        if (store_id) {
+            whereQuery['store_id'] = store_id;
+        }
+        if (company_id) {
+            whereQuery['store'] = { company_id };
+        }
+
+        if (!store_id && !company_id) {
+            whereQuery['store'] = {
+                company: {
+                    owner_id: owner_id
+                }
+            }
+        }
+    
+        return this.db.trans_Account_Settings.findMany({
+            where: whereQuery,
+            select: {
+                account_id: true
+            }
+        }).then(results => results.map(account => account.account_id)); // Plugging map directly into the query
+    }
+
+    async getAllOperationAccount(owner_id ,store_id = null, company_id = null): Promise<string[]> {
+        const whereQuery = {};
+    
+        if (store_id) {
+            whereQuery['store_id'] = store_id;
+        }
+        if (company_id) {
+            whereQuery['store'] = { company_id };
+        }
+
+        if (!store_id && !company_id) {
+            whereQuery['store'] = {
+                company: {
+                    owner_id: owner_id
+                }
+            }
+        }
+    
+        return this.db.operations.findMany({
+            where: whereQuery,
+            select: {
+                account_id: true
+            }
+        }).then(results => results.map(account => account.account_id)); // Plugging map directly into the query
+    }
+
     async getGoldSalesAccount(data: any) {
         var goldSalesAccount = await this.db.trans_Account_Settings.findUnique({
             where: {
-                store_id_company_id_action: {
+                store_id_action: {
                     store_id: data.store_id,
-                    company_id: data.store.company_id,
                     action: 'goldSales'
                 }
             },
@@ -66,9 +116,6 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     store: {
                         connect: { id: data.store_id }
                     },
-                    company: {
-                        connect: { id: data.store.company_id }
-                    },
                     account: {
                         connect: { id: newAccount.id }
                     },
@@ -87,9 +134,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
     async getDiscountAccount(data: any) {
         var discountAccount = await this.db.trans_Account_Settings.findUnique({
             where: {
-                store_id_company_id_action: {
+                store_id_action: {
                     store_id: data.store_id,
-                    company_id: data.store.company_id,
                     action: 'discountSales'
                 }
             },
@@ -131,9 +177,6 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     store: {
                         connect: { id: data.store_id }
                     },
-                    company: {
-                        connect: { id: data.store.company_id }
-                    },
                     account: {
                         connect: { id: newAccount.id }
                     },
@@ -152,9 +195,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
     async getPiutangAccount(data: any) {
         var piutangAccount = await this.db.trans_Account_Settings.findUnique({
             where: {
-                store_id_company_id_action: {
+                store_id_action: {
                     store_id: data.store_id,
-                    company_id: data.store.company_id,
                     action: 'piutang'
                 }
             },
@@ -196,9 +238,6 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     store: {
                         connect: { id: data.store_id }
                     },
-                    company: {
-                        connect: { id: data.store.company_id }
-                    },
                     account: {
                         connect: { id: newAccount.id }
                     },
@@ -214,12 +253,10 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
         return piutangAccount;
     }
 
-    //TODOELLA BUTUH LIHAT LAGI INI ASUMSI SOALNYA , GIMANA KALO MISAL TAX NYA ADA STORE_IDNYA
     async getTaxAccount(data: any) {
         var taxAccount = await this.db.trans_Account_Settings.findFirst({
             where: {
                 store_id: data.store.id,
-                company_id: data.store.company_id,
                 action: 'tax'
             },
             include: {
@@ -257,9 +294,6 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             // Assign
             taxAccount = await this.db.trans_Account_Settings.create({
                 data: {
-                    company: {
-                        connect: { id: data.store.company_id }
-                    },
                     store: {
                         connect: { id: data.store.id }
                     },
@@ -281,9 +315,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
         const type = data.payment_method;
         var paymentMethodAccount = await this.db.trans_Account_Settings.findUnique({
             where: {
-                store_id_company_id_action: {
+                store_id_action: {
                     store_id: data.store_id,
-                    company_id: data.store.company_id,
                     action: 'pm' + type
                 }
             },
@@ -343,8 +376,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             // Assign
             paymentMethodAccount = await this.db.trans_Account_Settings.create({
                 data: {
-                    company: {
-                        connect: { id: data.store.company_id }
+                    store: {
+                        connect: { id: data.store_id }
                     },
                     account: {
                         connect: { id: newAccount.id }
@@ -370,7 +403,6 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
         var inventoryAccount = await this.db.trans_Account_Settings.findFirst({
             where: {
                 store_id: data.product.store_id,
-                company_id: data.store.company_id,
                 action: 'persediaan'
             },
             include: {
@@ -408,8 +440,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             // Assign
             inventoryAccount = await this.db.trans_Account_Settings.create({
                 data: {
-                    company: {
-                        connect: { id: data.store.company_id }
+                    store: {
+                        connect: { id: data.store.id }
                     },
                     account: {
                         connect: { id: newAccount.id }

@@ -25,6 +25,7 @@ export class ReportController {
       const params = data.params;
       const filters = data.body;
       const userId = params.user.id;
+      console.log('the first fitler',filters);
       var filtersValidated = await this.validateService.validate(this.reportValidation.FILTER, filters);
       const datas =  await this.reportService.getProfitLoss(userId,filtersValidated);
 
@@ -40,10 +41,13 @@ export class ReportController {
     })
     async postPdf(@Payload() data: any) {
       try {
-        const filters = data.body.filters;
-        const genData = data.body.data;
+        const filters = data.body;
+        const genData = data.body.labelRangeSelected;
         const userId = data.params.user.id;
-        const pdfBuffer = await this.reportService.generatePDF(userId,genData, filters);
+        console.log('data asdf', data, 'genData', genData);
+        var filtersValidated = await this.validateService.validate(this.reportValidation.FILTER, filters);
+        console.log(filtersValidated);
+        const pdfBuffer = await this.reportService.generatePDF(userId,genData, filtersValidated);
         const pdfBase64 = pdfBuffer.toString('base64'); 
         return ResponseDto.success('PDF Generated Successfully!', { pdf: pdfBase64 });
       }

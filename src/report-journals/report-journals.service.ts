@@ -3,11 +3,15 @@ import { DatabaseService } from 'src/database/database.service';
 import * as pdf from 'html-pdf';
 import { BaseService } from 'src/common/base.service';
 import { Report_Journals } from '@prisma/client';
+import { TransAccountSettingsService } from 'src/trans-account-settings/trans-account-settings.service';
+import { ReportStocksService } from 'src/report-stocks/report-stocks.service';
 
 @Injectable()
 export class ReportService extends BaseService<Report_Journals> {
     constructor(
         db: DatabaseService,
+        private readonly tasService: TransAccountSettingsService,
+        private readonly rStockService : ReportStocksService
     ) {
         const relations = {
         }
@@ -15,6 +19,179 @@ export class ReportService extends BaseService<Report_Journals> {
     }
 
     async getProfitLoss(userId:string, filters: any = {}) {
+        // console.log('this is filters',filters);
+        // store: 'edd09595-33d4-4e81-9e88-14b47612bee9',
+        // company: 'bb0471e8-ba93-4edc-8dea-4ccac84bd2a2',
+        // owner_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+        // start_date: 2025-02-28T00:00:00.000Z,
+        // end_date: 2025-03-30T00:00:00.000Z
+        var result = [];
+
+        // REVENUE !!!
+        var revenue = {
+            'label' : 'Pendapatan',
+            'data' : []
+        };
+        // GET SALES EMAS
+        const salesAccountIDs = await this.tasService.getAllAccountIdByAction('goldSales', filters.owner_id ,filters.store, filters.company);
+        const totalSales =  Math.abs(await this.sumAmountByAccounts(salesAccountIDs, filters.start_date, filters.end_date));
+        revenue.data.push({
+            'name': 'Penjualan Kotor Emas',
+            'amount': totalSales
+        });
+        // GET OPERATION SERVICE
+        const operationAccountIDS = await this.tasService.getAllOperationAccount(filters.owner_id, filters.store, filters.company);
+        const totalOperations = Math.abs(await this.sumAmountByAccounts(operationAccountIDS, filters.start_date, filters.end_date));
+        revenue.data.push({
+            'name': 'Penjualan Kotor Jasa',
+            'amount': totalOperations
+        });
+        // DISKON PENJUALAN
+        const discountAccountIDS = await this.tasService.getAllAccountIdByAction('discountSales', filters.owner_id, filters.store, filters.company);
+        const totalDiscount = Math.abs( await this.sumAmountByAccounts(discountAccountIDS, filters.start_date, filters.end_date)) * -1;
+        revenue.data.push({
+            'name': 'Diskon Penjualan',
+            'amount': totalDiscount
+        });
+        // TOTAL REVENUE
+        revenue.data.push({
+            'name': 'Penjualan bersih',
+            'amount': totalSales + totalOperations + totalDiscount
+        });
+        result.push(revenue);        
+
+        // COST OF GOODS SOLD !!!
+        const hpp = await this.rStockService.getHPP(filters);
+        var costOfGoodsSold = {
+            'label' : 'Harga Pokok Penjualan',
+            'data' : hpp
+        };
+        result.push(costOfGoodsSold);
+
+        // GROSS PROFIT !!!
+        const grossProfit = revenue.data[revenue.data.length - 1].amount + costOfGoodsSold.data[costOfGoodsSold.data.length - 1].amount;
+        result.push({
+            'label' : 'Laba Kotor',
+            'data' : [
+                {
+                    'name': 'Laba Kotor',
+                    'amount': grossProfit
+                }
+            ]
+        })
+        
+        // OPERATING EXPENSES !!!
+        var operatingExpenses = {
+            'label' : 'Beban Operasional',
+            'data' : []
+        };
+        const expensesAccounts= await this.db.accounts.findMany({
+            where: {
+                account_type_id: 2,
+                store_id: filters.store ?? undefined,
+                company_id: filters.company ?? undefined,
+                company: {
+                    owner_id: filters.owner_id
+                },
+                deleted_at: null
+            },
+            select : {
+                id: true,
+                name: true
+            }
+        });
+        const expensesAccountIDS = expensesAccounts.map((account) => account.id);
+        if (expensesAccountIDS.length > 0) {
+            for (const account of expensesAccounts) {
+                const expense = Math.abs(await this.sumAmountByAccounts([account.id], filters.start_date, filters.end_date)) * -1;
+                operatingExpenses.data.push({
+                    'name': account.name,
+                    'amount': expense
+                });
+            }
+            
+            // Setelah semua async selesai, baru push total beban
+            operatingExpenses.data.push({
+                'name': 'Total Beban Operasional',
+                'amount': operatingExpenses.data.reduce((acc, curr) => acc + curr.amount, 0)
+            });
+        } else {
+            operatingExpenses.data.push({
+                'name': 'Total Beban Operasional',
+                'amount': 0
+            });
+        }
+        result.push(operatingExpenses);
+
+        // OPERATING PROFIT
+        const operatingProfit = grossProfit + operatingExpenses.data[operatingExpenses.data.length - 1].amount;
+        result.push({
+            'label' : 'Laba Operasional',
+            'data' : [
+                {
+                    'name': 'Laba Operasional',
+                    'amount': operatingProfit
+                }
+            ]
+        });
+
+        // Non operating income and expenses
+        var nonOperatingIncomeExpenses = {
+            'label' : 'Pendapatan dan Beban Lain-lain',
+            'data' : []
+        };
+        const nonOperatingAccounts = await this.db.accounts.findMany({
+            where: {
+                account_type_id: {
+                    in: [7, 8]
+                },
+                store_id: filters.store ?? undefined,
+                company_id: filters.company ?? undefined,
+                company: {
+                    owner_id: filters.owner_id
+                },
+                deleted_at: null
+            },
+            select : {
+                id: true,
+                name: true
+            }
+        });
+        
+        for (const account of nonOperatingAccounts) {
+            const nonOperating = await this.sumAmountByAccounts([account.id], filters.start_date, filters.end_date) * -1;
+            nonOperatingIncomeExpenses.data.push({
+                'name': account.name,
+                'amount': nonOperating
+            });
+        }
+
+        if (nonOperatingIncomeExpenses.data.length > 0) {
+            nonOperatingIncomeExpenses.data.push({
+                'name': 'Total Pendapatan dan Beban Lain-lain',
+                'amount': nonOperatingIncomeExpenses.data.reduce((acc, curr) => acc + curr.amount, 0)
+            });
+        } else {
+            nonOperatingIncomeExpenses.data.push({
+                'name': 'Total Pendapatan dan Beban Lain-lain',
+                'amount': 0
+            });
+        }
+        result.push(nonOperatingIncomeExpenses);
+
+        // Net Profit
+        const netProfit = operatingProfit + nonOperatingIncomeExpenses.data[nonOperatingIncomeExpenses.data.length - 1].amount;
+        result.push({
+            'label' : 'Laba Bersih',
+            'data' : [
+                {
+                    'name': 'Laba Bersih',
+                    'amount': netProfit
+                }
+            ]
+        });
+
+        return result;
         return [
             {
                 'label' : 'Revenue',
@@ -105,7 +282,25 @@ export class ReportService extends BaseService<Report_Journals> {
         ]
     }
 
-    async generatePDF(userId: string, data: any, filters: any): Promise<Buffer> {
+    private async sumAmountByAccounts(account_id: string[], start_date: Date, end_date: Date) {
+        const total = await this.db.report_Journals.aggregate({
+            _sum: {
+                amount: true
+            },
+            where: {
+                account_id: {
+                    in: account_id
+                },
+                trans_date: {
+                    gte: start_date,
+                    lte: end_date
+                }
+            }
+        });
+        return total._sum.amount != null ? total._sum.amount.toNumber() : 0;
+    }
+
+    async generatePDF(userId: string, labelRangeSelected: any, filters: any): Promise<Buffer> {
         var profitLossData = await this.getProfitLoss(userId, filters);
     
         var htmlContent = `
@@ -163,7 +358,7 @@ export class ReportService extends BaseService<Report_Journals> {
                 </head>
                 <body>
                     <h1 class="profit-loss-title">Profit & Loss Statement</h1>
-                    <h1 class="profit-loss-title">${data.labelRangeSelected}</h1>
+                    <h1 class="profit-loss-title">${labelRangeSelected}</h1>
     
                     <span class="spacer"></span>
     
