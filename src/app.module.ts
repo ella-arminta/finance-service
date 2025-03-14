@@ -22,6 +22,7 @@ import { ReportModule } from './report-journals/report-journals.module';
 import { TransAccountSettingsModule } from './trans-account-settings/trans-account-settings.module';
 import { ReportStocksModule } from './report-stocks/report-stocks.module';
 import { OperationModule } from './operation/operation.module';
+import { ActionAccountSettingModule } from './action-account-setting/action-account-setting.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { OperationModule } from './operation/operation.module';
     TransAccountSettingsModule,
     ReportStocksModule,
     OperationModule,
+    ActionAccountSettingModule,
   ],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],

@@ -87,9 +87,7 @@ export class AccountsController {
     var filters =  data.body || {};
 
     if (!filters.company_id && !filters.store_id) {
-      filters.company = {
-        owner_id: filters.owner_id
-      }
+      filters.company_id = filters.auth.company_id;
     }    
 
     if (filters.account_type_id) {

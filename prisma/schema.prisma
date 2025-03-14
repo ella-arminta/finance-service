@@ -259,6 +259,16 @@ model Recurring_Period {
   trans_recurring Trans_Recurring[]
 }
 
+model Action_Account_Settings {
+  id Int   @default(autoincrement()) @id
+  action String @unique
+  description String
+  name String?
+  created_at DateTime @default(now())
+
+  trans_Account_settings Trans_Account_Settings[]
+}
+
 // Accounts used for transactions
 // Notes: PPN dibayar = PPN keluar(kredit) - PPN Masukan(debit).
 model Trans_Account_Settings {
@@ -266,17 +276,17 @@ model Trans_Account_Settings {
   store_id String @db.Uuid
   // company_id String? @db.Uuid // Kesimpulan: frontend pengaturan otomatis transaksi per account di atur per toko jadi gk mungin ada scope company_id
   account_id String @db.Uuid
-  description String
   action String // tax, discount, pm1 (cash), pm2 (bank transfer), pm3 (Credit Card), pm4 (Debit Card) 
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-  deleted_at DateTime?
 
   store Stores @relation(fields: [store_id], references: [id])
   // company Companies? @relation(fields: [company_id], references: [id])
   account Accounts @relation(fields: [account_id], references: [id])
+  maction Action_Account_Settings @relation(fields: [action], references: [action])
   @@unique([store_id,action])
+  @@index([store_id, action])
 }
 
 model Report_Journals {

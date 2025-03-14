@@ -407,8 +407,9 @@ export class AccountsService extends BaseService<Accounts> {
           account: {
             connect: {id: accountPenjualan.id}
           },
-          description: 'Default Akun Penjualan ' + store.name,
-          action: 'goldSales'
+          maction: {
+            connect: {action: 'goldSales'}
+          }
         }
       })
     }
@@ -430,8 +431,9 @@ export class AccountsService extends BaseService<Accounts> {
           account: {
             connect: {id: diskonPenjualan.id}
           },
-          description: 'Default Akun Diskon Penjualan ' + store.name,
-          action: 'discountSales'
+          maction: {
+            connect: {action: 'discountSales'}
+          }
         }
       });
     }
@@ -453,8 +455,9 @@ export class AccountsService extends BaseService<Accounts> {
           account: {
             connect: {id: pm1.id}
           },
-          description: 'Default Akun Cash ' + store.name,
-          action: 'pm1'
+          maction: {
+            connect: {action: 'pm1'}
+          }
         }
       });
     }
@@ -476,8 +479,9 @@ export class AccountsService extends BaseService<Accounts> {
           account: {
             connect: {id: pm2.id}
           },
-          description: 'Default Akun Bank Transfer ' + store.name,
-          action: 'pm2'
+          maction: {
+            connect: {action: 'pm2'}
+          }
         }
       });
     }
@@ -499,8 +503,9 @@ export class AccountsService extends BaseService<Accounts> {
           account: {
             connect: {id: pm3.id}
           },
-          description: 'Default Akun Kas Credit Card ' + store.name,
-          action: 'pm3'
+          maction: {
+            connect: {action: 'pm3'}
+          }
         }
       });
     }
@@ -522,8 +527,9 @@ export class AccountsService extends BaseService<Accounts> {
           account: {
             connect: {id: pm4.id}
           },
-          description: 'Default Akun Kas Debit Card ' + store.name,
-          action: 'pm4'
+          maction: {
+            connect: {action: 'pm4'}
+          }
         }
       });
     }
@@ -545,8 +551,9 @@ export class AccountsService extends BaseService<Accounts> {
           account: {
             connect: {id: hutang.id}
           },
-          description: 'Default Hutang ' + store.name,
-          action: 'hutang'
+          maction: {
+            connect: {action: 'hutang'}
+          }
         }
       });
     }
@@ -568,8 +575,9 @@ export class AccountsService extends BaseService<Accounts> {
           account: {
             connect: {id: piutang.id}
           },
-          description: 'Default Piutang ' + store.name,
-          action: 'piutang'
+          maction: {
+            connect: {action: 'piutang'}
+          }
         }
       });
     }
@@ -591,8 +599,9 @@ export class AccountsService extends BaseService<Accounts> {
           account: {
             connect: {id: persediaan.id}
           },
-          description: 'Default Persediaan ' + store.name,
-          action: 'persediaan'
+          maction: {
+            connect: {action: 'persediaan'}
+          }
         }
       });
     }
@@ -614,8 +623,9 @@ export class AccountsService extends BaseService<Accounts> {
           account: {
             connect: {id: accountPajak.id}
           },
-          description: 'Default Akun Tax Penjualan ',
-          action: 'tax'
+          maction: {
+            connect: {action: 'tax'}
+          }
         }
       });
     }

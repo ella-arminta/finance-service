@@ -12,7 +12,7 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             store: true,
             account: true,
         }
-        super('trans_Account_Settings', db, relations, true);
+        super('trans_Account_Settings', db, relations);
     }
 
     async getAllAccountIdByAction(action, owner_id ,store_id = null, company_id = null): Promise<string[]> {
@@ -119,8 +119,9 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     account: {
                         connect: { id: newAccount.id }
                     },
-                    description: 'Default Akun Penjualan ' + data.store.name,
-                    action: 'goldSales'
+                    maction: {
+                        connect: { action: 'goldSales' }
+                    }
                 },
                 include: {
                     account: true
@@ -180,8 +181,9 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     account: {
                         connect: { id: newAccount.id }
                     },
-                    description: 'Default Akun Diskon Penjualan ' + data.store.name,
-                    action: 'discountSales'
+                    maction: {
+                        connect: { action: 'discountSales' }
+                    }
                 },
                 include: {
                     account: true
@@ -241,8 +243,9 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     account: {
                         connect: { id: newAccount.id }
                     },
-                    description: 'Default Akun Piutang Usaha ' + data.store.name,
-                    action: 'piutang'
+                    maction: {
+                        connect: { action: 'piutang' }
+                    }
                 },
                 include: {
                     account: true
@@ -300,8 +303,9 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     account: {
                         connect: { id: newAccount.id }
                     },
-                    description: 'Default Akun Pajak Penjualan ' + data.store.name,
-                    action: 'tax'
+                    maction: {
+                        connect: { action: 'tax' }
+                    }
                 },
                 include: {
                     account: true
@@ -382,8 +386,9 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     account: {
                         connect: { id: newAccount.id }
                     },
-                    description: 'Default Akun ' + name + ' ' + data.store.name,
-                    action: 'pm' + type
+                    maction: {
+                        connect: { action: 'pm' + type }
+                    }
                 },
                 include: {
                     account: true
@@ -446,8 +451,9 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     account: {
                         connect: { id: newAccount.id }
                     },
-                    description: 'Default Akun persediaan toko ' + data.store.name,
-                    action: 'persediaan'
+                    maction: {
+                        connect: { action: 'persediaan' }
+                    }
                 },
                 include: {
                     account: true
@@ -455,5 +461,61 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             });
         }
         return inventoryAccount;
+    }
+
+    async findAll(params = {}, literal = false, orderBy: Record<string, 'asc' | 'desc'> = {}): Promise<any> {
+        var result = await this.db.action_Account_Settings.findMany({
+            include: {
+                trans_Account_settings: {
+                    where: params,
+                    include: {
+                        account: true
+                    }
+                }
+            },
+        });
+        return  result;
+    }
+
+    async create(data: any): Promise<any> {
+        let result = null;
+        let prevData = await this.db.trans_Account_Settings.findUnique({
+            where: {
+                store_id_action: {
+                    store_id: data.store_id,
+                    action: data.action
+                }
+            }
+        })
+        // Update
+        if (prevData) {
+            result = await this.db.trans_Account_Settings.update({
+                where: {
+                    id: prevData.id
+                },
+                data: {
+                    account: {
+                        connect: { id: data.account_id }
+                    },
+                }
+            });
+        } 
+        // Create new
+        else {
+            result = await this.db.trans_Account_Settings.create({
+                data: {
+                    store: {
+                        connect: { id: data.store_id }
+                    },
+                    account: {
+                        connect: { id: data.account_id }
+                    },
+                    maction: {
+                        connect: { action: data.action }
+                    }
+                }
+            })
+        }
+        return result;
     }
 }
