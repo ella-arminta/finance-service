@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Trans_Account_Settings } from '@prisma/client';
+import { AccountsService } from 'src/accounts/accounts.service';
 import { BaseService } from 'src/common/base.service';
 import { DatabaseService } from 'src/database/database.service';
 
@@ -7,6 +8,7 @@ import { DatabaseService } from 'src/database/database.service';
 export class TransAccountSettingsService extends BaseService<Trans_Account_Settings> {
     constructor(
         db: DatabaseService,
+        private readonly accountService: AccountsService
     ) {
         const relations = {
             store: true,
@@ -462,6 +464,66 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
         }
         return inventoryAccount;
     }
+
+    async getDefaultAccount(action, store_id, company_id, name, account_type_id, description) {
+        var defaultAccount = await this.db.trans_Account_Settings.findFirst({
+            where: {
+                store_id: store_id,
+                action: action
+            },
+            include: {
+                account: true
+            }
+        });
+
+        if (!defaultAccount) {
+            // Create new tax account
+            var lastCodeForDefault = await this.db.accounts.findMany({
+                where: {
+                    company_id: company_id,
+                    account_type_id: account_type_id
+                },
+                orderBy: {
+                    code: 'desc'
+                }
+            });
+            var codeDefault = this.accountService.accountDefaultCode[account_type_id];
+            if (lastCodeForDefault.length > 0) {
+                var lastCode = lastCodeForDefault[0].code;
+                codeDefault = lastCode + 1;
+            }
+            const newAccount = await this.db.accounts.create({
+                data: {
+                    code: codeDefault,
+                    name: name,
+                    account_type: { connect: { id: account_type_id } },
+                    description: description,
+                    company: { connect: { id: company_id } },
+                    deactive: false,
+                    // created_by: data.employee_id
+                }
+            });
+            // Assign
+            defaultAccount = await this.db.trans_Account_Settings.create({
+                data: {
+                    store: {
+                        connect: { id: store_id }
+                    },
+                    account: {
+                        connect: { id: newAccount.id }
+                    },
+                    maction: {
+                        connect: { action: action }
+                    }
+                },
+                include: {
+                    account: true
+                }
+            });
+        }
+        return defaultAccount;
+    }
+    
 
     async findAll(params = {}, literal = false, orderBy: Record<string, 'asc' | 'desc'> = {}): Promise<any> {
         var result = await this.db.action_Account_Settings.findMany({

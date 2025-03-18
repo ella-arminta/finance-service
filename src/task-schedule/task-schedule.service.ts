@@ -16,12 +16,12 @@ export class TaskScheduleService {
         timeZone: 'Asia/Jakarta',
     })
     async handleCron() {
-        try {
-            const data = await this.scrapeDataGold();
+        // try {
+        //     const data = await this.scrapeDataGold();
 
-        } catch (error) {
-            console.log(`Cron job error: ${error.message}`);
-        }
+        // } catch (error) {
+        //     console.log(`Cron job error: ${error.message}`);
+        // }
     }
 
     async scrapeDataGold(): Promise<any> {

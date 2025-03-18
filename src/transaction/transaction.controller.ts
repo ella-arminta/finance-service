@@ -50,6 +50,7 @@ export class TransactionController {
         // Simpan log error ke file
         this.loggerService.logErrorToFile(errorMessage, error);
         // channel.ack(originalMsg);
+        channel.nack(originalMsg, false, false);
       } else {
         console.warn(`Retrying message (${retryCount}/${maxRetries})...`);
         channel.sendToQueue(originalMsg.fields.routingKey, originalMsg.content, {
@@ -579,5 +580,34 @@ export class TransactionController {
   // PURCHASE FROM CUSTOMER
   // TRADE TRANS
 
+  @EventPattern({ cmd: 'stock_out'})
+  @Exempt()
+  async handleStockOut(@Payload() data: any, @Ctx() context: RmqContext) {
+    await this.handleEvent(
+      context,
+      async () => this.transactionService.handleStockOut(data),
+      'Error handling stocks out event',
+    );
+  }
+
+  @EventPattern({ cmd: 'unstock_out' })
+  @Exempt()
+  async handleUnstockOut(@Payload() data: any, @Ctx() context: RmqContext) {
+    await this.handleEvent(
+      context,
+      async () => this.transactionService.handleUnstockOut(data),
+      'Error handling unstock out event',
+    );
+  }
+
+  @EventPattern({ cmd: 'stock_opname_approved'})
+  @Exempt()
+  async handleStockOpnameApproved(@Payload() data: any, @Ctx() context: RmqContext) {
+    await this.handleEvent(
+      context,
+      async () => this.transactionService.handleStockOpnameApproved(data),
+      'Error handling stock_opname_approved event',
+    );
+  }
 
 }

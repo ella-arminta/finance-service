@@ -86,7 +86,7 @@ export class AccountsController {
     const params = data.params;
     var filters =  data.body || {};
 
-    if (!filters.company_id && !filters.store_id) {
+    if (!filters.company_id) {
       filters.company_id = filters.auth.company_id;
     }    
 

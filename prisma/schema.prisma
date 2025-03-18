@@ -39,7 +39,6 @@ model Stores {
   updated_at   DateTime @updatedAt
   deleted_at   DateTime?
 
-  journals    Journals[]
   accounts    Accounts[]
   report_stocks Report_Stocks[]
 
@@ -82,7 +81,6 @@ model Accounts {
   store Stores? @relation(fields: [store_id], references: [id])
   company Companies @relation(fields: [company_id], references: [id])
   account_type Account_Types @relation(fields: [account_type_id], references: [id])
-  journal_accounts Journal_Accounts[]
   operation Operations[]
 
   trans_detail Trans_Details[]
@@ -92,29 +90,6 @@ model Accounts {
   trans_account_settings Trans_Account_Settings[]
 
   @@index([company_id, deleted_at, store_id, account_type_id])
-}
-
-
-model Journals {
-  id  Int   @default(autoincrement()) @id
-  store_id   String @db.Uuid  
-  store Stores? @relation(fields: [store_id], references: [id])
-  name        String
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  deleted_at   DateTime?
-  journal_accounts Journal_Accounts[]
-
-  @@index([store_id, deleted_at])
-}
-
-model Journal_Accounts { 
-  id Int @default(autoincrement()) @id
-  journal_id Int
-  account_id String @db.Uuid
-
-  journal Journals? @relation(fields: [journal_id], references: [id])
-  account Accounts? @relation(fields: [account_id], references: [id])
 }
 
 model Trans_Type {
@@ -291,27 +266,27 @@ model Trans_Account_Settings {
 
 model Report_Journals {
   id String @id @db.Uuid @default(uuid())
-  trans_id String? @db.Uuid
+  trans_id String? @db.Uuid // Kalau product created-> trans_id = product_code_id, kalau sales dll -> trans_id = trans_id, stock out-> trans_id = product_code_id
   code String 
-  company_id String @db.Uuid
-  company_name String
+  company_id String? @db.Uuid
+  company_name String?
   company_code String?
   store_id String @db.Uuid
-  store_name String
+  store_name String?
   store_code String?
   trans_date DateTime
   trans_type_id Int
-  trans_type_code String  // Uang keluar lain / Uang masuk lain / Sales
-  trans_type_name String 
+  trans_type_code String?  // Uang keluar lain / Uang masuk lain / Sales
+  trans_type_name String?
   description String?
   account_id String @db.Uuid
-  account_code Int
-  account_name String
+  account_code Int?
+  account_name String?
   amount Decimal
   detail_description String?
   cash_bank Boolean @default(false) // true = Cash/Bank Account, false = Destination Account
 
-  @@index([code, company_id, store_id, trans_id, account_id, trans_date])
+  @@index([code, store_id, trans_id, account_id, trans_date, trans_type_id])
 }
 
 model Stock_Source {
@@ -350,7 +325,7 @@ model Report_Stocks {
   source            Stock_Source @relation(fields: [source_id], references: [id])
   store             Stores        @relation(fields: [store_id], references: [id])
 
-  @@index([trans_date])
+  @@index([trans_date, source_id, product_code_id])
 }
 
 model Operations {

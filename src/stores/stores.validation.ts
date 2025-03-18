@@ -8,14 +8,22 @@ export class StoreValidation {
     constructor(
         private readonly storeService: StoresService,
     ){}
+
+    readonly dateSchema = z.preprocess((val) => {
+        if (typeof val === "string") {
+            const parsedDate = new Date(val);
+            return isNaN(parsedDate.getTime()) ? val : parsedDate;
+        }
+        return val;
+    }, z.date());
     
     readonly CREATE: ZodType = z.object({
         id: z.string().uuid(),
         name: z.string().min(3).max(255),
         company_id: z.string().uuid(),
-        created_at: z.date(),
-        updated_at: z.date(),
-        deleted_at: z.date().nullable(),
+        created_at: this.dateSchema,
+        updated_at: this.dateSchema,
+        deleted_at: this.dateSchema.nullable(),
         code: z.string(),
     });      
 
@@ -28,9 +36,9 @@ export class StoreValidation {
         }),
         name: z.string().min(2).optional(),
         company_id: z.string().uuid().optional(),
-        created_at: z.date().optional(),
-        updated_at: z.date().optional(),
-        deleted_at: z.date().nullable().optional(),
+        created_at: this.dateSchema,
+        updated_at: this.dateSchema,
+        deleted_at: this.dateSchema.nullable(),
         code: z.string().optional(),
     });
     

@@ -21,6 +21,25 @@ export class StoresController {
     @Inject('MASTER') private readonly masterClient: ClientProxy
   ) {}
 
+  private async handleEvent(
+    context: RmqContext,
+    callback: () => Promise<{ success: boolean }>,
+    errorMessage: string,
+  ) {
+    const channel = context.getChannelRef();
+    const originalMsg = context.getMessage();
+
+    try {
+      const response = await callback();
+      if (response.success) {
+        channel.ack(originalMsg);
+      }
+    } catch (error) {
+      console.error(errorMessage, error.stack);
+      channel.nack(originalMsg);
+    }
+  }
+
   @EventPattern({ cmd: 'store_created' })
   @Exempt()  
   async create(@Payload() data: any , @Ctx() context: RmqContext) {
@@ -40,10 +59,10 @@ export class StoresController {
 
       const newData = await this.storesService.create(validatedData);
       if (newData) {
-        channel.ack(originalMsg);
         console.log('Store created successfully acked:', newData);
         // create default accounts for this store
-        this.accountService.generateDefaultAccountsByStore(newData.id);
+        await this.accountService.generateDefaultAccountsByStore(newData.id);
+        channel.ack(originalMsg);
       }
     } catch (error) {
       console.error('Error creating Store:', error);
@@ -132,5 +151,22 @@ export class StoresController {
     }
     
     return ResponseDto.success('Store sync successful', results);
+  }
+
+  @EventPattern({ cmd: 'store_sync' })
+  @Exempt()
+  async storeSync(@Payload() data: any, @Ctx() context: RmqContext) {
+    await this.handleEvent(
+      context,
+      async () => {
+        const datas = await Promise.all(
+          data.map(async (d) => {
+            return await this.validationService.validate(this.storeValidation.CREATE, d);
+          })
+        );
+        return await this.storesService.sync(datas);
+      },
+      'Error processing store_sync event',
+    );
   }
 }

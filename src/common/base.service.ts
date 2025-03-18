@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { DatabaseService } from 'src/database/database.service';
+import { ResponseDto } from './response.dto';
 
 export class BaseService<T> {
   constructor(
@@ -99,5 +100,18 @@ export class BaseService<T> {
     return (this.db[this.prismaModel] as any).deleteMany({
       where: whereConditions,
     });
+  }
+
+  async sync(data: any[]) {
+    const datas = await Promise.all(
+      data.map((d) =>
+        (this.db[this.prismaModel] as any).upsert({
+          where: { id: d.id },
+          update: d,
+          create: d,
+        })
+      )
+    );
+    return ResponseDto.success('Data synced!', datas);
   }
 }

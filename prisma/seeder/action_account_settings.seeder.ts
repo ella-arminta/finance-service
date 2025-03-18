@@ -61,6 +61,30 @@ async function main() {
         action: 'persediaan',
         name: 'Persediaan',
         description: 'Akun yang digunakan toko untuk persediaan',
+      }, 
+      {
+        id: 10,
+        action: 'repair',
+        name: 'Barang Keluar diperbaiki',
+        description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi diperbaiki',
+      },
+      {
+        id: 11,
+        action: 'expired',
+        name: 'Barang Keluar Expired',
+        description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi expired',
+      },
+      {
+        id: 12,
+        action: 'lost',
+        name: 'Barang Keluar Hilang',
+        description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi hilang',
+      },
+      {
+        id: 13,
+        action: 'other',
+        name: 'Barang Keluar lainnya',
+        description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi lainnya',
       }
     ],
     skipDuplicates: true,

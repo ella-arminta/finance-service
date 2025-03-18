@@ -7,6 +7,7 @@ import { ReportStockValidation } from './report-stocks.validation';
 import { ValidationService } from 'src/common/validation.service';
 import { ResponseDto } from 'src/common/response.dto';
 import { filter } from 'cheerio/dist/commonjs/api/traversing';
+import { TransAccountSettingsService } from 'src/trans-account-settings/trans-account-settings.service';
 
 @Injectable()
 export class ReportStocksService extends BaseService<Report_Stocks> {
@@ -15,6 +16,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         private readonly stockSourceService: StockSourceService,
         private readonly reportStockValidation: ReportStockValidation,
         private readonly validationService: ValidationService,
+        private readonly transAccountSettingsServ: TransAccountSettingsService,
     ) {
         const relations = {
         }
@@ -385,5 +387,91 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         })
 
         return result;        
+    }
+
+    async handleProductCodeDeleted(data: any) {
+        console.log('this is product code deleted',data);
+        // data: {
+        //     id: '9e2f1473-5a96-4819-b4b5-a717033b1791',
+        //     barcode: 'AA0010100010005',
+        //     product_id: '36dad44a-7d50-4e29-8a82-18a869ba8f22',
+        //     weight: '3',
+        //     fixed_price: '100000',
+        //     status: 0,
+        //     taken_out_at: null,
+        //     buy_price: '110000',
+        //     tax_purchase: '12100',
+        //     image: '',
+        //     account_id: 'f609be50-160a-4edd-b3ac-755ab5c5739a',
+        //     created_at: '2025-03-17T04:28:36.013Z',
+        //     updated_at: '2025-03-17T04:28:36.013Z',
+        //     deleted_at: null,
+        //     product: {
+        //       id: '36dad44a-7d50-4e29-8a82-18a869ba8f22',
+        //       code: 'AA001010001',
+        //       name: 'asdf',
+        //       description: 'sdf',
+        //       images: [Array],
+        //       status: 1,
+        //       tags: [Array],
+        //       type_id: '81b1af2f-9a6a-41c0-806c-012fd002310f',
+        //       store_id: '9a3d8de0-b367-4a13-9f56-9eaea7608613',
+        //       created_at: '2025-03-17T03:41:41.009Z',
+        //       updated_at: '2025-03-17T03:41:41.009Z',
+        //       deleted_at: null,
+        //       type: [Object],
+        //       store: [Object]
+        //     }
+        //   },
+        //   errors: null
+        // }
+        var productCode = data.data;
+
+        await this.db.$transaction(async (prisma) => {
+            // delete from report journals
+            await prisma.report_Journals.deleteMany({
+                where: {
+                    trans_id: productCode.id,
+                    trans_type_id: 8
+                }
+            });
+    
+            // delete from report stocks
+            await prisma.report_Stocks.deleteMany({
+                where: {
+                    product_code_id: productCode.id,
+                    source_id: 1
+                }
+            });
+        });
+        return ResponseDto.success('Product code deleted!', null, 200);
+    }
+
+    async handleStockOut(data: any) {
+        const source = await this.stockSourceService.findOne(undefined, { code: 'OUTSTOCK' });
+        const MappedData = {
+            store_id: data.productCode.product.store_id,
+            source_id: source.id,
+            trans_id: data.trans_id,
+            trans_date: data.trans_date,
+            category_id: data.productCode.product.type.category_id,
+            category_code: data.productCode.product.type.category.code,
+            category_name: data.productCode.product.type.category.name,
+            type_id: data.productCode.product.type.id,
+            type_code: data.productCode.product.type.code,
+            type_name: data.productCode.product.type.name,
+            product_id: data.productCode.product.id,
+            product_code: data.productCode.product.code,
+            product_name: data.productCode.product.name,
+            product_code_code: data.productCode.barcode,
+            product_code_id: data.productCode.id,
+            weight:parseFloat(data.productCode.weight),
+            price: parseFloat(data.productCode.buy_price),
+            qty: -1,
+            created_at: new Date(data.productCode.created_at),
+        }
+        const result = await this.create(MappedData);
+        console.log(result);
+        return result;
     }
 }

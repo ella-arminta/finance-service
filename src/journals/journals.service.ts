@@ -1,16 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { Journals } from '@prisma/client';
 import { BaseService } from 'src/common/base.service';
 import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
-export class JournalsService extends BaseService<Journals> {
+export class JournalsService{
     constructor(
-        db: DatabaseService) {
-        const relations = {
-        }
-        super('journals', db, relations, true);
-    }
+        private readonly db: DatabaseService // Tambahkan 'private readonly'
+    ) {}
 
     async getJournals(filters: any): Promise<any> {
         let conditions: string[] = [];

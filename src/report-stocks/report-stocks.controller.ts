@@ -127,4 +127,14 @@ export class ReportStocksController {
   
     return this.reportStocksService.getStockMutation(body);
   }
+
+  @EventPattern({ cmd: 'product_code_deleted' })
+  @Exempt()
+  async handleProductCodeCreated(@Payload() data: any, @Ctx() context: RmqContext) {
+    await this.handleEvent(
+      context,
+      async () => this.reportStocksService.handleProductCodeDeleted(data),
+      'Error handling product code deleted event',
+    );
+  }
 }

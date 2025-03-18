@@ -8,7 +8,7 @@ async function main() {
   // kalo di jurnal tinggal setting transaksi itu masuk jurnal mana ya. 
   const account_types = await prisma.account_Types.createMany({
     data: [
-      { name: 'Cash', description: "Kas : Kas, Bank, Giro,Asset, dll", code:1 ,created_at: new Date(), updated_at: new Date() },
+      { name: 'Asset', description: "Asset : Kas, Bank, Giro,Asset, dll", code:1 ,created_at: new Date(), updated_at: new Date() },
       { name: 'Expense',  code:5, description: "Beban: Biaya operasional, biaya gaji pegawai, biaya lain-lain", created_at: new Date(), updated_at: new Date() },
       { name: 'Payable', code:2, description: "Hutang", created_at: new Date(), updated_at: new Date() },
       { name: 'Receivable', code:1 ,description:"Piutang" ,created_at: new Date(), updated_at: new Date() },

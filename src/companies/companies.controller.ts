@@ -19,10 +19,29 @@ export class CompaniesController {
     @Inject('MASTER') private readonly masterClient: ClientProxy
   ) {}
 
+  private async handleEvent(
+    context: RmqContext,
+    callback: () => Promise<{ success: boolean }>,
+    errorMessage: string,
+  ) {
+    const channel = context.getChannelRef();
+    const originalMsg = context.getMessage();
+
+    try {
+      const response = await callback();
+      if (response.success) {
+        channel.ack(originalMsg);
+      }
+    } catch (error) {
+      console.error(errorMessage, error.stack);
+      channel.nack(originalMsg);
+    }
+  }
+
   @EventPattern({ cmd: 'company_created' })
   @Exempt()  
   async companyCreated(@Payload() data: any , @Ctx() context: RmqContext) {
-    // console.log('Company created emit received:', data);
+    console.log('Company created emit received:', data);
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
 
@@ -38,10 +57,10 @@ export class CompaniesController {
 
       const newData = await this.companiesService.create(validatedData);
       if (newData) {
+        await this.accountService.generateDefaultAccountsByComp(newData.id);
         channel.ack(originalMsg);
         // console.log('Company created successfully acked:', newData);
         // create default accounts for this company
-        this.accountService.generateDefaultAccountsByComp(newData.id);
       }
     } catch (error) {
       console.error('Error creating company:', error);
@@ -84,6 +103,7 @@ export class CompaniesController {
   @EventPattern({cmd:'company_deleted'})
   @Exempt()
   async remove(@Payload() data: any, @Ctx() context: RmqContext) {
+    console.log('Company deleted emit received', data);
     // console.log('Company deleted emit received', data);
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
@@ -100,28 +120,20 @@ export class CompaniesController {
     }
   }
 
-  @MessagePattern({cmd:'get:company-sync'})
+  @EventPattern({ cmd: 'company_sync' })
   @Exempt()
-  async sync(@Payload() data: any) {
-    var data = await this.masterClient.send({ cmd: 'get:company' }, {}).toPromise();
-    data = data.data;
-    var results  = [];
-
-    for (const dat of data) {
-      dat.created_at = new Date(dat.created_at);
-      dat.updated_at = new Date(dat.updated_at);
-
-      let validatedData = await this.validationService.validate(this.companyValidation.CREATE, dat);
-      var prevData = await this.companiesService.findOne(dat.id);
-      var result;
-      if (prevData) {
-        result = await this.companiesService.update(dat.id, validatedData);
-      } else {
-        result = await this.companiesService.create(validatedData);
-      }
-      results.push(result);
-    }
-    
-    return ResponseDto.success('Company sync successful', results);
+  async companySync(@Payload() data: any, @Ctx() context: RmqContext) {
+    await this.handleEvent(
+      context,
+      async () => {
+        const datas = await Promise.all(
+          data.map(async (d) => {
+            return await this.validationService.validate(this.companyValidation.CREATE, d);
+          })
+        );
+        return await this.companiesService.sync(datas);
+      },
+      'Error processing company_sync event',
+    );
   }
 }
