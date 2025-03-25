@@ -273,7 +273,11 @@ model Trans_Account_Settings {
 
 model Report_Journals {
   id String @id @db.Uuid @default(uuid())
-  trans_id String? @db.Uuid // Kalau product created-> trans_id = product_code_id, kalau sales dll -> trans_id = trans_id, stock out-> trans_id = product_code_id
+  trans_id String? @db.Uuid 
+    // Kalau product created-> trans_id = product_code_id, 
+    // kalau sales dll -> trans_id = trans_id, 
+    // stock out-> trans_id = product_code_id
+    // Stock opname -> trans_id = stock_opname_id
   code String 
   company_id String? @db.Uuid
   company_name String?

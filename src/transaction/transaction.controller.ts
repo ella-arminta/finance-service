@@ -621,5 +621,15 @@ export class TransactionController {
       'Error handling stock_opname_approved event',
     );
   }
+  
+  @EventPattern({cmd: 'stock_opname_disapproved'})
+  @Exempt()
+  async handleStockOpnameDisapproved(@Payload() data: any, @Ctx() context: RmqContext) {
+    await this.handleEvent(
+      context,
+      async () => this.transactionService.handleStockOpnameDisapproved(data),
+      'Error handling stock_opname_disapproved event',
+    )
+  }
 
 }

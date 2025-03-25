@@ -603,6 +603,7 @@ export class TransactionService extends BaseService<Trans> {
     });
     const transType = await this.db.trans_Type.findUnique({ where: { code: 'PURSUP' } });
     var transDetailsFormated = [];
+    // Persediaan Barang Dagang    (D)
     const inventoryAccount = await this.transAccountSettingsServ.getInventoryAccount(data);
     transDetailsFormated.push({
       account_id: inventoryAccount.account_id,
@@ -612,6 +613,7 @@ export class TransactionService extends BaseService<Trans> {
       cash_bank: false,
       account_code: inventoryAccount.account.code
     })
+    // PPN Masukan                 (D)
     const taxAccount = await this.transAccountSettingsServ.getTaxAccount(data);
     transDetailsFormated.push({
       account_id: taxAccount.account_id,
@@ -621,6 +623,7 @@ export class TransactionService extends BaseService<Trans> {
       cash_bank: false,
       account_code: taxAccount.account.code
     })
+    // Kas/Bank/Utang Dagang            (K)
     const kasBankAccount = await this.db.accounts.findFirst({
       where: {
         id: data.account_id
@@ -675,10 +678,6 @@ export class TransactionService extends BaseService<Trans> {
     }
 
     return reportJournal;
-  }
-
-  async cancelBuyProduct(data) {
-
   }
 
   async handleStockOut(data: any) {
@@ -1062,10 +1061,14 @@ export class TransactionService extends BaseService<Trans> {
       //     Cr. Persediaan Barang Dagangan      Rp 1.000.000    
       try {
         await this.db.$transaction(async (prisma) => {
+          if (!data.id) {
+            throw new Error('ID Stock Opname must exist')
+          }
           // Debit
+          console.log('ini data.id', data.id);
           var reportJournals = await this.db.report_Journals.create({
             data: {
-              trans_id: productCode.id,
+              trans_id: data.id,
               code: transCode,
               store_id: productCode.product.store_id,
               trans_date: data.trans_date,
@@ -1080,7 +1083,7 @@ export class TransactionService extends BaseService<Trans> {
           // Credit
           var reportJournals = await this.db.report_Journals.create({
             data: {
-              trans_id: productCode.id,
+              trans_id: data.id,
               code: transCode,
               store_id: productCode.product.store_id,
               trans_date: data.trans_date,
@@ -1094,7 +1097,7 @@ export class TransactionService extends BaseService<Trans> {
           })
 
           // Report Stock
-          data.trans_id = reportJournals.id;
+          data.trans_id = data.id;
           data.productCode = productCode;
           var stockOut = await this.reportStockService.handleStockOut(data);
         });
@@ -1104,6 +1107,75 @@ export class TransactionService extends BaseService<Trans> {
       }
     }
 
+    return ResponseDto.success('Stocks loss during opname handled!', null, 200);
+  }
+
+  async handleStockOpnameDisapproved(data: any) {
+    // console.log(data);
+    // {
+    //   stockNotScanned: [
+    //     {
+    //       id: '82db2d45-857b-4545-bede-8930da2c2064',
+    //       barcode: 'AA0020100040004',
+    //       product_id: '38043fba-3b36-43d7-a7c9-0e6317916868',
+    //       weight: '10',
+    //       fixed_price: '5000',
+    //       status: 1,
+    //       taken_out_at: null,
+    //       taken_out_reason: 0,
+    //       taken_out_by: null,
+    //       buy_price: '120000',
+    //       tax_purchase: '13200',
+    //       image: 'uploads\\product\\7fa3336d-7277-4c5e-85a7-84ef2ef968eb.png',
+    //       account_id: 'f609be50-160a-4edd-b3ac-755ab5c5739a',
+    //       created_at: '2025-03-24T08:15:02.575Z',
+    //       updated_at: '2025-03-24T08:15:47.257Z',
+    //       deleted_at: null,
+    //       product: [Object]
+    //     }
+    //   ]
+    // }
+    const { stockNotScanned, id} = data;
+    const transType = await this.db.trans_Type.findUnique({ where: { code: 'KD' } });
+    // setelah opname stock tgl
+
+    console.log('stocknotscanned handledisapproved', stockNotScanned);
+    for (var productCode of stockNotScanned) {
+      // Dr. Beban Kerugian Barang Hilang    Rp 1.000.000  
+      //     Cr. Persediaan Barang Dagangan      Rp 1.000.000    
+      try {
+        await this.db.$transaction(async (prisma) => {
+          if (!productCode?.id || !transType?.id) {
+            throw new Error('Product ID atau Trans Type ID tidak boleh null');
+          }
+          // delete journals
+          const delReportJournals = await prisma.report_Journals.deleteMany({
+            where: {
+              trans_id: id,
+              trans_type_id: transType.id,
+              description: {
+                contains: 'setelah opname stock tgl'
+              }
+            }
+          });
+          console.log('deleted ReportJournals', delReportJournals);
+
+          // delete from report stocks
+          const delReportStocks = await prisma.report_Stocks.deleteMany({
+            where: {
+              source_id: 2, // OUTSTOCK
+              trans_id: id,
+            }
+          });
+          console.log('deleted reportStocks', delReportStocks);
+
+
+        });
+      } catch (error) {
+        console.error('Error creating stock out:', error);
+        throw new Error(`Error creating stock out: ${error.message}`);
+      }
+    }
     return ResponseDto.success('Stocks loss during opname handled!', null, 200);
   }
 }
