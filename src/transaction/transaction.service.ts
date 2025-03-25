@@ -874,7 +874,7 @@ export class TransactionService extends BaseService<Trans> {
     // Beban Perbaikan (Debit)   xxx  
     //   Kas/Utang (Kredit)      xxx  
     const repairExpenseAccount = await this.transAccountSettingsServ.getDefaultAccount(
-      'repair', productCode.product.store_id, productCode.product.store.company_id, 'BIAYA PERBAIKAN', 2, 'Default Akun Biaya Perbaikan'
+      'repairCost', productCode.product.store_id, productCode.product.store.company_id, 'BIAYA PERBAIKAN', 2, 'Default Akun Biaya Perbaikan'
     );
     const kasAccount = await this.db.accounts.findFirst({
       where: {

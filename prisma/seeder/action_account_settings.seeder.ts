@@ -65,15 +65,15 @@ async function main() {
       {
         id: 10,
         action: 'repair',
-        name: 'Barang Keluar diperbaiki',
-        description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi diperbaiki',
+        name: 'Persediaan dalam reparasi',
+        description: 'Akun persediaan toko ketika barang dalam kondisi reparasi',
       },
-      // {
-      //   id: 11,
-      //   action: 'expired',
-      //   name: 'Barang Keluar Expired',
-      //   description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi expired',
-      // },
+      {
+        id: 11,
+        action: 'repairCost',
+        name: 'Biaya reparasi',
+        description: 'Akun yang digunakan toko ketika terdapat biaya reparasi',
+      },
       {
         id: 12,
         action: 'lost',
