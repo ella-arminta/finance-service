@@ -133,7 +133,10 @@ export class AccountsService extends BaseService<Accounts> {
         { type: 3, name: 'HUTANG' },
         { type: 5, name: 'DISKON PENJUALAN', actions: ['discountSales'] },
         { type: 1, name: 'PERSEDIAAN', actions: ['persediaan'] },
-        { type: 5, name: 'Beban Kerugian Barang Hilang', actions: ['lost', 'other'] },
+        { type: 2, name: 'Beban Kerugian Barang Hilang', actions: ['lost', 'other'] },
+        { type: 2, name: 'BIAYA REPARASI', actions: ['repair'] },
+        { type: 2, name: 'Beban Penyusutan Reparasi Emas', actions: ['repairDeprec'] },
+        { type: 2, name: 'Harga Pokok Penjualan', actions: ['cogs'] },
     ].map(({ type, name, actions = [] }) => ({
         company: { connect: { id: company_id } },
         code: codeMap[type]++,

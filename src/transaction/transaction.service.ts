@@ -355,6 +355,7 @@ export class TransactionService extends BaseService<Trans> {
     const store = await this.db.stores.findUnique({ where: { id: data.store_id }, include: { company: true } });
     var diskonTotal = 0;
     var salesEmasTotal = 0;
+    var hppTotal = 0;
     data.store = store;
     var transDetailsFormated = [];
 
@@ -363,6 +364,9 @@ export class TransactionService extends BaseService<Trans> {
     // Diskon Penjualan        (D)  1.000  
     // Pendapatan                         (K) 10.000  (gk termasuk diskon)
     // Hutang Pajak Penjualan             (K)    990  
+    // PERSEDIAAN JURNAL TODOELLA crosscheck
+    // Harga Pokok Penjualan   (D)  2.000        
+    // Persediaan                         (K)  2.000
 
     // JOURNAL ENTRY (KREDIT)
     // Tax yg dibayar customer
@@ -392,8 +396,40 @@ export class TransactionService extends BaseService<Trans> {
     })
     // Sales Emas 
     data.transaction_products.forEach(det => {
+      // {
+      //   id: 'f30f5ccc-5f7f-4fe5-aa08-f4233ac80f4f',
+      //   transaction_id: 'a9fde691-221b-47a7-aed1-7acfe0423354',
+      //   product_code_id: 'c9172e6c-be97-4e3e-a4ac-c1d25fc7b62f',
+      //   transaction_type: 1,
+      //   name: 'AA0020100040001 - Putih',
+      //   type: 'AA00201 - Gelang',
+      //   weight: '12',
+      //   price: '5000',
+      //   adjustment_price: '0',
+      //   discount: '0',
+      //   total_price: '60000',
+      //   status: 1,
+      //   comment: null,
+      //   created_at: '2025-03-24T01:10:02.621Z',
+      //   updated_at: '2025-03-24T01:10:02.621Z',
+      //   deleted_at: null,
+      //   product_code: {
+      //     id: 'c9172e6c-be97-4e3e-a4ac-c1d25fc7b62f',
+      //     barcode: 'AA0020100040001',
+      //     product_id: '38043fba-3b36-43d7-a7c9-0e6317916868',
+      //     weight: '12',
+      //     fixed_price: '5000',
+      //     status: 1,
+      //     taken_out_at: null,
+      //     created_at: '2025-03-18T06:49:50.661Z',
+      //     updated_at: '2025-03-24T01:10:02.649Z',
+      //     deleted_at: null,
+      //     product: [Object]
+      //   },
       salesEmasTotal += (Math.abs(det.total_price) + Math.abs(det.discount)) * -1;
       diskonTotal += Math.abs(det.discount);
+      console.log('biy price',det.product_code.buy_price);
+      hppTotal += Math.abs(det.product_code.buy_price);
     })
 
     // Journal entry sales emas
@@ -420,14 +456,41 @@ export class TransactionService extends BaseService<Trans> {
         account_code: discountAccount.account.code
       })
     }
-    // PIUTANG
+
+    // Journal entry persediaan
+    // Hpp (debit)
+    const hppAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'cogs', store.id, store.company_id, `Harga Pokok Penjualan ${store.name}`, 2, 'Default Akun HPP'
+    )
+    transDetailsFormated.push({
+      account_id: hppAccount.account_id,
+      account_name: hppAccount.account.name,
+      amount: hppTotal,
+      detail_description: 'Harga Pokok Penjualan',
+      cash_bank: false,
+      account_code: hppAccount.account.code
+    })
+    // persediaan (kredit)
+    const inventoryAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'persediaan', store.id, store.company_id, `Default akun persediaan ${store.name}`, 1, 'Default Akun Persediaan'
+    )
+    transDetailsFormated.push({
+      account_id: inventoryAccount.account_id,
+      account_name: inventoryAccount.account.name,
+      amount: hppTotal * -1,
+      detail_description: 'Persediaan Barang Dagang',
+      cash_bank: false,
+      account_code: inventoryAccount.account.code
+    })
+
+    // Journal Entry PIUTANG
     if (data.status == 0) { // draft / pending
       const piutangAccount = await this.transAccountSettingsServ.getPiutangAccount(data);
       transDetailsFormated.push({
         account_id: piutangAccount.account_id,
         account_name: piutangAccount.account.name,
         amount: data.total_price, // TODOELLA : Check if this is correct
-        description: 'Piutang Usaha',
+        detail_description: 'Piutang Usaha',
         cash_bank: true,
         account_code: piutangAccount.account.code
       })
@@ -618,15 +681,7 @@ export class TransactionService extends BaseService<Trans> {
 
   }
 
-
   async handleStockOut(data: any) {
-    const reasonDict = {
-      0: 'none',
-      1: 'repair',
-      2: 'lost',
-      3: 'other'
-    }
-    console.log('handlestockout data', data);
     // handlestockout data {
     //     productCode: {
     //       id: '4e5df22e-9616-499d-a78e-322090cc944e',
@@ -663,77 +718,82 @@ export class TransactionService extends BaseService<Trans> {
     //     reason: 2,
     //     trans_date: 2025-03-18T01:26:15.638Z
     //   }
-    let reason = data.reason;
-    const productCode = data.productCode;
-    const transType = await this.db.trans_Type.findUnique({ where: { code: 'KD' } });
-    const transCode = await this.getTransCode(transType, productCode.product.store_id);
+    // Persediaan dalam Perbaikan    Rp 1.000.000  
+    //     Cr. Persediaan Barang Dagangan      Rp 1.000.000    
+    const reasonDict = { 0: 'none', 1: 'repair', 2: 'lost', 3: 'other' };
+    const { reason, productCode, trans_date } = data;
+    const store = productCode.product.store;
+    
+    if (reason === 0) return ResponseDto.success('No action needed.', null, 200);
+    
+    var transType = await this.db.trans_Type.findUnique({ where: { code: 'KD' } });
+    const transCode = await this.getTransCode(transType, store.id);
+    const reasonText = reasonDict[reason];
 
-    if (reason == 2 || reason == 3) {
-      reason = reasonDict[reason];
+    const inventoryAccount = await this.transAccountSettingsServ.getDefaultAccount(
+        'persediaan', store.id, store.company_id, `Persediaan ${store.name}`, 1, 'Default Akun Persediaan'
+    );
 
-      // Dr. Beban Kerugian Barang Hilang    Rp 1.000.000  
-      //     Cr. Persediaan Barang Dagangan      Rp 1.000.000    
-      const lostAccount = await this.transAccountSettingsServ
-        .getDefaultAccount(
-          reason,
-          productCode.product.store_id,
-          productCode.product.store.company_id,
-          'Beban Kerugian Barang Hilang ' + productCode.product.store.name,
-          2,
-          'Default Akun Beban Kerugian barang hilang cabang',
+    const accountMap = {
+        1: await this.transAccountSettingsServ.getDefaultAccount(
+            'repair', store.id, store.company_id, `Persediaan dalam Perbaikan ${store.name}`, 1, 'Default Akun Perbaikan'
+        ),
+        2: await this.transAccountSettingsServ.getDefaultAccount(
+            'lost', store.id, store.company_id, `Beban Persediaan Hilang${store.name}`, 2, 'Default Akun Kerugian'
+        ),
+        3: await this.transAccountSettingsServ.getDefaultAccount(
+            'other', store.id, store.company_id, `Beban Persediaan Hilang ${store.name}`, 2, 'Default Akun Beban hilang lain'
         )
-      const inventoryAccount = await this.transAccountSettingsServ.getDefaultAccount(
-        'persediaan',
-        productCode.product.store_id,
-        productCode.product.store.company_id,
-        'Persediaan ' + productCode.product.store.name,
-        1,
-        'Default Akun Persediaan barang cabang',
-      )
-      try {
-        await this.db.$transaction(async (prisma) => {
-          // Debit
-          var reportJournals = await this.db.report_Journals.create({
-            data: {
-              trans_id: productCode.id,
-              code: transCode,
-              store_id: productCode.product.store_id,
-              trans_date: data.trans_date,
-              trans_type_id: transType.id,
-              description: 'Barang Keluar ' + reason,
-              account_id: lostAccount.account_id,
-              amount: Math.abs(parseFloat(productCode.buy_price)),
-              detail_description: 'Beban Kerugian Barang Hilang ' + productCode.product.store.name,
-              cash_bank: true
-            }
-          })
-          // Credit
-          var reportJournals = await this.db.report_Journals.create({
-            data: {
-              trans_id: productCode.id,
-              code: transCode,
-              store_id: productCode.product.store_id,
-              trans_date: data.trans_date,
-              trans_type_id: transType.id,
-              description: 'Barang Keluar ' + reason,
-              account_id: inventoryAccount.account_id,
-              amount: Math.abs(parseFloat(productCode.buy_price)) * -1,
-              detail_description: 'Persediaan Barang Dagang ' + productCode.product.store.name,
-              cash_bank: false
-            }
-          })
+    };
 
-          // Report Stock
-          data.trans_id = reportJournals.id;
-          var stockOut = await this.reportStockService.handleStockOut(data);
+    const selectedAccount = accountMap[reason];
+    const amount = Math.abs(parseFloat(productCode.buy_price));
+
+    try {
+        await this.db.$transaction(async (prisma) => {
+            const reportJournalDebit =  await prisma.report_Journals.create({
+                data: 
+                    { 
+                      trans_id: productCode.id, 
+                      code: transCode, 
+                      store_id: store.id, 
+                      trans_date, 
+                      trans_type_id: transType.id, 
+                      description: `Barang Keluar ${reasonText}`, 
+                      account_id: selectedAccount.account_id, 
+                      amount, 
+                      detail_description: `${selectedAccount.account.name} ${store.name}`, 
+                      cash_bank: true 
+                    },
+            });
+            console.log('reportJournalDebit',reportJournalDebit);
+            const reportJournalKredit = await prisma.report_Journals.create({
+                data: { 
+                  trans_id: productCode.id, 
+                  code: transCode, 
+                  store_id: store.id, 
+                  trans_date,
+                  trans_type_id: transType.id, 
+                  description: `Barang Keluar ${reasonText}`, 
+                  account_id: inventoryAccount.account_id, 
+                  amount: amount * -1, 
+                  detail_description: `Persediaan ${store.name}`, 
+                  cash_bank: false 
+                }
+            });
+            console.log('reportJournalKredit',reportJournalKredit);
+
+            data.trans_id = productCode.id;
+            await this.reportStockService.handleStockOut(data);
         });
-      } catch (error) {
+
+        return ResponseDto.success('Stocks out handled!', null, 200);
+    } catch (error) {
         console.error('Error creating stock out:', error);
         throw new Error(`Error creating stock out: ${error.message}`);
-      }
     }
-    return ResponseDto.success('Stocks out handled!', null, 200);
   }
+
 
   async handleUnstockOut(data: any) {
     try {
@@ -747,13 +807,15 @@ export class TransactionService extends BaseService<Trans> {
           }
         });
 
+        // taken out reason // 0: none, 1: repair, 2: lost, 3: taken out by the owner
         // delete from report stock
         const stockOut = await this.db.report_Stocks.deleteMany({
           where: {
             product_code_id: data.productCode.id,
-            source_id: 2
+            source_id:data.productCode.taken_out_reason == 1 ? 6 : 2
           }
         });
+        console.log('stockout report stock',stockOut);
       });
     } catch (error) {
       console.error('Error unstock out:', error);
@@ -761,6 +823,176 @@ export class TransactionService extends BaseService<Trans> {
     }
 
     return ResponseDto.success('Unstocks out handled!', null, 200);
+  }
+
+  async handleStockRepaired(data: any) {
+    console.log('data repaired', data);
+    const {productCode, trans_date, account_id, weight, expense } = data;
+    console.log(productCode, trans_date, account_id, weight, expense);
+    // data repaired {
+    //   productCode: {
+    //     id: '311d1827-5ff4-447c-9a9e-dd689471fc27',
+    //     barcode: 'AA0010100030001',
+    //     product_id: '436446a4-be6d-406b-bb15-50a7a09eff47',
+    //     weight: '1',
+    //     fixed_price: '100000',
+    //     status: 3,
+    //     taken_out_at: '2025-03-18T00:00:00.000Z',
+    //     taken_out_reason: 1,
+    //     taken_out_by: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+    //     buy_price: '120000',
+    //     tax_purchase: '13200',
+    //     image: 'uploads\\product\\7af0061b-6928-4b22-9fa1-c33362d55a49.png',
+    //     account_id: 'f609be50-160a-4edd-b3ac-755ab5c5739a',
+    //     created_at: '2025-03-18T06:43:46.930Z',
+    //     updated_at: '2025-03-18T13:09:51.444Z',
+    //     deleted_at: null,
+    //     product: {
+    //       id: '436446a4-be6d-406b-bb15-50a7a09eff47',
+    //       code: 'AA001010003',
+    //       name: 'BUBU',
+    //       description: 'asdf',
+    //       images: [Array],
+    //       status: 1,
+    //       tags: [],
+    //       type_id: '81b1af2f-9a6a-41c0-806c-012fd002310f',
+    //       store_id: '8dedffbb-f267-490a-9feb-e1547b01fcda',
+    //       created_at: '2025-03-18T06:42:33.941Z',
+    //       updated_at: '2025-03-18T06:42:33.941Z',
+    //       deleted_at: null,
+    //       type: [Object],
+    //       store: [Object]
+    //     }
+    //   },
+    //   trans_date: '2025-03-18T15:48:16.154Z',
+    //   account_id: [ 'f609be50-160a-4edd-b3ac-755ab5c5739a' ]
+    // }
+    const transType = await this.db.trans_Type.findUnique({ where: { code: 'MD' } });
+    const transCode = await this.getTransCode(transType, productCode.product.store_id);
+
+    // Expense Perbaikan
+    // Beban Perbaikan (Debit)   xxx  
+    //   Kas/Utang (Kredit)      xxx  
+    const repairExpenseAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'repair', productCode.product.store_id, productCode.product.store.company_id, 'BIAYA PERBAIKAN', 2, 'Default Akun Biaya Perbaikan'
+    );
+    const kasAccount = await this.db.accounts.findFirst({
+      where: {
+        id: account_id[0]
+      }
+    });
+    const amountExpense = Math.abs(parseFloat(expense));
+
+    // Persediaan Barang
+    // Persediaan Barang (Debit)                                            xxx  (nilai setelah perbaikan)  
+    // Kerugian Penyusutan Emas (Debit)  / penyesuaian persediaan (kredit)         xxx  (nilai emas yang hilang)  
+    //   Persediaan dalam Perbaikan (Kredit)                                        xxx  (nilai sebelum perbaikan)  
+    const inventoryAccount = await this.transAccountSettingsServ.getInventoryAccount(productCode);
+    const repairDeprecAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'repairDeprec', productCode.product.store_id, productCode.product.store.company_id, 'Kerugian Penyusutan Emas akibat reparasi', 1, 'Default Akun Kerugian Penyusutan Emas akibat reparaasi'
+    )
+    const repairInventoryAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'repair', productCode.product.store_id, productCode.product.store.company_id, 'Persediaan dalam Perbaikan', 1, 'Default Akun Persediaan dalam Perbaikan'
+    );
+    const stockAdjAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'stockAdj', productCode.product.store_id, productCode.product.store.company_id, 'Penyesuaian Persediaan', 1, 'Default Akun Penyesuaian Stock emas'
+    );
+    // Perhitungan persediaan : 
+    // persediaan barang (debit) = harga beli akhir
+    const beratAwal = parseFloat(productCode.weight);
+    const hargaBeliAwal = parseFloat(productCode.buy_price);
+    const beratAkhir = parseFloat(weight);
+    const hargaPerGram = hargaBeliAwal / beratAwal;
+    const hargaBeliAkhir = hargaPerGram * beratAkhir;
+    const selisihBerat = beratAwal - beratAkhir;
+    const kerugianPenyusutanEmas = selisihBerat > 0 ? hargaPerGram * selisihBerat : 0;
+    const penyesuaianPersediaan = selisihBerat < 0 ? hargaPerGram * Math.abs(selisihBerat) : 0;
+
+    await this.db.$transaction(async (prisma) => {
+      const reportJournalExpense = await prisma.report_Journals.createMany({
+        data: [
+          // Beban Perbaikan (Debit)
+          { 
+            trans_id: productCode.id, 
+            code: transCode, 
+            store_id: productCode.product.store_id, 
+            trans_date,
+            trans_type_id: transType.id, 
+            description: `Beban Perbaikan`, 
+            account_id: repairExpenseAccount.account_id, 
+            amount: amountExpense, 
+            detail_description: `Beban Perbaikan ${productCode.product.store.name}`, 
+            cash_bank: true 
+          },
+          // Kas Utang (Kredit)
+          {
+            trans_id: productCode.id,
+            code: transCode,
+            store_id: productCode.product.store_id,
+            trans_date, 
+            trans_type_id: transType.id,
+            description: 'Pembayaran biaya perbaikain',
+            account_id: kasAccount.id,
+            amount: amountExpense * -1,
+            detail_description: 'Pembayaran biaya perbaikan',
+            cash_bank: false
+          },
+          // Persediaan Barang (Debit)   
+          {
+            trans_id: productCode.id,
+            code: transCode,
+            store_id: productCode.product.store_id,
+            trans_date,
+            trans_type_id: transType.id,
+            description: `Masuk persediaan stok habis diperbaiki`,
+            account_id: inventoryAccount.account_id,
+            amount: Math.abs(hargaBeliAkhir),
+            detail_description: 'Masuk persediaan stok habis diperbaiki',
+            cash_bank: false
+          },
+           // Kerugian Penyusutan Emas (Debit) / Penyesuaian Persediaan (Kredit)
+        ...(kerugianPenyusutanEmas != 0 || penyesuaianPersediaan != 0
+          ? [{
+              trans_id: productCode.id,
+              code: transCode,
+              store_id: productCode.product.store_id,
+              trans_date,
+              trans_type_id: transType.id,
+              description: 'Penyesuaian Persediaan akibat reparasi',
+              account_id: kerugianPenyusutanEmas !== 0 
+                ? repairDeprecAccount.account_id 
+                : stockAdjAccount.account_id,
+              amount: kerugianPenyusutanEmas !== 0 
+                ? Math.abs(kerugianPenyusutanEmas) 
+                : Math.abs(penyesuaianPersediaan) * -1,
+              detail_description: kerugianPenyusutanEmas !== 0 
+                ? 'Kerugian Penyusutan Emas akibat reparasi' 
+                : 'Penyesuaian Persediaan akibat reparasi',
+              cash_bank: false
+            }]
+          : []),
+          // Persediaan dalam Perbaikan (Kredit)
+          {
+            trans_id: productCode.id,
+            code: transCode,
+            store_id: productCode.product.store_id,
+            trans_date,
+            trans_type_id: transType.id,
+            description: 'Persediaan dalam perbaikan dikeluarkan, barang telah direparasi',
+            account_id: repairInventoryAccount.account_id,
+            amount: Math.abs(hargaBeliAwal) * -1,
+            detail_description: 'Persediaan dalam perbaikan dikeluarkan, barang telah direparasi',
+            cash_bank: false
+          }
+        ]
+      });
+      // Stock In Repaired
+      data.trans_id = productCode.id;
+      data.productCode.buy_price = hargaBeliAkhir;  // Update buy price
+      const reportStocks = await this.reportStockService.handleStockInRepaired(data);
+    });
+
+    return ResponseDto.success('Stocks repaired handled!', null, 200);
   }
 
   async handleStockOpnameApproved(data: any) {

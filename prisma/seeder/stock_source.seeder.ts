@@ -33,6 +33,11 @@ async function main() {
         name: 'Purchase from Customer',
         code: 'PURCHASE',
       },
+      {
+        id: 6,
+        name: 'Repair',
+        code: 'REPAIR',
+      }
     ],
     skipDuplicates: true,
   });

@@ -47,6 +47,8 @@ model Stores {
   trans_recurring Trans_Recurring[]
   trans_account_settings Trans_Account_Settings[]
   operations Operations[]
+  report_journals Report_Journals[]
+  tutup_kasir TutupKasir[]
   @@index([company_id, deleted_at])
 }
 
@@ -88,6 +90,7 @@ model Accounts {
   tutup_kasir_acc_pusat TutupKasir[] @relation("AccountPusat")
   tutup_kasir_acc_kasir TutupKasir[] @relation("AccountKasir")
   trans_account_settings Trans_Account_Settings[]
+  report_journals Report_Journals[]
 
   @@index([company_id, deleted_at, store_id, account_type_id])
 }
@@ -101,6 +104,7 @@ model Trans_Type {
 
   trans Trans[]
   trans_recurring Trans_Recurring[]
+  report_journals Report_Journals[]
 
   @@unique([code])
 }
@@ -126,10 +130,12 @@ model Trans {
   created_by String @db.Uuid
   updated_by String? @db.Uuid
   deleted_at DateTime?
+  deleted_by String? @db.Uuid
 
   trans_details Trans_Details[]
   trans_type Trans_Type @relation(fields: [trans_type_id], references: [id])
   store Stores @relation(fields: [store_id], references: [id])
+  reports Report_Journals[]
   @@index([store_id, trans_type_id, deleted_at])
   @@unique([code, store_id])
 }
@@ -176,6 +182,7 @@ model TutupKasir {
   updated_by String @db.Uuid
   deleted_at DateTime?
   
+  store Stores @relation(fields: [store_id], references: [id])
   account Accounts @relation("AccountKasir",fields: [account_id], references: [id])
   account_pusat Accounts @relation("AccountPusat",fields: [account_pusat_id], references: [id])
 }
@@ -247,7 +254,7 @@ model Action_Account_Settings {
 // Accounts used for transactions
 // Notes: PPN dibayar = PPN keluar(kredit) - PPN Masukan(debit).
 model Trans_Account_Settings {
-  id Int   @default(autoincrement()) @id
+  id Int   @default(autoincrement()) @id // todoella ganti jadi uuid
   store_id String @db.Uuid
   // company_id String? @db.Uuid // Kesimpulan: frontend pengaturan otomatis transaksi per account di atur per toko jadi gk mungin ada scope company_id
   account_id String @db.Uuid
@@ -286,6 +293,10 @@ model Report_Journals {
   detail_description String?
   cash_bank Boolean @default(false) // true = Cash/Bank Account, false = Destination Account
 
+  store Stores @relation(fields: [store_id], references: [id])
+  trans Trans? @relation(fields: [trans_id], references: [id])
+  trans_type Trans_Type @relation(fields: [trans_type_id], references: [id])
+  account Accounts @relation(fields: [account_id], references: [id])
   @@index([code, store_id, trans_id, account_id, trans_date, trans_type_id])
 }
 

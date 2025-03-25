@@ -68,12 +68,12 @@ async function main() {
         name: 'Barang Keluar diperbaiki',
         description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi diperbaiki',
       },
-      {
-        id: 11,
-        action: 'expired',
-        name: 'Barang Keluar Expired',
-        description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi expired',
-      },
+      // {
+      //   id: 11,
+      //   action: 'expired',
+      //   name: 'Barang Keluar Expired',
+      //   description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi expired',
+      // },
       {
         id: 12,
         action: 'lost',
@@ -85,6 +85,24 @@ async function main() {
         action: 'other',
         name: 'Barang Keluar lainnya',
         description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi lainnya',
+      },
+      {
+        id: 14,
+        action: 'repairDeprec',
+        name: 'Penyusutan emas setelah diperbaiki',
+        description: 'Akun yang digunakan toko ketika terjadi penyusutan berat emas akibat diperbaiki',
+      },
+      {
+        id: 15,
+        action: 'cogs',
+        name: 'HPP Toko',
+        description: 'Akun yang digunakan toko untuk Harga Pokok Penjualan saat terjadi transaksi penjualan'
+      },
+      {
+        id: 16,
+        action: 'stockAdj',
+        name: 'Penyesuaian Stok Reparasi',
+        description: 'Akun yang digunakan toko ketika berat stok emas setelah reparasi bertambah',
       }
     ],
     skipDuplicates: true,

@@ -163,6 +163,16 @@ export class TransactionValidation {
           .refine((val) => !isNaN(val), { message: "Invalid discount" })
           .optional(),
         product_code: z.any().optional().nullable(),
+        // buy price parseFloat
+        buy_price: z.preprocess((val) => {
+          if (typeof val === 'string') {
+            const parsed = parseFloat(val);
+            if (!isNaN(parsed)) {
+              return parsed;
+            }
+          }
+          return val;
+        }, z.number().optional().nullable()),
       })
     ), 
     status: z

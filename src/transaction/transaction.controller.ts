@@ -457,6 +457,7 @@ export class TransactionController {
     //       created_at: '2025-02-12T06:55:33.257Z',
     //       updated_at: '2025-02-12T06:55:33.257Z',
     //       deleted_at: null,
+    //       buy_price: '100000', 
     //       product_code: [Object],
     //       TransactionReview: null
     //     }
@@ -471,6 +472,7 @@ export class TransactionController {
     //   }
     // }
     let newdata = data.data;
+    console.log('newdata di transaction finance service', newdata.transaction_products[0]);
 
     // SALES Trans
     await this.handleEvent(
@@ -597,6 +599,16 @@ export class TransactionController {
       context,
       async () => this.transactionService.handleUnstockOut(data),
       'Error handling unstock out event',
+    );
+  }
+
+  @EventPattern({ cmd: 'stock_repaired'})
+  @Exempt()
+  async handleStockRepaired(@Payload() data: any, @Ctx() context: RmqContext) {
+    await this.handleEvent(
+      context,
+      async () => this.transactionService.handleStockRepaired(data),
+      'Error handling stocks repaired event',
     );
   }
 

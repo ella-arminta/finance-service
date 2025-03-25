@@ -8,6 +8,8 @@ import { ValidationService } from 'src/common/validation.service';
 import { ResponseDto } from 'src/common/response.dto';
 import { filter } from 'cheerio/dist/commonjs/api/traversing';
 import { TransAccountSettingsService } from 'src/trans-account-settings/trans-account-settings.service';
+import { Decimal } from '@prisma/client/runtime/library';
+import { connect } from 'http2';
 
 @Injectable()
 export class ReportStocksService extends BaseService<Report_Stocks> {
@@ -245,7 +247,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
 
     async getStockMutation(filters: any) {
         const { company_id, dateStart, dateEnd, category_id, store_id } = filters;
-    
+        // TODOELLA ganti mutasi stok jadi per Category /lapak. Gak Pake Unit_price, unit_price pindah ke kartu stok
         let query = `
             SELECT 
                 rs.product_id, 
@@ -281,7 +283,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 COALESCE(
                   SUM(
                     CASE 
-                      WHEN (rs.source_id IN (1, 5) OR (rs.source_id = 4 AND rs.qty > 0))
+                      WHEN (rs.source_id IN (1, 5) OR (rs.source_id = 4 AND rs.qty > 0)) -- in stock, purchase from customer, trade
                         AND rs.trans_date < $4
                       THEN rs.weight * rs.price
                       ELSE 0
@@ -353,41 +355,73 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
     }
 
     async getHPP(filters: any) {
-         // console.log('this is filters',filters);
-        // store: 'edd09595-33d4-4e81-9e88-14b47612bee9',
-        // company: 'bb0471e8-ba93-4edc-8dea-4ccac84bd2a2',
-        // owner_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
-        // start_date: 2025-02-28T00:00:00.000Z,
-        // end_date: 2025-03-30T00:00:00.000Z
-
-        // Persediaan Awal
-        // Pembelian Barang Dagangan
-        // Persediaan Akhir
-        // HPP = Persediaan Awal + Pembelian Barang Dagangan - Persediaan Akhir
-
         var result = [];
+    
         const filters2 = {
             store_id: filters.store ?? undefined,
             company_id: filters.company ?? undefined,
             owner_id: filters.owner_id,
             dateStart: filters.start_date,
             dateEnd: filters.end_date
+        };
+    
+        var formatFilters: any = {
+            store: {
+                company: {},
+            },
+            action: 'persediaan'
+        };
+    
+        // Jika ada owner_id, tambahkan ke filter
+        if (filters2.owner_id) {
+            formatFilters.store.company.owner_id = filters2.owner_id;
         }
-        var hpp = 0;
-        var mutasi = await this.getStockMutation(filters2);
-        if (mutasi.success) {
-            var rowdata = mutasi.data;
-            rowdata.forEach((row) => {
-                hpp += row.final_gram * row.unit_price;
-            });
+    
+        // Jika ada store_id, tambahkan langsung ke formatFilters
+        if (filters2.store_id) {
+            formatFilters.store_id = filters2.store_id;
         }
+    
+        // Jika ada company_id, pastikan store.company sudah ada sebelum menambahkan
+        if (filters2.company_id) {
+            if (!formatFilters.store) {
+                formatFilters.store = {};
+            }
+            formatFilters.store.company_id = filters2.company_id;
+        }
+    
+        const hppFetch = await this.db.report_Journals.aggregate({
+            _sum: {
+                amount: true,
+            },
+            where: {
+                account_id: {
+                    in: (
+                        await this.db.trans_Account_Settings.findMany({
+                            where: {
+                                action: 'cogs',
+                                store_id: filters2.store_id,
+                                ...(filters2.company_id && { store: { company_id: filters2.company_id } }),
+                            },
+                            select: {
+                                account_id: true,
+                            },
+                        })
+                    ).map((tas) => tas.account_id),
+                },
+            },
+        });
+    
+        const hpp = hppFetch._sum.amount ?? new Decimal(0); // Gunakan Decimal(0) agar tetap konsisten
+
         result.push({
             name: 'HPP',
-            amount: Math.abs(hpp) * -1
-        })
+            amount: Math.abs(Number(hpp)) * -1, // Konversi aman ke number
+        });
 
-        return result;        
+        return result;
     }
+    
 
     async handleProductCodeDeleted(data: any) {
         console.log('this is product code deleted',data);
@@ -448,7 +482,17 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
     }
 
     async handleStockOut(data: any) {
-        const source = await this.stockSourceService.findOne(undefined, { code: 'OUTSTOCK' });
+        let code;
+        switch (data.reason) {
+            case 1:
+                code = 'REPAIR';
+                break;
+            default:
+                code = 'OUTSTOCK';
+                break;
+        }
+        
+        const source = await this.stockSourceService.findOne(undefined, { code });
         const MappedData = {
             store_id: data.productCode.product.store_id,
             source_id: source.id,
@@ -471,7 +515,34 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             created_at: new Date(data.productCode.created_at),
         }
         const result = await this.create(MappedData);
-        console.log(result);
+        console.log('stock out result',result);
+        return result;
+    }
+    async handleStockInRepaired(data: any) {
+        const source = await this.stockSourceService.findOne(undefined, { code: 'REPAIR' });
+        const MappedData = {
+            store_id: data.productCode.product.store_id,
+            source_id: source.id,
+            trans_id: data.trans_id,
+            trans_date: data.trans_date,
+            category_id: data.productCode.product.type.category_id,
+            category_code: data.productCode.product.type.category.code,
+            category_name: data.productCode.product.type.category.name,
+            type_id: data.productCode.product.type.id,
+            type_code: data.productCode.product.type.code,
+            type_name: data.productCode.product.type.name,
+            product_id: data.productCode.product.id,
+            product_code: data.productCode.product.code,
+            product_name: data.productCode.product.name,
+            product_code_code: data.productCode.barcode,
+            product_code_id: data.productCode.id,
+            weight: parseFloat(data.weight),
+            price: parseFloat(data.productCode.buy_price),
+            qty: 1,
+            created_at: new Date(data.productCode.created_at),
+        }
+        const result = await this.create(MappedData);
+        console.log('result stock in repaired', result);
         return result;
     }
 }
