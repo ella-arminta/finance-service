@@ -44,8 +44,27 @@ export class TransAccountSettingsController {
   })
   async findAll(@Payload() data: any) {
     var filters = data.body;
-    var store_id = filters.auth.store_id;
-    var result = await this.transAccountSettingsService.findAll({store_id});
+    filters.store_id = filters.auth.store_id;
+    var filtersValidated = await this.validationService.validate(this.tacValidation.FILTERS, filters);
+    var result = await this.transAccountSettingsService.findAll(filtersValidated);
+
+    return ResponseDto.success('Account found!', result);
+  }
+
+  @MessagePattern({ cmd: 'get:trans-account-setting-action/*'  })
+  @Describe({
+    description:'find trans account setting by action', 
+    fe: ['master/account-setting:open']
+  })
+  async findOne(@Payload() data: any) {
+    const params = data.params;
+    var filters = data.body;
+    filters.store_id = filters.auth.store_id;
+    if (params.id) {
+      filters.action = params.id;
+    }
+    var filtersValidated = await this.validationService.validate(this.tacValidation.FILTERS, filters);
+    var result = await this.transAccountSettingsService.find(filtersValidated);
 
     return ResponseDto.success('Account found!', result);
   }

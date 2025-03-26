@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { BaseService } from 'src/common/base.service';
 import { Trans } from '@prisma/client'
 import { DatabaseService } from 'src/database/database.service';
@@ -350,15 +350,6 @@ export class TransactionService extends BaseService<Trans> {
 
 
   async createSales(data: any) {
-    const transType = await this.db.trans_Type.findUnique({ where: { code: 'SAL' } });
-    const hasTax = true // TODOELLA: Check if the store has tax
-    const store = await this.db.stores.findUnique({ where: { id: data.store_id }, include: { company: true } });
-    var diskonTotal = 0;
-    var salesEmasTotal = 0;
-    var hppTotal = 0;
-    data.store = store;
-    var transDetailsFormated = [];
-
     // REFORMAT TRANSACTION DETAIL
     // Kas / Piutang Usaha     (D)  9.990  
     // Diskon Penjualan        (D)  1.000  
@@ -367,6 +358,116 @@ export class TransactionService extends BaseService<Trans> {
     // PERSEDIAAN JURNAL TODOELLA crosscheck
     // Harga Pokok Penjualan   (D)  2.000        
     // Persediaan                         (K)  2.000
+
+    // newdata {
+    //   id: '76861a32-62eb-42cf-b471-7925401087a4',
+    //   date: '2025-02-12T00:00:00.000Z',
+    //   code: 'SAL/SUB/2025/1/12/004',
+    //   transaction_type: 1,
+    //   payment_method: 2,
+    //   paid_amount: '5108440',
+    //   payment_link: null,
+    //   poin_earned: 0,
+    //   expired_at: null,
+    //   status: 1,
+    //   sub_total_price: '4602000',
+    //   tax_price: '506440',
+    //   total_price: '5108440',
+    //   comment: null,
+    //   store_id: 'edd09595-33d4-4e81-9e88-14b47612bee9',
+    //   customer_id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
+    //   voucher_own_id: null,
+    //   employee_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+    //   created_at: '2025-02-12T06:55:33.225Z',
+    //   updated_at: '2025-02-22T08:21:51.223Z',
+    //   deleted_at: null,
+    //   approve: 1,
+    //   approve_by: null,
+    //   store: {
+    //     id: 'edd09595-33d4-4e81-9e88-14b47612bee9',
+    //     code: 'SUB',
+    //     name: 'SURABAYA',
+    //     company_id: 'bb0471e8-ba93-4edc-8dea-4ccac84bd2a2',
+    //     is_active: true,
+    //     is_flex_price: false,
+    //     is_float_price: false,
+    //     poin_config: 0,
+    //     tax_percentage: '11',
+    //     balance: '0',
+    //     created_at: '2025-02-09T14:26:48.117Z',
+    //     updated_at: '2025-02-09T14:26:48.117Z',
+    //     deleted_at: null
+    //   },
+    //   customer: {
+    //     id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
+    //     name: 'customer1',
+    //     email: 'customer@gmail.com',
+    //     phone: '089681551106',
+    //     is_verified: false,
+    //     device_token: [],
+    //     created_at: '2025-02-12T11:29:52.945Z',
+    //     updated_at: '2025-02-12T01:01:01.000Z',
+    //     deleted_at: null
+    //   },
+    //   voucher_used: null,
+    //   transaction_operations: [
+    //     {
+    //       id: 'b8a1b5ec-c110-4b3d-a8b1-93c8963e810d',
+    //       transaction_id: '76861a32-62eb-42cf-b471-7925401087a4',
+    //       operation_id: '2702c9f8-65e1-48ed-90fe-e2ca1dfa5e74',
+    //       name: 'SUBOP001 - Reparasi',
+    //       type: 'Operation',
+    //       unit: '1',
+    //       price: '2000',
+    //       adjustment_price: '0',
+    //       total_price: '2000',
+    //       comment: null,
+    //       created_at: '2025-02-12T06:55:33.244Z',
+    //       updated_at: '2025-02-12T06:55:33.244Z',
+    //       deleted_at: null,
+    //       operation: [Object]
+    //     }
+    //   ],
+    //   transaction_products: [
+    //     {
+    //       id: '3ed073fc-07bd-41aa-9d22-49a2348d36d9',
+    //       transaction_id: '76861a32-62eb-42cf-b471-7925401087a4',
+    //       product_code_id: 'e6a2dec4-076f-409a-aec6-558c76e047b0',
+    //       transaction_type: 1,
+    //       name: 'INS0010100010001 - Tipe A Hello Kity Cincin',
+    //       type: 'INS00101 - Cincin',
+    //       weight: '46',
+    //       price: '100000',
+    //       adjustment_price: '0',
+    //       discount: '0',
+    //       total_price: '4600000',
+    //       status: 2,
+    //       comment: null,
+    //       created_at: '2025-02-12T06:55:33.257Z',
+    //       updated_at: '2025-02-12T06:55:33.257Z',
+    //       deleted_at: null,
+    //       buy_price: '100000', 
+    //       product_code: [Object],
+    //       TransactionReview: null
+    //     }
+    //   ],
+    //   employee: {
+    //     id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+    //     name: 'ownera',
+    //     email: 'ownera@gmail.com',
+    //     created_at: '2025-02-12T13:33:54.629Z',
+    //     updated_at: '2025-02-12T00:00:00.000Z',
+    //     deleted_at: null
+    //   }
+    // }
+    const transType = await this.db.trans_Type.findUnique({ where: { code: 'SAL' } });
+    const hasTax = true // TODOELLA: Check if the store has tax
+    const store = await this.db.stores.findUnique({ where: { id: data.store_id }, include: { company: true } });
+    var diskonTotal = 0;
+    var salesEmasTotal = 0;
+    var hppTotal = 0;
+    data.store = store;
+    var transDetailsFormated = [];
 
     // JOURNAL ENTRY (KREDIT)
     // Tax yg dibayar customer
@@ -548,6 +649,166 @@ export class TransactionService extends BaseService<Trans> {
     }
 
     return reportJournal;
+  }
+
+  async createPurchase(data: any) {
+      console.log('purchase data hehe',data);
+        // purchase data hehe {
+        //   id: '31628e90-34d4-479a-ba43-970cf639bd3f',
+        //   date: '2025-03-25T00:00:00.000Z',
+        //   code: 'PUR/AAA/2025/2/25/002',
+        //   transaction_type: 2,
+        //   payment_method: 1,
+        //   paid_amount: '60000',
+        //   payment_link: null,
+        //   poin_earned: 0,
+        //   expired_at: null,
+        //   status: 0,
+        //   sub_total_price: '60000',
+        //   tax_price: '0',
+        //   total_price: '60000',
+        //   comment: null,
+        //   store_id: '8dedffbb-f267-490a-9feb-e1547b01fcda',
+        //   customer_id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
+        //   voucher_own_id: null,
+        //   employee_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+        //   nota_link: null,
+        //   created_at: '2025-03-25T08:02:05.433Z',
+        //   updated_at: '2025-03-25T09:12:54.948Z',
+        //   deleted_at: null,
+        //   approve: 1,
+        //   approve_by: null,
+        //   store: {
+        //     id: '8dedffbb-f267-490a-9feb-e1547b01fcda',
+        //     code: 'AAA',
+        //     name: 'Cabang A',
+        //     company_id: 'f2a8a1d7-3c4b-4e27-9b4e-6fbd3f87d92c',
+        //     is_active: true,
+        //     is_flex_price: false,
+        //     is_float_price: false,
+        //     poin_config: 0,
+        //     tax_percentage: '11',
+        //     balance: '0',
+        //     grace_period: 0,
+        //     created_at: '2025-03-16T13:51:40.471Z',
+        //     updated_at: '2025-03-18T04:50:26.022Z',
+        //     deleted_at: null
+        //   },
+        //   customer: {
+        //     id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
+        //     name: 'customer1',
+        //     email: 'customer@gmail.com',
+        //     phone: '089681551106',
+        //     is_verified: false,
+        //     device_token: [],
+        //     created_at: '2025-02-12T11:29:52.945Z',
+        //     updated_at: '2025-02-12T01:01:01.000Z',
+        //     deleted_at: null
+        //   },
+        //   voucher_used: null,
+        //   transaction_operations: [],
+        //   transaction_products: [
+        //     {
+        //       id: '3e66220b-66c8-49a6-998b-df5d325cc50e',
+        //       transaction_id: '31628e90-34d4-479a-ba43-970cf639bd3f',
+        //       product_code_id: 'c9172e6c-be97-4e3e-a4ac-c1d25fc7b62f',
+        //       transaction_type: 2,
+        //       name: 'AA0020100040001 - Putih',
+        //       type: 'AA00201 - Gelang',
+        //       weight: '12',
+        //       price: '5000',
+        //       is_broken: false,
+        //       adjustment_price: '0',
+        //       discount: '0',
+        //       total_price: '60000',
+        //       status: 1,
+        //       comment: null,
+        //       created_at: '2025-03-25T08:02:05.494Z',
+        //       updated_at: '2025-03-25T08:02:05.494Z',
+        //       deleted_at: null,
+        //       product_code: [Object],
+        //       TransactionReview: null
+        //     }
+        //   ],
+        //   employee: {
+        //     id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+        //     name: 'ownera',
+        //     email: 'ownera@gmail.com',
+        //     created_at: '2025-02-12T13:33:54.629Z',
+        //     updated_at: '2025-02-12T00:00:00.000Z',
+        //     deleted_at: null
+        //   }
+        // }
+
+      const transType = await this.db.trans_Type.findUnique({ where: { code: 'PUR' } });
+      // Persediaan (Debit)
+      // Kas/Bank (Kredit)
+      const inventoryAccount = await this.transAccountSettingsServ.getDefaultAccount(
+        'persediaan', data.store_id, data.store.company_id, `Default akun persediaan ${data.store.name}`, 2, 'Default Akun Persediaan'
+      )
+      // Draft / pending
+      let KasAccount;
+      if (data.status == 0 || data.account_id == null) {
+        KasAccount = await this.transAccountSettingsServ.getDefaultAccount(
+          'piutang', data.store_id, data.store.company_id, `Default akun piutang ${data.store.name}`, 1, 'Default Akun Piutang'
+        )
+        KasAccount.id = KasAccount.account_id;
+      } else {
+        KasAccount = await this.db.accounts.findFirst({
+          where: {
+            id: data.account_id
+          }
+        });
+        if (!KasAccount) {
+          throw new BadRequestException('Account not found');
+        }
+      }
+
+      var reportJournal;
+      var reportStock;
+      try {
+        await this.db.$transaction(async (prisma) => {
+          // Insert report journal entries
+          reportJournal = await prisma.report_Journals.createMany({
+            data: [
+              // Persediaan
+              {
+                trans_id: data.id,
+                code: data.code,
+                store_id: data.store_id,
+                trans_date: data.date,
+                trans_type_id: transType.id,
+                description: 'Purchase from customer' + data.code,
+                account_id: inventoryAccount.account_id,
+                amount: data.total_price,
+                detail_description: 'Persediaan masuk beli dari customer' + data.store.name,
+                cash_bank: true
+              },
+              // Kas/Bank
+              {
+                trans_id: data.id,
+                code: data.code,
+                store_id: data.store_id,
+                trans_date: data.date,
+                trans_type_id: transType.id,
+                description: 'Purchase from customer' + data.code,
+                account_id: KasAccount.id,
+                amount: Math.abs(data.total_price) * -1,
+                detail_description: 'Uang keluar untuk beli dari customer' + data.store.name,
+                cash_bank: false
+              },
+            ]
+          });
+
+          // Call handleSoldStock inside the transaction
+          data.trans_id = data.id;
+          reportStock = await this.reportStockService.handlePurchaseStock(data);
+        });
+      } catch (error) {
+        console.error('Error creating sales transaction:', error);
+        throw new Error(`Error creating sales transaction: ${error.message}`);
+      }
+      return data;
   }
 
   // BUY PRODUCT

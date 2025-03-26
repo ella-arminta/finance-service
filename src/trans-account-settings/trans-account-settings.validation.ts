@@ -35,4 +35,10 @@ export class TransAccountSettingsValidation {
       },
     ),
   });
+
+  readonly FILTERS: ZodType = z.object({
+    store_id: z.string().uuid().optional(),
+    account_id: z.string().uuid().optional(),
+    action: z.string().optional(),
+  });
 }

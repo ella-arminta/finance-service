@@ -103,6 +103,12 @@ async function main() {
         action: 'stockAdj',
         name: 'Penyesuaian Stok Reparasi',
         description: 'Akun yang digunakan toko ketika berat stok emas setelah reparasi bertambah',
+      },
+      {
+        id: 17,
+        action: 'purchaseCust',
+        name: 'Purchase from Customer',
+        description: 'Akun kas/bank yang digunakan toko ketika membeli emas dari customer',
       }
     ],
     skipDuplicates: true,

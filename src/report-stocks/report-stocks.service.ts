@@ -545,4 +545,37 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         console.log('result stock in repaired', result);
         return result;
     }
+
+    async handlePurchaseStock(data) {
+        const source = await this.stockSourceService.findOne(undefined, { code: 'PURCHASE' });
+        var results = [];
+        for (let prodCode of data.transaction_products) {
+            console.log('ini product masuk purchae',prodCode)
+            const MappedData = {
+                store_id: prodCode.product_code.product.store_id,
+                source_id: source.id,
+                trans_id: data.trans_id,
+                trans_date: data.date,
+                category_id: prodCode.product_code.product.type.category_id,
+                category_code: prodCode.product_code.product.type.category.code,
+                category_name: prodCode.product_code.product.type.category.name,
+                type_id: prodCode.product_code.product.type.id,
+                type_code: prodCode.product_code.product.type.code,
+                type_name: prodCode.product_code.product.type.name,
+                product_id: prodCode.product_code.product.id,
+                product_code: prodCode.product_code.product.code,
+                product_name: prodCode.product_code.product.name,
+                product_code_code: prodCode.product_code.barcode,
+                product_code_id: prodCode.product_code.id,
+                weight: parseFloat(prodCode.weight),
+                price: parseFloat(prodCode.total_price),
+                qty: 1,
+                created_at: new Date(prodCode.created_at),
+            }
+            const result = await this.create(MappedData);
+            results.push(result);
+        }
+        console.log('result purchase from customer', results);
+        return results;
+    }
 }

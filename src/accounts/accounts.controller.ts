@@ -16,8 +16,6 @@ export class AccountsController {
     private validationService: ValidationService,
     private readonly storeService: StoresService,
     private readonly accountValidation: AccountValidation,
-    @Inject('TRANSACTION') private readonly transClient: ClientProxy,
-    @Inject('INVENTORY') private readonly inventoryClient: ClientProxy,
   ) {}
 
   @MessagePattern({ cmd: 'post:account'  })
@@ -64,10 +62,6 @@ export class AccountsController {
     }
 
     newdata = await this.accountsService.create(newdata);
-    if (newdata) {
-      this.transClient.emit({ cmd: 'account_created' }, newdata);
-      this.inventoryClient.emit({ cmd: 'account_created' }, newdata);
-    }
     return ResponseDto.success('Data Created!', newdata, 201);
   }
 
@@ -164,9 +158,6 @@ export class AccountsController {
       }
     }
     var updatedData = await this.accountsService.update(param.id, validatedData);
-    if (updatedData) {
-      this.transClient.emit({ cmd: 'account_updated' }, updatedData);
-    }
     return ResponseDto.success('Data Updated!', updatedData, 201);
   }
 
@@ -182,10 +173,6 @@ export class AccountsController {
       return ResponseDto.error('Data not found!', null, 404);
     }
 
-    if (deletedData) {
-      this.transClient.emit({ cmd: 'account_deleted' }, deletedData.id);
-
-    }
     return ResponseDto.success('Data Deleted!', deletedData, 200);
   }
 

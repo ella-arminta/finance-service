@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { Accounts } from '@prisma/client';
+import { Inject, Injectable } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
+import { Accounts, Prisma } from '@prisma/client';
 import { connect } from 'http2';
 import { BaseService } from 'src/common/base.service';
 import { CompaniesService } from 'src/companies/companies.service';
@@ -11,6 +12,8 @@ export class AccountsService extends BaseService<Accounts> {
   constructor(
     protected readonly companyService: CompaniesService,
     protected readonly storeService: StoresService,
+    @Inject('TRANSACTION') private readonly transClient: ClientProxy,
+    @Inject('INVENTORY') private readonly inventoryClient: ClientProxy,
     db: DatabaseService) {
     const relations = {
       store: true,
@@ -193,5 +196,53 @@ export class AccountsService extends BaseService<Accounts> {
     }
     
     return accounts;
+  }
+
+  async create(data: Prisma.AccountsCreateInput): Promise<Accounts> {
+    // console.log('data in base service', data);
+    const newdata = await this.db.accounts.create({ 
+      data,
+      include: this.relations
+    });
+
+    if (newdata) {
+      this.transClient.emit({ cmd: 'account_created' }, newdata);
+      this.inventoryClient.emit({ cmd: 'account_created' }, newdata);
+    }
+    return newdata;
+  }
+
+  async delete(id: any){
+    const deletedData = await this.findOne(id);
+    if (deletedData == null) {
+      console.log('data not found');
+      return null;
+    }
+
+    if (this.isSoftDelete) {
+      const result =  this.db.accounts.update({
+        where: { id },
+        data: { deleted_at: new Date() },
+      });
+    } else {
+      const result =  this.db.accounts.delete({
+        where: { id },
+      });
+    }
+
+    if (deletedData) {
+      this.transClient.emit({ cmd: 'account_deleted' }, deletedData.id);
+      this.inventoryClient.emit({ cmd: 'account_deleted' }, deletedData.id);
+    }
+    return deletedData;
+  }
+
+  async update(id: any, data: Prisma.AccountsUpdateInput) {
+    const updatedData = this.db.accounts.update({ where: { id }, data });
+    if (updatedData) {
+      this.transClient.emit({ cmd: 'account_updated' }, updatedData);
+      this.inventoryClient.emit({ cmd: 'account_updated' }, updatedData);
+    }
+    return updatedData;
   }
 }

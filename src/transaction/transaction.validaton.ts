@@ -194,4 +194,49 @@ export class TransactionValidation {
     transaction_type: z.number(),
   });
 
+  readonly CREATEPURCHASE: ZodType = z.object({
+    store_id: z.string().uuid(),
+    store: z.any(),
+    account_id: z.string().uuid().nullable().optional(),
+    id: z.string().uuid(),
+    code: z.string(),
+    date: z.coerce.date(),
+    status: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseInt(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid status" }),
+    paid_amount: z 
+          .union([z.string(), z.number()])
+          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+          .refine((val) => !isNaN(val), { message: "Invalid Paid Amount" }).optional(),
+    total_price: z 
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid Total Price" }),
+    transaction_products: z.array(
+      z.object({
+        product_code: z.object({
+          product: z.any(),
+          barcode: z.string(),
+          id: z.string().uuid(),
+        }),
+        total_price: z 
+        .union([z.string(), z.number()])
+        .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+        .refine((val) => !isNaN(val), { message: "Invalid Total Price" }),
+        weight: z.any(),
+        created_at: z.any(),
+        buy_price: z.preprocess((val) => {
+          if (typeof val === 'string') {
+            const parsed = parseFloat(val);
+            if (!isNaN(parsed)) {
+              return parsed;
+            }
+          }
+          return val;
+        }, z.number().optional().nullable()),
+      })
+    ), 
+  })
+
 }

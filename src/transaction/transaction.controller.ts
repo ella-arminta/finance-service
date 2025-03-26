@@ -25,6 +25,43 @@ export class TransactionController {
     private readonly reportStockService: ReportStocksService,
   ) {}
 
+  // private async handleEvent(
+  //   context: RmqContext,
+  //   callback: () => Promise<any>,
+  //   errorMessage: string,
+  // ) {
+  //   const channel = context.getChannelRef();
+  //   const originalMsg = context.getMessage();
+  //   const maxRetries = 5;
+  //   const headers = originalMsg.properties.headers || {};
+  //   const retryCount = headers['x-retry-count'] ? headers['x-retry-count'] + 1 : 1;
+
+  //   try {
+  //     const response = await callback();
+  //     if (response.success) {
+  //       channel.ack(originalMsg);
+  //     }
+  //   } catch (error) {
+  //     console.error(`${errorMessage}. Retry attempt: ${retryCount}`, error.stack);
+
+      
+  //     if (retryCount >= maxRetries) {
+  //       console.error(`Max retries (${maxRetries}) reached. Logging error and acknowledging message.`);
+  //       // Simpan log error ke file
+  //       this.loggerService.logErrorToFile(errorMessage, error);
+  //       // channel.ack(originalMsg);
+  //       channel.nack(originalMsg, false, false);
+  //     } else {
+  //       console.warn(`Retrying message (${retryCount}/${maxRetries})...`);
+  //       channel.sendToQueue(originalMsg.fields.routingKey, originalMsg.content, {
+  //         persistent: true,
+  //         headers: { ...headers, 'x-retry-count': retryCount },
+  //       });
+  //       channel.nack(originalMsg, false, false);
+  //     }
+  //   }
+  // }
+
   private async handleEvent(
     context: RmqContext,
     callback: () => Promise<any>,
@@ -32,9 +69,6 @@ export class TransactionController {
   ) {
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
-    const maxRetries = 5;
-    const headers = originalMsg.properties.headers || {};
-    const retryCount = headers['x-retry-count'] ? headers['x-retry-count'] + 1 : 1;
 
     try {
       const response = await callback();
@@ -42,23 +76,8 @@ export class TransactionController {
         channel.ack(originalMsg);
       }
     } catch (error) {
-      console.error(`${errorMessage}. Retry attempt: ${retryCount}`, error.stack);
-
-      
-      if (retryCount >= maxRetries) {
-        console.error(`Max retries (${maxRetries}) reached. Logging error and acknowledging message.`);
-        // Simpan log error ke file
-        this.loggerService.logErrorToFile(errorMessage, error);
-        // channel.ack(originalMsg);
-        channel.nack(originalMsg, false, false);
-      } else {
-        console.warn(`Retrying message (${retryCount}/${maxRetries})...`);
-        channel.sendToQueue(originalMsg.fields.routingKey, originalMsg.content, {
-          persistent: true,
-          headers: { ...headers, 'x-retry-count': retryCount },
-        });
-        channel.nack(originalMsg, false, false);
-      }
+      console.error(errorMessage, error.stack);
+      channel.nack(originalMsg);
     }
   }
 
@@ -367,126 +386,39 @@ export class TransactionController {
     return ResponseDto.success('Data Deleted!', {}, 200);
   }
 
-  @EventPattern({ cmd: 'sales_approved' })
+  @EventPattern({ cmd: 'transaction_approved' })
   @Exempt()  
   async createTrans(@Payload() data: any, @Ctx() context: RmqContext) {
-    // newdata {
-    //   id: '76861a32-62eb-42cf-b471-7925401087a4',
-    //   date: '2025-02-12T00:00:00.000Z',
-    //   code: 'SAL/SUB/2025/1/12/004',
-    //   transaction_type: 1,
-    //   payment_method: 2,
-    //   paid_amount: '5108440',
-    //   payment_link: null,
-    //   poin_earned: 0,
-    //   expired_at: null,
-    //   status: 1,
-    //   sub_total_price: '4602000',
-    //   tax_price: '506440',
-    //   total_price: '5108440',
-    //   comment: null,
-    //   store_id: 'edd09595-33d4-4e81-9e88-14b47612bee9',
-    //   customer_id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
-    //   voucher_own_id: null,
-    //   employee_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
-    //   created_at: '2025-02-12T06:55:33.225Z',
-    //   updated_at: '2025-02-22T08:21:51.223Z',
-    //   deleted_at: null,
-    //   approve: 1,
-    //   approve_by: null,
-    //   store: {
-    //     id: 'edd09595-33d4-4e81-9e88-14b47612bee9',
-    //     code: 'SUB',
-    //     name: 'SURABAYA',
-    //     company_id: 'bb0471e8-ba93-4edc-8dea-4ccac84bd2a2',
-    //     is_active: true,
-    //     is_flex_price: false,
-    //     is_float_price: false,
-    //     poin_config: 0,
-    //     tax_percentage: '11',
-    //     balance: '0',
-    //     created_at: '2025-02-09T14:26:48.117Z',
-    //     updated_at: '2025-02-09T14:26:48.117Z',
-    //     deleted_at: null
-    //   },
-    //   customer: {
-    //     id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
-    //     name: 'customer1',
-    //     email: 'customer@gmail.com',
-    //     phone: '089681551106',
-    //     is_verified: false,
-    //     device_token: [],
-    //     created_at: '2025-02-12T11:29:52.945Z',
-    //     updated_at: '2025-02-12T01:01:01.000Z',
-    //     deleted_at: null
-    //   },
-    //   voucher_used: null,
-    //   transaction_operations: [
-    //     {
-    //       id: 'b8a1b5ec-c110-4b3d-a8b1-93c8963e810d',
-    //       transaction_id: '76861a32-62eb-42cf-b471-7925401087a4',
-    //       operation_id: '2702c9f8-65e1-48ed-90fe-e2ca1dfa5e74',
-    //       name: 'SUBOP001 - Reparasi',
-    //       type: 'Operation',
-    //       unit: '1',
-    //       price: '2000',
-    //       adjustment_price: '0',
-    //       total_price: '2000',
-    //       comment: null,
-    //       created_at: '2025-02-12T06:55:33.244Z',
-    //       updated_at: '2025-02-12T06:55:33.244Z',
-    //       deleted_at: null,
-    //       operation: [Object]
-    //     }
-    //   ],
-    //   transaction_products: [
-    //     {
-    //       id: '3ed073fc-07bd-41aa-9d22-49a2348d36d9',
-    //       transaction_id: '76861a32-62eb-42cf-b471-7925401087a4',
-    //       product_code_id: 'e6a2dec4-076f-409a-aec6-558c76e047b0',
-    //       transaction_type: 1,
-    //       name: 'INS0010100010001 - Tipe A Hello Kity Cincin',
-    //       type: 'INS00101 - Cincin',
-    //       weight: '46',
-    //       price: '100000',
-    //       adjustment_price: '0',
-    //       discount: '0',
-    //       total_price: '4600000',
-    //       status: 2,
-    //       comment: null,
-    //       created_at: '2025-02-12T06:55:33.257Z',
-    //       updated_at: '2025-02-12T06:55:33.257Z',
-    //       deleted_at: null,
-    //       buy_price: '100000', 
-    //       product_code: [Object],
-    //       TransactionReview: null
-    //     }
-    //   ],
-    //   employee: {
-    //     id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
-    //     name: 'ownera',
-    //     email: 'ownera@gmail.com',
-    //     created_at: '2025-02-12T13:33:54.629Z',
-    //     updated_at: '2025-02-12T00:00:00.000Z',
-    //     deleted_at: null
-    //   }
-    // }
     let newdata = data.data;
-    console.log('newdata di transaction finance service', newdata.transaction_products[0]);
-
     // SALES Trans
     await this.handleEvent(
       context,
       async () => {
-        newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
-        const result = await this.transactionService.createSales(newdata);
-        return ResponseDto.success('Transaction Created!', result, 201);
+        // SALES
+        if (newdata.transaction_type == 1) {
+          const result = await this.transactionService.createSales(newdata);
+          newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
+          return ResponseDto.success('Transaction Created!', result, 201);
+        }
+        // PURCHASE FROM CUSTOMER
+        else if (newdata.transaction_type == 2) {
+          newdata = await this.validateService.validate(this.transactionValidation.CREATEPURCHASE, newdata);
+          try {
+            const result = await this.transactionService.createPurchase(newdata);
+            return ResponseDto.success('Transaction Created!', result, 201);
+          } catch (error) {
+            console.error('Error creating purchase from customer', error);
+            return ResponseDto.error('Error creating purchase from customer', error, error.status);
+          }
+          
+        }
+        return ResponseDto.error('Transaction Type Not Found!', null, 400);
       },
-      'Error processing transaction_sales_approved event'
+      'Error processing transaction_approved event'
     );
   }
 
-  @EventPattern({ cmd: 'sales_disapproved' })
+  @EventPattern({ cmd: 'transaction_disapproved' })
   @Exempt()
   async deleteTrans(@Payload() data: any, @Ctx() context: RmqContext) {
     let deleted_data = data.data;
@@ -499,16 +431,16 @@ export class TransactionController {
         // Cancel Report Journal
         await this.reportJournalsService.deleteAll({ 
           trans_id: deleted_data.id,
-          trans_type_code: 'SAL'
+          // trans_type_code: 'SAL'
         });
         // Cancel Stock Sold
         await this.reportStockService.deleteAll({
           trans_id: deleted_data.id,
-          source_id: 3
+          // source_id: 3
         });
         return ResponseDto.success('Transaction Deleted!', {}, 200);
       },
-      'Error processing transaction_sales_approved event'
+      'Error processing transaction_approved event'
     );
 
   }

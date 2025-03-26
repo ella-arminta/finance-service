@@ -99,17 +99,15 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 codePendapatan = lastCode + 1;
             }
             // Create new account
-            const newAccount = await this.db.accounts.create({
-                data: {
-                    code: codePendapatan,
-                    name: 'Penjualan Emas ' + data.store.name,
-                    account_type: { connect: { id: 5 } },
-                    description: 'Default Akun Penjualan ' + data.store.name,
-                    store: { connect: { id: data.store_id } },
-                    company: { connect: { id: data.store.company_id } },
-                    deactive: false,
-                    // created_by: data.employee_id,
-                }
+            const newAccount = await this.accountService.create({
+                code: codePendapatan,
+                name: 'Penjualan Emas ' + data.store.name,
+                account_type: { connect: { id: 5 } },
+                description: 'Default Akun Penjualan ' + data.store.name,
+                store: { connect: { id: data.store_id } },
+                company: { connect: { id: data.store.company_id } },
+                deactive: false,
+                // created_by: data.employee_id,
             })
 
             // Assign to trans_account_settings 
@@ -162,17 +160,14 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 var lastCode = lastCodeForPendapatan[0].code;
                 codePendapatan = lastCode + 1;
             }
-            const newAccount = await this.db.accounts.create({
-                data: {
-                    code: codePendapatan,
-                    name: 'Penjualan Emas ' + data.store.name,
-                    account_type: { connect: { id: 5 } },
-                    description: 'Default Akun Penjualan ' + data.store.name,
-                    store: { connect: { id: data.store_id } },
-                    company: { connect: { id: data.store.company_id } },
-                    deactive: false,
-                    // created_by: data.employee_id
-                }
+            const newAccount = await this.accountService.create({
+                code: codePendapatan,
+                name: 'Penjualan Emas ' + data.store.name,
+                account_type: { connect: { id: 5 } },
+                description: 'Default Akun Penjualan ' + data.store.name,
+                store: { connect: { id: data.store_id } },
+                company: { connect: { id: data.store.company_id } },
+                deactive: false,
             });
             // Assign to trans_account_settings 
             discountAccount = await this.db.trans_Account_Settings.create({
@@ -224,17 +219,15 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 var lastCode = lastCodeForPiutang[0].code;
                 codePiutang = lastCode + 1;
             }
-            const newAccount = await this.db.accounts.create({
-                data: {
-                    code: codePiutang,
-                    name: 'Piutang Usaha ' + data.store.name,
-                    account_type: { connect: { id: 4 } },
-                    description: 'Default Akun Piutang Usaha ' + data.store.name,
-                    store: { connect: { id: data.store_id } },
-                    company: { connect: { id: data.store.company_id } },
-                    deactive: false,
-                    // created_by: data.employee_id
-                }
+            const newAccount = await this.accountService.create({
+                code: codePiutang,
+                name: 'Piutang Usaha ' + data.store.name,
+                account_type: { connect: { id: 4 } },
+                description: 'Default Akun Piutang Usaha ' + data.store.name,
+                store: { connect: { id: data.store_id } },
+                company: { connect: { id: data.store.company_id } },
+                deactive: false,
+                // created_by: data.employee_id
             });
             // Assign
             piutangAccount = await this.db.trans_Account_Settings.create({
@@ -285,16 +278,13 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 var lastCode = lastCodeForTax[0].code;
                 codeTax = lastCode + 1;
             }
-            const newAccount = await this.db.accounts.create({
-                data: {
-                    code: codeTax,
-                    name: 'Hutang Pajak Penjualan ',
-                    account_type: { connect: { id: 3 } },
-                    description: 'Default Akun Pajak Penjualan ',
-                    company: { connect: { id: data.store.company_id } },
-                    deactive: false,
-                    // created_by: data.employee_id
-                }
+            const newAccount = await this.accountService.create({
+                code: codeTax,
+                name: 'Hutang Pajak Penjualan ',
+                account_type: { connect: { id: 3 } },
+                description: 'Default Akun Pajak Penjualan ',
+                company: { connect: { id: data.store.company_id } },
+                deactive: false,
             });
             // Assign
             taxAccount = await this.db.trans_Account_Settings.create({
@@ -368,16 +358,14 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     break;
             }
 
-            const newAccount = await this.db.accounts.create({
-                data: {
-                    code: codeKas,
-                    name: name + ' ' + data.store.name,
-                    account_type: { connect: { id: 1 } },
-                    description: 'Default ' + name + ' ' + data.store.name,
-                    company: { connect: { id: data.store.company_id } },
-                    deactive: false,
-                    // created_by: data.employee_id
-                }
+            const newAccount = await this.accountService.create({
+                code: codeKas,
+                name: name + ' ' + data.store.name,
+                account_type: { connect: { id: 1 } },
+                description: 'Default ' + name + ' ' + data.store.name,
+                company: { connect: { id: data.store.company_id } },
+                deactive: false,
+                // created_by: data.employee_id
             });
             // Assign
             paymentMethodAccount = await this.db.trans_Account_Settings.create({
@@ -433,16 +421,14 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 var lastCode = lastCodeForInventory[0].code;
                 codeStock = lastCode + 1;
             }
-            const newAccount = await this.db.accounts.create({
-                data: {
-                    code: codeStock,
-                    name: 'PERSEDIAAN ' + data.store.name,
-                    account_type: { connect: { id: 1 } },
-                    description: 'Akun persediaan toko ',
-                    company: { connect: { id: data.store.company_id } },
-                    deactive: false,
-                    // created_by: data.employee_id
-                }
+            const newAccount = await this.accountService.create({
+                code: codeStock,
+                name: 'PERSEDIAAN ' + data.store.name,
+                account_type: { connect: { id: 1 } },
+                description: 'Akun persediaan toko ',
+                company: { connect: { id: data.store.company_id } },
+                deactive: false,
+                // created_by: data.employee_id
             });
             // Assign
             inventoryAccount = await this.db.trans_Account_Settings.create({
@@ -492,16 +478,13 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 var lastCode = lastCodeForDefault[0].code;
                 codeDefault = lastCode + 1;
             }
-            const newAccount = await this.db.accounts.create({
-                data: {
-                    code: codeDefault,
-                    name: name,
-                    account_type: { connect: { id: account_type_id } },
-                    description: description,
-                    company: { connect: { id: company_id } },
-                    deactive: false,
-                    // created_by: data.employee_id
-                }
+            const newAccount = await this.accountService.create({
+                code: codeDefault,
+                name: name,
+                account_type: { connect: { id: account_type_id } },
+                description: description,
+                company: { connect: { id: company_id } },
+                deactive: false,
             });
             // Assign
             defaultAccount = await this.db.trans_Account_Settings.create({
@@ -537,6 +520,18 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             },
         });
         return  result;
+    }
+
+    async find(params = {}) {
+        console.log('find params',params);
+        var result = this.db.trans_Account_Settings.findMany({
+            where: params,
+            include: {
+                account: true,
+                maction: true
+            }
+        })
+        return result;
     }
 
     async create(data: any): Promise<any> {
