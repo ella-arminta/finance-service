@@ -1,4 +1,4 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Inject } from '@nestjs/common';
 import { Ctx, EventPattern, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import { TransactionService } from './transaction.service';
 import { Describe } from 'src/decorator/describe.decorator';
@@ -23,6 +23,7 @@ export class TransactionController {
     private readonly loggerService: LoggerService,
     private readonly reportJournalsService: ReportService,
     private readonly reportStockService: ReportStocksService,
+    @Inject('TRANSACTION_TCP') private readonly transactionClientTcp: any,
   ) {}
 
   // private async handleEvent(
@@ -76,7 +77,7 @@ export class TransactionController {
         channel.ack(originalMsg);
       }
     } catch (error) {
-      console.error(errorMessage, error.stack);
+      console.error(errorMessage, error);
       channel.nack(originalMsg);
     }
   }
@@ -390,6 +391,7 @@ export class TransactionController {
   @Exempt()  
   async createTrans(@Payload() data: any, @Ctx() context: RmqContext) {
     let newdata = data.data;
+    console.log('create transaction data',newdata)
     // SALES Trans
     await this.handleEvent(
       context,
@@ -430,7 +432,7 @@ export class TransactionController {
       async () => {
         // Cancel Report Journal
         await this.reportJournalsService.deleteAll({ 
-          trans_id: deleted_data.id,
+          trans_serv_id: deleted_data.id,
           // trans_type_code: 'SAL'
         });
         // Cancel Stock Sold
@@ -451,61 +453,84 @@ export class TransactionController {
   async handleProductCodeCreated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('generated product', data);
     // generated product {
-    //   id: '3650376a-3800-484f-9c7c-2acea4cf7121',
-    //   barcode: 'CHER0010100010006',
-    //   product_id: '87958f93-183e-44af-bd5c-51ad8baa4391',
+    //   id: 'c17ada64-7847-4995-98b4-bcbcd038183f',
+    //   barcode: 'UUAAS0020100090006',
+    //   product_id: '2fca95fd-6525-4cee-8796-b9a09f670f25',
     //   weight: '12',
-    //   fixed_price: '100000',
+    //   fixed_price: '10000',
     //   status: 0,
-    //   buy_price: '123',
-    //   created_at: '2025-02-21T15:37:29.964Z',
-    //   updated_at: '2025-02-21T15:37:29.964Z',
+    //   taken_out_at: null,
+    //   taken_out_reason: 0,
+    //   taken_out_by: null,
+    //   buy_price: '120000',
+    //   tax_purchase: '0',
+    //   image: '',
+    //   account_id: 'ad844ebf-ceab-474d-995b-3f7b60eb5847',
+    //   created_at: '2025-03-28T13:12:29.109Z',
+    //   updated_at: '2025-03-28T13:12:29.109Z',
     //   deleted_at: null,
     //   product: {
-    //     id: '87958f93-183e-44af-bd5c-51ad8baa4391',
-    //     code: 'CHER001010001',
-    //     name: 'Gelang Hello Kitty Biru',
-    //     description: 'kjh',
-    //     images: [ 'uploads\\product\\9ff93394-482a-4586-8c56-af9c9bea7bb5.png' ],
+    //     id: '2fca95fd-6525-4cee-8796-b9a09f670f25',
+    //     code: 'UUAAS002010009',
+    //     name: 'Product B',
+    //     description: '',
     //     status: 1,
-    //     type_id: 'd69d62c7-5a16-4b8d-9aab-081055ea1c34',
-    //     store_id: 'e344156f-49d6-4179-87b9-03d22cc18ebf',
-    //     created_at: '2025-02-19T08:35:31.340Z',
-    //     updated_at: '2025-02-19T08:35:31.340Z',
+    //     tags: [],
+    //     type_id: '62a80d88-595e-4e5b-b45d-6e1131369b2b',
+    //     store_id: '9c0d2ffc-1cf1-4a4c-bd2f-8cc18afca7c9',
+    //     created_at: '2025-03-28T08:19:57.755Z',
+    //     updated_at: '2025-03-28T08:19:57.755Z',
     //     deleted_at: null,
     //     type: {
-    //       id: 'd69d62c7-5a16-4b8d-9aab-081055ea1c34',
-    //       code: 'CHER00101',
-    //       name: 'Hello Kitty',
-    //       description: 'gelang hello kitty',
-    //       category_id: 'de069412-d0da-4518-8a6d-e1368d2076d4',
-    //       created_at: '2025-02-19T08:33:06.933Z',
-    //       updated_at: '2025-02-19T08:33:06.933Z',
+    //       id: '62a80d88-595e-4e5b-b45d-6e1131369b2b',
+    //       code: 'UUAAS00201',
+    //       name: 'Subcategory B',
+    //       description: '',
+    //       category_id: 'c2afe74a-836a-4ab0-b320-975ef8249f63',
+    //       percent_price_reduction: '0',
+    //       fixed_price_reduction: '0',
+    //       percent_broken_reduction: '0',
+    //       fixed_broken_reduction: '0',
+    //       created_at: '2025-03-28T08:18:51.337Z',
+    //       updated_at: '2025-03-28T08:18:51.337Z',
     //       deleted_at: null,
-    //       prices: [Array],
     //       category: [Object]
     //     },
     //     store: {
-    //       id: 'e344156f-49d6-4179-87b9-03d22cc18ebf',
-    //       code: 'SUBCH',
-    //       name: 'Surabaya Cabang',
+    //       id: '9c0d2ffc-1cf1-4a4c-bd2f-8cc18afca7c9',
+    //       code: 'HOREE',
+    //       name: 'horee',
     //       is_active: true,
     //       is_flex_price: false,
     //       is_float_price: false,
-    //       tax_percentage: '2',
-    //       company_id: 'e043ef91-9501-4b2e-8a08-3424174eef23',
-    //       created_at: '2025-02-19T08:32:10.258Z',
-    //       updated_at: '2025-02-19T08:32:10.258Z',
+    //       tax_percentage: '0',
+    //       company_id: '61016edc-5c08-4c8b-a303-4dec1c320461',
+    //       created_at: '2025-03-27T15:03:17.152Z',
+    //       updated_at: '2025-03-27T15:03:17.152Z',
     //       deleted_at: null,
     //       company: [Object]
     //     }
-    //   }
+    //   },
+    //   transref_id: 'e965b699-fa70-46ab-934b-0a0482d99464' // transactionProduct.id
     // }
     await this.handleEvent(
       context,
       async () => {
-        const result = await this.transactionService.buyProduct(data);
-        return ResponseDto.success('Product Code Created!', result, 200);
+        // Product Code generated for Trade or Purchase
+        if (data.transref_id && data.transref_id != null) {
+          // get trans_id from transaction
+          const transProduct = await this.transactionClientTcp
+              .send({ cmd: 'get:transproduct/*' }, { params: { id: data.transref_id } })
+              .toPromise();
+          data.trans_id = transProduct.data.transaction_id;
+          const result = await this.transactionService.updateProductCodeTrans(data);
+          return ResponseDto.success('Product Code Created!', result, 200);
+        }
+        // Product cod egenerated from supplier 
+        else {
+          const result = await this.transactionService.buyProduct(data);
+          return ResponseDto.success('Product Code Created!', result, 200);
+        }
       },
       'Error processing product_code_generated event',
     );

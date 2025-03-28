@@ -56,6 +56,7 @@ export class CompaniesController {
       let validatedData = await this.validationService.validate(this.companyValidation.CREATE, sanitizedData);
 
       const newData = await this.companiesService.create(validatedData);
+      console.log('company created',newData);
       if (newData) {
         await this.accountService.generateDefaultAccountsByComp(newData.id);
         channel.ack(originalMsg);

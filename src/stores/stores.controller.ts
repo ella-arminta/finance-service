@@ -58,6 +58,7 @@ export class StoresController {
       let validatedData = await this.validationService.validate(this.storeValidation.CREATE, sanitizedData);
 
       const newData = await this.storesService.create(validatedData);
+      console.log('newdata store', newData);
       if (newData) {
         console.log('Store created successfully acked:', newData);
         // create default accounts for this store

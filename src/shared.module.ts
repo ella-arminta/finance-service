@@ -48,6 +48,13 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
                     },
                 },
             },
+            {
+                name: 'TRANSACTION_TCP',
+                transport: Transport.TCP,
+                options: {
+                port: 3004,
+                },
+            },
         ]),
     ],
     exports: [ClientsModule],

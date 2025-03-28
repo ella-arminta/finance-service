@@ -12,9 +12,10 @@ import { TransTypeModule } from 'src/trans-type/trans-type.module';
 import { TransAccountSettingsModule } from 'src/trans-account-settings/trans-account-settings.module';
 import { ReportModule } from 'src/report-journals/report-journals.module';
 import { ReportStocksModule } from 'src/report-stocks/report-stocks.module';
+import { SharedModule } from 'src/shared.module';
 
 @Module({
-  imports: [StoresModule, CompaniesModule, AccountsModule, TransTypeModule,TransAccountSettingsModule, ReportModule, ReportStocksModule],
+  imports: [StoresModule, CompaniesModule, AccountsModule, TransTypeModule,TransAccountSettingsModule, ReportModule, ReportStocksModule,SharedModule],
   controllers: [TransactionController],
   providers: [
     TransactionService,

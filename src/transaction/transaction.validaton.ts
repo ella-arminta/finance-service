@@ -219,7 +219,7 @@ export class TransactionValidation {
           product: z.any(),
           barcode: z.string(),
           id: z.string().uuid(),
-        }),
+        }).nullable().optional(),
         total_price: z 
         .union([z.string(), z.number()])
         .transform((val) => (typeof val === "string" ? parseFloat(val) : val))

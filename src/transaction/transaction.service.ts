@@ -212,7 +212,7 @@ export class TransactionService extends BaseService<Trans> {
           };
           const result = await this.db.report_Journals.create({
             data: {
-              trans_id: trans.id,
+              trans_serv_id: trans.id,
               code: trans.code,
               company_id: trans.store.company.id,
               company_name: trans.store.company.name,
@@ -239,7 +239,7 @@ export class TransactionService extends BaseService<Trans> {
         // Delete from report journals
         const result = await this.db.report_Journals.deleteMany({
           where: {
-            trans_id: trans.id,
+            trans_serv_id: trans.id,
           }
         });
       }
@@ -618,7 +618,7 @@ export class TransactionService extends BaseService<Trans> {
         // Insert report journal entries
         reportJournal = await prisma.report_Journals.createMany({
           data: transDetailsFormated.map(row => ({
-            trans_id: data.id,
+            trans_serv_id: data.id,
             code: data.code,
             company_id: store.company_id,
             company_name: store.company.name,
@@ -773,20 +773,20 @@ export class TransactionService extends BaseService<Trans> {
             data: [
               // Persediaan
               {
-                trans_id: data.id,
+                trans_serv_id: data.id,
                 code: data.code,
                 store_id: data.store_id,
                 trans_date: data.date,
                 trans_type_id: transType.id,
                 description: 'Purchase from customer' + data.code,
                 account_id: inventoryAccount.account_id,
-                amount: data.total_price,
+                amount: Math.abs(data.total_price),
                 detail_description: 'Persediaan masuk beli dari customer' + data.store.name,
                 cash_bank: true
               },
               // Kas/Bank
               {
-                trans_id: data.id,
+                trans_serv_id: data.id,
                 code: data.code,
                 store_id: data.store_id,
                 trans_date: data.date,
@@ -801,7 +801,7 @@ export class TransactionService extends BaseService<Trans> {
           });
 
           // Call handleSoldStock inside the transaction
-          data.trans_id = data.id;
+          data.trans_serv_id = data.id;
           reportStock = await this.reportStockService.handlePurchaseStock(data);
         });
       } catch (error) {
@@ -909,7 +909,7 @@ export class TransactionService extends BaseService<Trans> {
         // Insert report journal entries
         reportJournal = await prisma.report_Journals.createMany({
           data: transDetailsFormated.map(row => ({
-            trans_id: data.id,
+            trans_serv_id: data.id,
             code: generatedCode,
             company_id: store.company_id,
             company_name: store.company.name,
@@ -939,6 +939,32 @@ export class TransactionService extends BaseService<Trans> {
     }
 
     return reportJournal;
+  }
+
+  // Product Code generated for Trade or Purchase
+  async updateProductCodeTrans(data: any) {
+    const MappedData = {
+        category_id: data.product.type.category_id,
+        category_code: data.product.type.category.code,
+        category_name: data.product.type.category.name,
+        type_id: data.product.type.id,
+        type_code: data.product.type.code,
+        type_name: data.product.type.name,
+        product_id: data.product.id,
+        product_code: data.product.code,
+        product_name: data.product.name,
+        product_code_code: data.barcode,
+        product_code_id: data.id,
+    }
+    var reportStocks;
+    await this.db.$transaction(async (prisma) => {
+      reportStocks = await prisma.report_Stocks.updateMany(
+        {
+          where: { trans_id: data.trans_id },
+          data: MappedData
+        }
+      )
+    })
   }
 
   async handleStockOut(data: any) {
@@ -1014,7 +1040,7 @@ export class TransactionService extends BaseService<Trans> {
             const reportJournalDebit =  await prisma.report_Journals.create({
                 data: 
                     { 
-                      trans_id: productCode.id, 
+                      trans_serv_id: productCode.id, 
                       code: transCode, 
                       store_id: store.id, 
                       trans_date, 
@@ -1029,7 +1055,7 @@ export class TransactionService extends BaseService<Trans> {
             console.log('reportJournalDebit',reportJournalDebit);
             const reportJournalKredit = await prisma.report_Journals.create({
                 data: { 
-                  trans_id: productCode.id, 
+                  trans_serv_id: productCode.id, 
                   code: transCode, 
                   store_id: store.id, 
                   trans_date,
@@ -1043,7 +1069,7 @@ export class TransactionService extends BaseService<Trans> {
             });
             console.log('reportJournalKredit',reportJournalKredit);
 
-            data.trans_id = productCode.id;
+            data.trans_serv_id = productCode.id;
             await this.reportStockService.handleStockOut(data);
         });
 
@@ -1062,7 +1088,7 @@ export class TransactionService extends BaseService<Trans> {
         // delete from report journals
         const delReportJournals = await this.db.report_Journals.deleteMany({
           where: {
-            trans_id: data.productCode.id,
+            trans_serv_id: data.productCode.id,
             trans_type_id: 6
           }
         });
@@ -1173,7 +1199,7 @@ export class TransactionService extends BaseService<Trans> {
         data: [
           // Beban Perbaikan (Debit)
           { 
-            trans_id: productCode.id, 
+            trans_serv_id: productCode.id, 
             code: transCode, 
             store_id: productCode.product.store_id, 
             trans_date,
@@ -1186,7 +1212,7 @@ export class TransactionService extends BaseService<Trans> {
           },
           // Kas Utang (Kredit)
           {
-            trans_id: productCode.id,
+            trans_serv_id: productCode.id,
             code: transCode,
             store_id: productCode.product.store_id,
             trans_date, 
@@ -1199,7 +1225,7 @@ export class TransactionService extends BaseService<Trans> {
           },
           // Persediaan Barang (Debit)   
           {
-            trans_id: productCode.id,
+            trans_serv_id: productCode.id,
             code: transCode,
             store_id: productCode.product.store_id,
             trans_date,
@@ -1213,7 +1239,7 @@ export class TransactionService extends BaseService<Trans> {
            // Kerugian Penyusutan Emas (Debit) / Penyesuaian Persediaan (Kredit)
         ...(kerugianPenyusutanEmas != 0 || penyesuaianPersediaan != 0
           ? [{
-              trans_id: productCode.id,
+              trans_serv_id: productCode.id,
               code: transCode,
               store_id: productCode.product.store_id,
               trans_date,
@@ -1233,7 +1259,7 @@ export class TransactionService extends BaseService<Trans> {
           : []),
           // Persediaan dalam Perbaikan (Kredit)
           {
-            trans_id: productCode.id,
+            trans_serv_id: productCode.id,
             code: transCode,
             store_id: productCode.product.store_id,
             trans_date,
@@ -1247,7 +1273,7 @@ export class TransactionService extends BaseService<Trans> {
         ]
       });
       // Stock In Repaired
-      data.trans_id = productCode.id;
+      data.trans_serv_id = productCode.id;
       data.productCode.buy_price = hargaBeliAkhir;  // Update buy price
       const reportStocks = await this.reportStockService.handleStockInRepaired(data);
     });
@@ -1329,7 +1355,7 @@ export class TransactionService extends BaseService<Trans> {
           console.log('ini data.id', data.id);
           var reportJournals = await this.db.report_Journals.create({
             data: {
-              trans_id: data.id,
+              trans_serv_id: data.id,
               code: transCode,
               store_id: productCode.product.store_id,
               trans_date: data.trans_date,
@@ -1344,7 +1370,7 @@ export class TransactionService extends BaseService<Trans> {
           // Credit
           var reportJournals = await this.db.report_Journals.create({
             data: {
-              trans_id: data.id,
+              trans_serv_id: data.id,
               code: transCode,
               store_id: productCode.product.store_id,
               trans_date: data.trans_date,
@@ -1412,7 +1438,7 @@ export class TransactionService extends BaseService<Trans> {
           // delete journals
           const delReportJournals = await prisma.report_Journals.deleteMany({
             where: {
-              trans_id: id,
+              trans_serv_id: id,
               trans_type_id: transType.id,
               description: {
                 contains: 'setelah opname stock tgl'

@@ -273,7 +273,8 @@ model Trans_Account_Settings {
 
 model Report_Journals {
   id String @id @db.Uuid @default(uuid())
-  trans_id String? @db.Uuid 
+  trans_id String? @db.Uuid  // uang keluar / masuk
+  trans_serv_id String? @db.Uuid // dari transaction service
     // Kalau product created-> trans_id = product_code_id, 
     // kalau sales dll -> trans_id = trans_id, 
     // stock out-> trans_id = product_code_id
@@ -317,20 +318,20 @@ model Report_Stocks {
   id                String       @id @default(uuid()) @db.Uuid
   store_id          String       @db.Uuid
   source_id         Int
-  trans_id          String?      @db.Uuid
+  trans_id          String?      @db.Uuid // ini juga buat transaction service
   trans_code        String?
   trans_date        DateTime    // product created_at
-  category_id       String       @db.Uuid
+  category_id       String?       @db.Uuid
   category_code     String?
   category_name     String?
-  type_id           String       @db.Uuid
+  type_id           String?       @db.Uuid
   type_code         String?
   type_name         String?
-  product_id        String       @db.Uuid
+  product_id        String?       @db.Uuid
   product_name      String?
   product_code      String?
   product_code_code String? // barcode
-  product_code_id   String       @db.Uuid
+  product_code_id   String?       @db.Uuid
   weight            Decimal      @db.Decimal
   price             Decimal      @db.Decimal // INSTOCK -> buy price (total jd kalo qty 2 brt total price 2 qty), SALES -> fixed price
   total_price       Decimal?      @db.Decimal // SALES -> total_price (termasuk diskon dll)
