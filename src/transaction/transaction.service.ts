@@ -943,6 +943,21 @@ export class TransactionService extends BaseService<Trans> {
 
   // Product Code generated for Trade or Purchase
   async updateProductCodeTrans(data: any) {
+    const prevReportStock = await this.db.report_Stocks.findFirst({
+      where: {
+        trans_product_id: data.transref_id
+      }
+    });
+    if (!prevReportStock) {
+      throw new BadRequestException('Report stock not found');
+    }
+    const tempWeight = prevReportStock.weight;
+    const tempQty = prevReportStock.qty;
+    const categoryBalance = await this.reportStockService.getCategoryBalance(
+        data.product.type.category_id, 
+        tempQty,
+        tempWeight, 
+    );
     const MappedData = {
         category_id: data.product.type.category_id,
         category_code: data.product.type.category.code,
@@ -955,12 +970,14 @@ export class TransactionService extends BaseService<Trans> {
         product_name: data.product.name,
         product_code_code: data.barcode,
         product_code_id: data.id,
+        category_balance_qty: categoryBalance.category_balance_qty,
+        category_balance_gram: categoryBalance.category_balance_gram,
     }
     var reportStocks;
     await this.db.$transaction(async (prisma) => {
       reportStocks = await prisma.report_Stocks.updateMany(
         {
-          where: { trans_id: data.trans_id },
+          where: { trans_product_id: data.transref_id },
           data: MappedData
         }
       )

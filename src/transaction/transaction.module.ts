@@ -15,7 +15,16 @@ import { ReportStocksModule } from 'src/report-stocks/report-stocks.module';
 import { SharedModule } from 'src/shared.module';
 
 @Module({
-  imports: [StoresModule, CompaniesModule, AccountsModule, TransTypeModule,TransAccountSettingsModule, ReportModule, ReportStocksModule,SharedModule],
+  imports: [
+    StoresModule, 
+    CompaniesModule, 
+    AccountsModule, 
+    TransTypeModule,
+    TransAccountSettingsModule, 
+    ReportModule, 
+    ReportStocksModule,
+    SharedModule
+  ],
   controllers: [TransactionController],
   providers: [
     TransactionService,

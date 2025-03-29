@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Report_Stocks } from '@prisma/client';
+import { Prisma, Report_Stocks } from '@prisma/client';
 import { BaseService } from 'src/common/base.service';
 import { DatabaseService } from 'src/database/database.service';
 import { StockSourceService } from './stock-source.service';
@@ -24,6 +24,24 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         }
         super('report_Stocks', db, relations);
     }
+
+    async getCategoryBalance(category_id: string, addBalQty: number | Decimal, addBalGram: number | Decimal) {
+        const lastCategoryBalance = await this.db.report_Stocks.findFirst({
+            where: { category_id },
+            orderBy: { trans_date: "desc" },
+            select: { category_balance_gram: true, category_balance_qty: true },
+            take: 1,
+        });
+    
+        // Pastikan semua perhitungan menggunakan Decimal
+        const bal_gram = new Decimal(lastCategoryBalance?.category_balance_gram ?? 0).plus(addBalGram);
+        const bal_qty = new Decimal(lastCategoryBalance?.category_balance_qty ?? 0).plus(addBalQty);
+    
+        return {
+            category_balance_gram: bal_gram.toNumber(),
+            category_balance_qty: bal_qty.toNumber(),
+        };
+    }    
 
     async handleSoldStock(data: any) {
         try {
@@ -76,6 +94,13 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 //       deleted_at: null
                 //     }
                 //   }
+                const tempWeight = Math.abs(parseFloat(prod.product_code.weight)) * -1;
+                const tempQty = -1;
+                const categoryBalance = await this.getCategoryBalance(
+                    prod.product_code.product.type.category.id, 
+                    tempQty,
+                    tempWeight, 
+                );
                 const mappedData = {
                     store_id: data.store.id,
                     source_id: source.id,
@@ -93,11 +118,13 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     product_code: prod.product_code.product.code,
                     product_code_code: prod.product_code.barcode,
                     product_code_id: prod.product_code.id,
-                    weight: parseFloat(prod.product_code.weight) * -1,
+                    weight: tempWeight,
                     total_price: parseFloat(prod.total_price),
                     price: parseFloat(prod.product_code.fixed_price),
-                    qty: -1,
+                    qty: tempQty,
                     created_at: new Date(data.created_at),
+                    category_balance_qty: categoryBalance.category_balance_qty,
+                    category_balance_gram: categoryBalance.category_balance_gram,
                 }
                 stocksReports.push(mappedData);
             });
@@ -117,6 +144,13 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
     async handleBuyStock(data: any) {
         const source = await this.stockSourceService.findOne(undefined, { code: 'INSTOCK' });
         const validData = await this.validationService.validate(this.reportStockValidation.CREATE, data);
+        const tempWeight = Math.abs(validData.weight);
+        const tempQty = 1;
+        const categoryBalance = await this.getCategoryBalance(
+            validData.product.type.category_id, 
+            tempQty,
+            tempWeight, 
+        );
         const MappedData = {
             store_id: validData.product.store.id,
             source_id: source.id,
@@ -133,10 +167,12 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             product_name: validData.product.name,
             product_code_code: validData.barcode,
             product_code_id: validData.id,
-            weight: validData.weight,
+            weight: tempWeight,
             price: validData.buy_price,
-            qty: 1,
+            qty: tempQty,
             created_at: new Date(validData.created_at),
+            category_balance_qty: categoryBalance.category_balance_qty,
+            category_balance_gram: categoryBalance.category_balance_gram,
         }
         const result = await this.create(MappedData);
         return result;
@@ -354,7 +390,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         return ResponseDto.success('Stock mutation fetched!', result, 200);
     }
 
-    async getHPP(filters: any) {
+    async getHPP(filters: any) { // TODOELLA CROSSCHEK
         var result = [];
     
         const filters2 = {
@@ -409,6 +445,10 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                         })
                     ).map((tas) => tas.account_id),
                 },
+                trans_date: {
+                    gte: filters2.dateStart,
+                    lte: filters2.dateEnd,
+                }
             },
         });
     
@@ -462,21 +502,63 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         var productCode = data.data;
 
         await this.db.$transaction(async (prisma) => {
-            // delete from report journals
-            await prisma.report_Journals.deleteMany({
-                where: {
-                    trans_id: productCode.id,
-                    trans_type_id: 8
-                }
-            });
-    
-            // delete from report stocks
-            await prisma.report_Stocks.deleteMany({
+            const fetchPrevReportStock = await prisma.report_Stocks.findMany({
                 where: {
                     product_code_id: productCode.id,
-                    source_id: 1
+                    source_id: {
+                        in: [4, 5] // dari purchase from customer 
+                    }
                 }
             });
+            // Ini kalo misal delete nya barang yang dibeli dari customer / ditrade dari customer
+            if (fetchPrevReportStock.some(stock => stock.trans_product_id != null)) {
+                await prisma.report_Stocks.updateMany({
+                    where: {
+                        product_code_id: productCode.id,
+                        source_id: {
+                            in: [4, 5] // dari purchase from customer 
+                        }
+                    },
+                    data: {
+                        category_id: null,
+                        category_code:null,
+                        category_name: null,
+                        type_id: null,
+                        type_code: null,
+                        type_name:null,
+                        product_id:null,
+                        product_code: null,
+                        product_name: null,
+                        product_code_code: null,
+                        product_code_id: null,
+                        category_balance_qty: null,
+                        category_balance_gram: null,                
+                    }
+                })
+            } 
+            // Delete product purchase from supplier
+            else {
+                // delete from report journals
+                await prisma.report_Journals.deleteMany({
+                    where: {
+                        trans_id: productCode.id,
+                        trans_type_id: {
+                            in: [8,4,7]
+                        }
+                    }
+                });
+        
+                // delete from report stocks
+                await prisma.report_Stocks.deleteMany({
+                    where: {
+                        product_code_id: productCode.id,
+                        source_id:{
+                            in: [1, 4, 5] // dari purchase from customer 
+                        }
+                    }
+                });
+            }
+            
         });
         return ResponseDto.success('Product code deleted!', null, 200);
     }
@@ -492,6 +574,13 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 break;
         }
         
+        const tempWeight = Math.abs(parseFloat(data.productCode.weight)) * -1;
+        const tempQty = -1;
+        const categoryBalance = await this.getCategoryBalance(
+            data.productCode.product.type.category_id, 
+            tempQty,
+            tempWeight, 
+        );
         const source = await this.stockSourceService.findOne(undefined, { code });
         const MappedData = {
             store_id: data.productCode.product.store_id,
@@ -509,10 +598,12 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             product_name: data.productCode.product.name,
             product_code_code: data.productCode.barcode,
             product_code_id: data.productCode.id,
-            weight:parseFloat(data.productCode.weight),
+            weight:tempWeight,
             price: parseFloat(data.productCode.buy_price),
-            qty: -1,
+            qty: tempQty,
             created_at: new Date(data.productCode.created_at),
+            category_balance_qty: categoryBalance.category_balance_qty,
+            category_balance_gram: categoryBalance.category_balance_gram,
         }
         const result = await this.create(MappedData);
         console.log('stock out result',result);
@@ -520,6 +611,13 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
     }
     async handleStockInRepaired(data: any) {
         const source = await this.stockSourceService.findOne(undefined, { code: 'REPAIR' });
+        const tempWeight = Math.abs(parseFloat(data.weight));
+        const tempQty = 1;
+        const categoryBalance = await this.getCategoryBalance(
+            data.productCode.product.type.category_id, 
+            tempQty,
+            tempWeight, 
+        );
         const MappedData = {
             store_id: data.productCode.product.store_id,
             source_id: source.id,
@@ -536,10 +634,12 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             product_name: data.productCode.product.name,
             product_code_code: data.productCode.barcode,
             product_code_id: data.productCode.id,
-            weight: parseFloat(data.weight),
+            weight: tempWeight,
             price: parseFloat(data.productCode.buy_price),
-            qty: 1,
+            qty: tempQty,
             created_at: new Date(data.productCode.created_at),
+            category_balance_qty: categoryBalance.category_balance_qty,
+            category_balance_gram: categoryBalance.category_balance_gram,
         }
         const result = await this.create(MappedData);
         console.log('result stock in repaired', result);
@@ -551,7 +651,21 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         var results = [];
         for (let prodCode of data.transaction_products) {
             console.log('ini product masuk purchae',prodCode)
-            const MappedData = {
+            const tempWeight = Math.abs(parseFloat(prodCode.weight));
+            const tempQty = 1;
+            let categoryBalance = {
+                category_balance_qty: 0,
+                category_balance_gram: 0,
+            };
+            if (prodCode.product_code?.product?.type?.category_id) {
+                categoryBalance = await this.getCategoryBalance(
+                    prodCode.product_code.product.type.category_id, 
+                    tempQty,
+                    tempWeight, 
+                );
+            }
+            
+            let MappedData :any = {
                 store_id: data.store_id,
                 source_id: source.id,
                 trans_id: data.trans_serv_id,
@@ -567,11 +681,18 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 product_name: prodCode.product_code?.product?.name ?? null,
                 product_code_code: prodCode.product_code?.barcode ?? null,
                 product_code_id: prodCode.product_code?.id ?? null,
-                weight: Math.abs(parseFloat(prodCode.weight)),
+                weight: tempWeight,
                 price: Math.abs(parseFloat(prodCode.total_price)),
-                qty: 1,
+                qty: tempQty,
                 created_at: new Date(prodCode.created_at),
+                category_balance_qty: categoryBalance.category_balance_qty ?? 0,
+                category_balance_gram: categoryBalance.category_balance_gram ?? 0,
             }
+
+            if (prodCode.product_code == null) {
+                MappedData.trans_product_id = prodCode.id; // table transactionProduct.id dari service transaction
+            }
+            console.log('purchase stock in mappedData',MappedData)
             const result = await this.create(MappedData);
             results.push(result);
         }

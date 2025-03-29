@@ -215,6 +215,7 @@ export class TransactionValidation {
       .refine((val) => !isNaN(val), { message: "Invalid Total Price" }),
     transaction_products: z.array(
       z.object({
+        id: z.string().uuid().optional().nullable(),
         product_code: z.object({
           product: z.any(),
           barcode: z.string(),
