@@ -33,21 +33,21 @@ export class ReportService extends BaseService<Report_Journals> {
             'data' : []
         };
         // GET SALES EMAS
-        const salesAccountIDs = await this.tasService.getAllAccountIdByAction('goldSales', filters.owner_id ,filters.store, filters.company);
+        const salesAccountIDs = await this.tasService.getAllAccountIdByAction('goldSales', filters.owner_id ,filters.store, filters.company_id);
         const totalSales =  Math.abs(await this.sumAmountByAccounts(salesAccountIDs, filters.start_date, filters.end_date));
         revenue.data.push({
             'name': 'Penjualan Kotor Emas',
             'amount': totalSales
         });
         // GET OPERATION SERVICE
-        const operationAccountIDS = await this.tasService.getAllOperationAccount(filters.owner_id, filters.store, filters.company);
+        const operationAccountIDS = await this.tasService.getAllOperationAccount(filters.owner_id, filters.store, filters.company_id);
         const totalOperations = Math.abs(await this.sumAmountByAccounts(operationAccountIDS, filters.start_date, filters.end_date));
         revenue.data.push({
             'name': 'Penjualan Kotor Jasa',
             'amount': totalOperations
         });
         // DISKON PENJUALAN
-        const discountAccountIDS = await this.tasService.getAllAccountIdByAction('discountSales', filters.owner_id, filters.store, filters.company);
+        const discountAccountIDS = await this.tasService.getAllAccountIdByAction('discountSales', filters.owner_id, filters.store, filters.company_id);
         const totalDiscount = Math.abs( await this.sumAmountByAccounts(discountAccountIDS, filters.start_date, filters.end_date)) * -1;
         revenue.data.push({
             'name': 'Diskon Penjualan',
@@ -89,7 +89,7 @@ export class ReportService extends BaseService<Report_Journals> {
             where: {
                 account_type_id: 2,
                 store_id: filters.store ?? undefined,
-                company_id: filters.company ?? undefined,
+                company_id: filters.company_id ?? undefined,
                 company: {
                     owner_id: filters.owner_id
                 },
@@ -146,7 +146,7 @@ export class ReportService extends BaseService<Report_Journals> {
                     in: [7, 8]
                 },
                 store_id: filters.store ?? undefined,
-                company_id: filters.company ?? undefined,
+                company_id: filters.company_id ?? undefined,
                 company: {
                     owner_id: filters.owner_id
                 },
@@ -543,7 +543,15 @@ export class ReportService extends BaseService<Report_Journals> {
             params.push(data.store_id);
         }
 
-        if (data.account_id) {
+        // Update account_id filter to handle array of account IDs
+        if (data.account_id && Array.isArray(data.account_id)) {
+            const accountIds = data.account_id.map((id: string, index: number) => {
+                return `$${params.length + index + 1}::uuid`;
+            });
+            conditions.push(`rj.account_id IN (${accountIds.join(', ')})`);
+            params.push(...data.account_id);
+        } else if (data.account_id) {
+            // If account_id is a single ID (not an array)
             conditions.push(`rj.account_id = $${params.length + 1}::uuid`);
             params.push(data.account_id);
         }

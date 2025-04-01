@@ -18,7 +18,7 @@ export class TransAccountSettingsController {
   @MessagePattern({ cmd: 'post:trans-account-setting'  })
   @Describe({
     description:'Create a new trans account setting', 
-    fe: ['master/account-setting:add', 'master/account-setting:open']
+    fe: ['master/page-account-setting:add', 'master/page-account-setting:open']
   })
   async create(@Payload() data: any) {
     var newdata = data.body;
@@ -40,7 +40,7 @@ export class TransAccountSettingsController {
   @MessagePattern({ cmd: 'get:trans-account-setting'  })
   @Describe({
     description:'find trans account setting', 
-    fe: ['master/account-setting:open']
+    fe: ['master/page-account-setting:open']
   })
   async findAll(@Payload() data: any) {
     var filters = data.body;
@@ -54,7 +54,7 @@ export class TransAccountSettingsController {
   @MessagePattern({ cmd: 'get:trans-account-setting-action/*'  })
   @Describe({
     description:'find trans account setting by action', 
-    fe: ['master/account-setting:open']
+    fe: ['master/page-account-setting:open']
   })
   async findOne(@Payload() data: any) {
     const params = data.params;
@@ -72,7 +72,7 @@ export class TransAccountSettingsController {
   @MessagePattern({ cmd: 'put:trans-account-setting/*'  })
   @Describe({
     description:'Update trans account setting', 
-    fe: ['master/account-setting:open', 'master/account-setting:edit']
+    fe: ['master/page-account-setting:open', 'master/page-account-setting:edit']
   })
   async update(@Payload() data: any) {
     var params  = data.params;

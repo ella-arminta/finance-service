@@ -19,6 +19,7 @@ export class JournalsController {
   })
   async get(@Payload() data: any) {
     const filters = data.body;
+    console.log(filters, ' satu filters');
     // TODOELLA company_id  / store_id auth
 
     // Change Filter Date Format
@@ -30,6 +31,11 @@ export class JournalsController {
       endDate.setHours(23, 59, 59, 0); // Sets time to 23:59:59.000
       filters.dateEnd = endDate;
     }
+    if (!filters.company_id && !filters.store_id) {
+      filters.owner_id = filters.owner_id;
+    }
+
+    console.log(filters, 'filters');
 
     const result = await this.journalsService.getJournals(filters);
     return ResponseDto.success('Data Found!', result, 200);
@@ -56,6 +62,9 @@ export class JournalsController {
       var endDate = new Date(filters.dateEnd);
       endDate.setHours(23, 59, 59, 0); // Sets time to 23:59:59.000
       filters.dateEnd = endDate;
+    }
+    if (!filters.company_id && !filters.store_id) {
+      filters.owner_id = filters.owner_id;
     }
 
     const result = await this.journalsService.getJournalsByID(id,filters);

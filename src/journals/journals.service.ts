@@ -14,11 +14,23 @@ export class JournalsService{
     
         if (filters.dateStart) {
             params.push(filters.dateStart);
-            conditions.push(`trans_date >= $${params.length}`);
+            conditions.push(`rj.trans_date >= $${params.length}`);
         }
         if (filters.dateEnd) {
             params.push(filters.dateEnd);
-            conditions.push(`trans_date <= $${params.length}`);
+            conditions.push(`rj.trans_date <= $${params.length}`);
+        }
+        if (filters.store_id) {
+            params.push(filters.store_id);
+            conditions.push(`rj.store_id = $${params.length}::uuid`);
+        }
+        if (filters.company_id) {
+            params.push(filters.company_id);
+            conditions.push(`s.company_id = $${params.length}::uuid`);
+        }
+        if (filters.owner_id) {
+            params.push(filters.owner_id);
+            conditions.push(`c.owner_id = $${params.length}::uuid`);
         }
     
         let whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -31,10 +43,12 @@ export class JournalsService{
             SELECT 
                 1 as id,
                 'Jurnal Umum' AS name,
-                SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS debit,
-                SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) AS credit,
-                SUM(amount) AS balance
-            FROM "Report_Journals"
+                SUM(CASE WHEN rj.amount > 0 THEN rj.amount ELSE 0 END) AS debit,
+                SUM(CASE WHEN rj.amount < 0 THEN rj.amount ELSE 0 END) AS credit,
+                SUM(rj.amount) AS balance
+            FROM "Report_Journals" rj
+            JOIN "Stores" s ON rj.store_id = s.id
+            JOIN "Companies" c ON s.company_id = c.id
             ${whereClause}
     
             UNION ALL
@@ -42,44 +56,52 @@ export class JournalsService{
             SELECT 
                 2 as id,
                 'Penjualan' AS name,
-                SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS debit,
-                SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) AS credit,
-                SUM(amount) AS balance
-            FROM "Report_Journals"
-            ${appendConditions("WHERE trans_type_id IN (3,7)")}
+                SUM(CASE WHEN rj.amount > 0 THEN rj.amount ELSE 0 END) AS debit,
+                SUM(CASE WHEN rj.amount < 0 THEN rj.amount ELSE 0 END) AS credit,
+                SUM(rj.amount) AS balance
+            FROM "Report_Journals" rj
+            JOIN "Stores" s ON rj.store_id = s.id
+            JOIN "Companies" c ON s.company_id = c.id
+            ${appendConditions("WHERE rj.trans_type_id IN (3,7)")}
     
             UNION ALL
     
             SELECT 
                 3 as id,
                 'Pembelian' AS name,
-                SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS debit,
-                SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) AS credit,
-                SUM(amount) AS balance
-            FROM "Report_Journals"
-            ${appendConditions("WHERE trans_type_id IN (4, 5, 8)")}
+                SUM(CASE WHEN rj.amount > 0 THEN rj.amount ELSE 0 END) AS debit,
+                SUM(CASE WHEN rj.amount < 0 THEN rj.amount ELSE 0 END) AS credit,
+                SUM(rj.amount) AS balance
+            FROM "Report_Journals" rj
+            JOIN "Stores" s ON rj.store_id = s.id
+            JOIN "Companies" c ON s.company_id = c.id
+            ${appendConditions("WHERE rj.trans_type_id IN (4, 5, 8)")}
     
             UNION ALL
     
             SELECT 
                 4 as id,
                 'Penerimaan Kas' AS name,
-                SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS debit,
-                SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) AS credit,
-                SUM(amount) AS balance
-            FROM "Report_Journals"
-            ${appendConditions("WHERE trans_type_id IN (3, 7, 2)")}
+                SUM(CASE WHEN rj.amount > 0 THEN rj.amount ELSE 0 END) AS debit,
+                SUM(CASE WHEN rj.amount < 0 THEN rj.amount ELSE 0 END) AS credit,
+                SUM(rj.amount) AS balance
+            FROM "Report_Journals" rj
+            JOIN "Stores" s ON rj.store_id = s.id
+            JOIN "Companies" c ON s.company_id = c.id
+            ${appendConditions("WHERE rj.trans_type_id IN (3, 7, 2)")}
     
             UNION ALL
     
             SELECT 
                 5 as id,
-                'Pengeluaran & COGS' AS name,
-                SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS debit,
-                SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) AS credit,
-                SUM(amount) AS balance
-            FROM "Report_Journals"
-            ${appendConditions("WHERE trans_type_id IN (1, 4, 5, 8)")}`;
+                'Pengeluaran' AS name,
+                SUM(CASE WHEN rj.amount > 0 THEN rj.amount ELSE 0 END) AS debit,
+                SUM(CASE WHEN rj.amount < 0 THEN rj.amount ELSE 0 END) AS credit,
+                SUM(rj.amount) AS balance
+            FROM "Report_Journals" rj
+            JOIN "Stores" s ON rj.store_id = s.id
+            JOIN "Companies" c ON s.company_id = c.id
+            ${appendConditions("WHERE rj.trans_type_id IN (1)")}`;
     
         const results = await this.db.$queryRawUnsafe(query, ...params);
         return results;
@@ -96,6 +118,18 @@ export class JournalsService{
         if (filters.dateEnd) {
             params.push(filters.dateEnd);
             conditions.push(`rj.trans_date <= $${params.length}`);
+        }
+        if (filters.store_id) {
+            params.push(filters.store_id);
+            conditions.push(`rj.store_id = $${params.length}::uuid`);
+        }
+        if (filters.company_id) {
+            params.push(filters.company_id);
+            conditions.push(`s.company_id = $${params.length}::uuid`);
+        }
+        if (filters.owner_id) {
+            params.push(filters.owner_id);
+            conditions.push(`c.owner_id = $${params.length}::uuid`);
         }
     
         console.log(filters, id);
@@ -130,6 +164,8 @@ export class JournalsService{
             FROM "Report_Journals" rj
             JOIN "Accounts" a ON rj.account_id = a.id
             JOIN "Trans_Type" tt ON rj.trans_type_id = tt.id
+            JOIN "Stores" s ON rj.store_id = s.id
+            JOIN "Companies" c ON s.company_id = c.id
             ${whereClause};
         `;
     

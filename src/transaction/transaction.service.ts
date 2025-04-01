@@ -301,6 +301,38 @@ export class TransactionService extends BaseService<Trans> {
     return transactionCode;
   }
 
+  async generateReportJournalCode(transType, store_id:string) {
+    const year = new Date().getFullYear();
+    const month = new Date().getMonth() + 1;
+    const Store = await this.db.stores.findFirst({
+      where: { id: store_id },
+    });
+    // last transaction code
+    const lastReportJournal = await this.db.report_Journals.findFirst({
+      where: {
+        store_id: store_id,
+        trans_date: {
+          gte: new Date(year, month - 1, 1), // First day of the month
+          lt: new Date(year, month, 1),      // First day of the next month
+        },
+        trans_type_id: transType.id
+      },
+      orderBy: [
+        { trans_date: 'desc' },
+        { code: 'desc' }
+      ]
+    })
+    console.log('lastreportjournal',  lastReportJournal);
+    // get the last index of the transaction code
+    var indexTransaction = 1;
+    if (lastReportJournal) {
+      const lastReportJournalCode = lastReportJournal.code;
+      indexTransaction = parseInt(lastReportJournalCode.split('/').pop()) + 1;
+    }
+    var transactionCode = transType.code + '/' + Store.code.toUpperCase() + '/' + year.toString().slice(-2) + month.toString().padStart(2, '0') + '/' + indexTransaction.toString().padStart(5, '0');
+    return transactionCode;
+  }
+
   async getReportUangKeluarMasuk(filters: any) {
     try {
       let query = Prisma.sql`
@@ -463,9 +495,7 @@ export class TransactionService extends BaseService<Trans> {
     //   }
     // }
     const transType = await this.db.trans_Type.findUnique({ where: { code: 'SAL' } });
-    const hasTax = true // TODOELLA: Check if the store has tax
     const store = await this.db.stores.findUnique({ where: { id: data.store_id }, include: { company: true } });
-    var diskonTotal = 0;
     var salesEmasTotal = 0;
     var hppTotal = 0;
     data.store = store;
@@ -473,7 +503,7 @@ export class TransactionService extends BaseService<Trans> {
 
     // JOURNAL ENTRY (KREDIT)
     // Tax yg dibayar customer
-    if (hasTax) {
+    if (data.tax_price > 0) {
       const taxAccount = await this.transAccountSettingsServ.getTaxAccount(data);
 
       transDetailsFormated.push({
@@ -529,8 +559,7 @@ export class TransactionService extends BaseService<Trans> {
       //     deleted_at: null,
       //     product: [Object]
       //   },
-      salesEmasTotal += (Math.abs(det.total_price) + Math.abs(det.discount)) * -1;
-      diskonTotal += Math.abs(det.discount);
+      salesEmasTotal += (Math.abs(det.total_price)) * -1;
       console.log('biy price',det.product_code.buy_price);
       hppTotal += Math.abs(det.product_code.buy_price);
     })
@@ -549,6 +578,7 @@ export class TransactionService extends BaseService<Trans> {
     // JOURNAL ENTRY (DEBIT)
     // Diskon Penjualan
     const discountAccount = await this.transAccountSettingsServ.getDiscountAccount(data);
+    const diskonTotal = Math.abs(data.sub_total_price + data.tax_price - data.total_price);
     if (diskonTotal > 0) {
       transDetailsFormated.push({
         account_id: discountAccount.account_id,
@@ -1221,22 +1251,20 @@ export class TransactionService extends BaseService<Trans> {
     const inventoryAccount = await this.transAccountSettingsServ.getInventoryAccount(data);
     transDetailsFormated.push({
       account_id: inventoryAccount.account_id,
-      account_name: inventoryAccount.account.name,
       amount: Math.abs(parseFloat(data.buy_price)),
       detail_description: 'Persediaan Barang Dagang',
-      cash_bank: false,
-      account_code: inventoryAccount.account.code
+      cash_bank: false
     })
     // PPN Masukan                 (D)
     const taxAccount = await this.transAccountSettingsServ.getTaxAccount(data);
-    transDetailsFormated.push({
-      account_id: taxAccount.account_id,
-      account_name: taxAccount.account.name,
-      amount: Math.abs(parseFloat(data.tax_purchase)),
-      detail_description: 'PPN Masukan',
-      cash_bank: false,
-      account_code: taxAccount.account.code
-    })
+    if (parseFloat(data.tax_purchase) != 0) {
+      transDetailsFormated.push({
+        account_id: taxAccount.account_id,
+        amount: Math.abs(parseFloat(data.tax_purchase)),
+        detail_description: 'PPN Masukan',
+        cash_bank: false,
+      })
+    }
     // Kas/Bank/Utang Dagang            (K)
     const kasBankAccount = await this.db.accounts.findFirst({
       where: {
@@ -1245,14 +1273,12 @@ export class TransactionService extends BaseService<Trans> {
     })
     transDetailsFormated.push({
       account_id: kasBankAccount.id,
-      account_name: kasBankAccount.name,
       amount: (Math.abs(parseFloat(data.tax_purchase)) + Math.abs(parseFloat(data.buy_price))) * -1,
       detail_description: 'Pembelian ' + data.product.name,
       cash_bank: true,
-      account_code: kasBankAccount.code
     })
 
-    const generatedCode = await this.getTransCode(transType, data.store_id);
+    const generatedCode = await this.generateReportJournalCode(transType, data.store_id);
 
     // CREATE TRANSACTION
     var reportJournal;
@@ -1264,20 +1290,11 @@ export class TransactionService extends BaseService<Trans> {
           data: transDetailsFormated.map(row => ({
             trans_serv_id: data.id,
             code: generatedCode,
-            company_id: store.company_id,
-            company_name: store.company.name,
-            company_code: store.company.code,
             store_id: store.id,
-            store_name: store.name,
-            store_code: store.code,
             trans_date: data.created_at,
             trans_type_id: transType.id,
-            trans_type_code: transType.code,
-            trans_type_name: transType.name,
             description: 'Pembelian ' + data.product.name,
             account_id: row.account_id,
-            account_name: row.account_name,
-            account_code: row.account_code,
             amount: row.amount,
             detail_description: row.detail_description,
             cash_bank: row.cash_bank,
@@ -1383,7 +1400,7 @@ export class TransactionService extends BaseService<Trans> {
     if (reason === 0) return ResponseDto.success('No action needed.', null, 200);
     
     var transType = await this.db.trans_Type.findUnique({ where: { code: 'KD' } });
-    const transCode = await this.getTransCode(transType, store.id);
+    const transCode = await this.generateReportJournalCode(transType, store.id);
     const reasonText = reasonDict[reason];
 
     const inventoryAccount = await this.transAccountSettingsServ.getDefaultAccount(
@@ -1524,7 +1541,7 @@ export class TransactionService extends BaseService<Trans> {
     //   account_id: [ 'f609be50-160a-4edd-b3ac-755ab5c5739a' ]
     // }
     const transType = await this.db.trans_Type.findUnique({ where: { code: 'MD' } });
-    const transCode = await this.getTransCode(transType, productCode.product.store_id);
+    const transCode = await this.generateReportJournalCode(transType, productCode.product.store_id);
 
     // Expense Perbaikan
     // Beban Perbaikan (Debit)   xxx  
@@ -1694,7 +1711,7 @@ export class TransactionService extends BaseService<Trans> {
     const company_id = stockNotScanned[0].product.store.company_id;
     const reason = 'lost';
     const transType = await this.db.trans_Type.findUnique({ where: { code: 'KD' } });
-    const transCode = await this.getTransCode(transType, stockNotScanned[0].product.store_id);
+    const transCode = await this.generateReportJournalCode(transType, stockNotScanned[0].product.store_id);
     const lostAccount = await this.transAccountSettingsServ
         .getDefaultAccount(
           reason,

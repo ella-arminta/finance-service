@@ -180,106 +180,107 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
 
     async getStockCard(filters: any) {
         console.log('filters in getStockCard:', filters);
-        // filters in getStockCard: {
-        //   auth: {
-        //     company_id: 'e043ef91-9501-4b2e-8a08-3424174eef23',
-        //     store_id: 'e344156f-49d6-4179-87b9-03d22cc18ebf'
-        //   },
-        //   dateStart: 2025-02-27T17:00:00.000Z,
-        //   dateEnd: 2025-03-30T16:59:59.000Z,
-        //   company_id: 'e043ef91-9501-4b2e-8a08-3424174eef23',
-        //   store_id: 'e344156f-49d6-4179-87b9-03d22cc18ebf',
-        //   category_id: 'de069412-d0da-4518-8a6d-e1368d2076d4',
-        //   type_id: 'd69d62c7-5a16-4b8d-9aab-081055ea1c34',
-        //   product_id: '87958f93-183e-44af-bd5c-51ad8baa4391',
-        //   owner_id: 'd643abb7-2944-4412-8bb5-5475679f5ade'
-        // }
-
+    
+        // Start building the query
         let query = `
-            SELECT 
-                rs.product_id,
-                rs.created_at AS date,
-                rs.product_code_code AS code,
-                rs.product_name AS name,
-                ss.name AS description, 
-                CASE 
-                    WHEN rs.qty >= 0 THEN rs.qty 
-                    ELSE 0 
-                END AS "in",
-                CASE 
-                    WHEN rs.qty < 0 THEN rs.qty
-                    ELSE 0 
-                END AS "out",
-                SUM(rs.qty) OVER (
-                    PARTITION BY rs.product_id 
-                    ORDER BY rs.product_id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-                )::NUMERIC AS balance
-            FROM "Report_Stocks" rs
-            JOIN "Stock_Source" ss ON rs.source_id = ss.id
-            JOIN "Stores" st ON rs.store_id = st.id
-            JOIN "Companies" com ON st.company_id = com.id
+            WITH RunningTotals AS (
+                SELECT
+                    rs.product_id,
+                    rs.created_at AS date,
+                    rs.product_code_code AS code,
+                    rs.product_name AS name,
+                    ss.name AS description,
+                    CASE WHEN rs.qty >= 0 THEN rs.qty ELSE 0 END AS "in",
+                    CASE WHEN rs.qty < 0 THEN -rs.qty ELSE 0 END AS "out",
+                    SUM(rs.qty) OVER (PARTITION BY rs.product_id ORDER BY rs.created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS balance,
+                    CASE WHEN rs.qty >= 0 THEN rs.weight ELSE 0 END AS weight_in,
+                    CASE WHEN rs.qty < 0 THEN -rs.weight ELSE 0 END AS weight_out,
+                    SUM(rs.weight) OVER (PARTITION BY rs.product_id ORDER BY rs.created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS balance_weight,
+                    SUM(rs.price) FILTER (WHERE rs.qty > 0) OVER (PARTITION BY rs.product_id ORDER BY rs.created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS sum_price_qty1,
+                    SUM(rs.weight) FILTER (WHERE rs.qty > 0) OVER (PARTITION BY rs.product_id ORDER BY rs.created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS sum_weight_qty1
+                FROM "Report_Stocks" rs
+                JOIN "Stock_Source" ss ON rs.source_id = ss.id
+                JOIN "Stores" st ON rs.store_id = st.id
+                JOIN "Companies" com ON st.company_id = com.id
         `;
-
-        // Build the WHERE clause conditions and parameters
-        const conditions: string[] = [];
-        const params: any[] = [];
-
+    
+        // Dynamic conditions and params for the WHERE clause
+        let conditions: string[] = [];
+        let params: any[] = [];
+    
+        if (filters.product_id) {
+            conditions.push(`rs.product_id = $${params.length + 1}::uuid`);
+            params.push(filters.product_id);
+        }
         if (filters.dateStart) {
             const dateStart = new Date(filters.dateStart);
-            conditions.push(`rs.created_at > $${params.length + 1}`);
+            conditions.push(`rs.created_at >= $${params.length + 1}`);
             params.push(dateStart);
         }
-
         if (filters.dateEnd) {
             const dateEnd = new Date(filters.dateEnd);
             conditions.push(`rs.created_at <= $${params.length + 1}`);
             params.push(dateEnd);
         }
-
         if (filters.company_id) {
-            const companyId = filters.company_id.replace(/^"|"$/g, ''); // Removes leading/trailing double quotes
+            const companyId = filters.company_id.replace(/^"|"$/g, '');
             conditions.push(`st.company_id = $${params.length + 1}::uuid`);
             params.push(companyId);
         }
-
         if (filters.store_id) {
             conditions.push(`rs.store_id = $${params.length + 1}::uuid`);
             params.push(filters.store_id);
         }
-
         if (filters.category_id) {
             conditions.push(`rs.category_id = $${params.length + 1}::uuid`);
             params.push(filters.category_id);
         }
-
         if (filters.type_id) {
             conditions.push(`rs.type_id = $${params.length + 1}::uuid`);
             params.push(filters.type_id);
         }
-
-        if (filters.product_id) {
-            conditions.push(`rs.product_id = $${params.length + 1}::uuid`);
-            params.push(filters.product_id);
+        if (filters.owner_id) {
+            conditions.push(`com.owner_id = $${params.length + 1}::uuid`);
+            params.push(filters.owner_id);
         }
-
-        conditions.push(`com.owner_id = $${params.length + 1}::uuid`);
-        params.push(filters.owner_id);
-
-        // Append the WHERE clause if there are any conditions
+    
+        // Adding the WHERE clause if conditions exist
         if (conditions.length > 0) {
             query += ' WHERE ' + conditions.join(' AND ');
         }
-
-        // Order By created_at
-        query += ' ORDER BY rs.created_at';
-
-        // console.log("Final Query:", query);
-        // console.log("Parameters:", params);
-
-        const result: any = await this.db.$queryRawUnsafe(query, ...params);
-
-        return ResponseDto.success('Stock mutation fetched!', result, 200);
-    }
+    
+        // Final SELECT statement to fetch data
+        query += `)
+            SELECT 
+                product_id,
+                date,
+                code,
+                name,
+                description,
+                "in",
+                "out",
+                balance,
+                weight_in,
+                weight_out,
+                balance_weight,
+                (sum_price_qty1 / NULLIF(sum_weight_qty1, 0)) AS avg_price_per_weight
+            FROM RunningTotals
+            ORDER BY date ASC;
+        `;
+    
+        // Log the final query and parameters for debugging
+        console.log("Final Query:", query);
+        console.log("Parameters:", params);
+    
+        // Execute the query and return the result
+        try {
+            const result: any = await this.db.$queryRawUnsafe(query, ...params);
+            return ResponseDto.success('Stock Card fetched!', result, 200);
+        } catch (error) {
+            console.error('Error executing query:', error);
+            return ResponseDto.error('Failed to fetch stock Card', 500);
+        }
+    }    
 
     async getStockMutation(filters: any) {
         const { company_id, dateStart, dateEnd, category_id, store_id } = filters;
@@ -395,7 +396,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
     
         const filters2 = {
             store_id: filters.store ?? undefined,
-            company_id: filters.company ?? undefined,
+            company_id: filters.company_id ?? undefined,
             owner_id: filters.owner_id,
             dateStart: filters.start_date,
             dateEnd: filters.end_date

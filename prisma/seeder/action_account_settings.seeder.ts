@@ -109,7 +109,13 @@ async function main() {
         action: 'purchaseCust',
         name: 'Purchase from Customer',
         description: 'Akun kas/bank yang digunakan toko ketika membeli emas dari customer',
-      }
+      },
+      {
+        id: 18,
+        action: 'pm5',
+        name: 'Penjualan dibayar Midtrans',
+        description: 'Akun yang digunakan toko ketika terjadi penjualan dibayar Midtrans',
+      },
     ],
     skipDuplicates: true,
   });

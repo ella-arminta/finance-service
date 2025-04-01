@@ -106,10 +106,18 @@ export class ReportController {
         endDate.setHours(23, 59, 59, 0); // Sets time to 23:59:59.000
         filters.dateEnd = endDate;
       }
-
-      // filters.account_id = data.params.id;
-      console.log(params);
-
+      if (filters.account_id) {
+          const accountIdsString = decodeURIComponent(filters.account_id).trim();    
+          if (accountIdsString.startsWith('[') && accountIdsString.endsWith(']')) {
+            filters.account_id = accountIdsString
+              .slice(1, -1)
+              .split(',')
+              .map(id => id.trim().replace(/["']/g, ''))
+              .filter(id => id !== ""); // Hapus elemen kosong
+          }
+      }
+      // console.log('filters', filters);
+    
       const datas =  await this.reportService.getLedger(filters);
 
       return ResponseDto.success('Data Retrieved!', datas, 200);

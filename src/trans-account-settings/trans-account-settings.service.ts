@@ -353,6 +353,9 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 case 4:
                     name = 'Debit Card';
                     break;
+                case 5:
+                    name = 'Midtrans';
+                    break;
                 default:
                     name = 'Kas';
                     break;

@@ -7,7 +7,7 @@ export class ReportValidation {
   ) { }
   readonly FILTER: ZodType = z.object({
     store: z.string().uuid().optional(),
-    company: z.string().uuid().optional(),
+    company_id: z.string().uuid().optional(),
     owner_id: z.string().uuid(),
     start_date: z.preprocess((val) => {
         if (typeof val === 'string') {
