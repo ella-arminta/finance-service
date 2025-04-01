@@ -7,6 +7,7 @@ import { filter } from 'rxjs';
 import { ResponseDto } from 'src/common/response.dto';
 import { TransAccountSettingsService } from 'src/trans-account-settings/trans-account-settings.service';
 import { ReportStocksService } from 'src/report-stocks/report-stocks.service';
+import { AccountsService } from 'src/accounts/accounts.service';
 
 @Injectable()
 export class TransactionService extends BaseService<Trans> {
@@ -14,6 +15,7 @@ export class TransactionService extends BaseService<Trans> {
     db: DatabaseService,
     private readonly reportStockService: ReportStocksService,
     private readonly transAccountSettingsServ: TransAccountSettingsService,
+    private readonly accountsService: AccountsService
   ) {
     const relations = {
       trans_type: true,
@@ -809,6 +811,357 @@ export class TransactionService extends BaseService<Trans> {
         throw new Error(`Error creating sales transaction: ${error.message}`);
       }
       return data;
+  }
+
+  async createTrade(data: any) {
+    // create transaction data {
+    //   id: '1bc167e8-78ef-4d43-9e0f-df49649f37c7',
+    //   date: '2025-03-29T00:00:00.000Z',
+    //   code: 'TRA/HOREE/2025/2/29/001',
+    //   transaction_type: 3,
+    //   payment_method: 1,
+    //   paid_amount: '23460',
+    //   payment_link: null,
+    //   poin_earned: 0,
+    //   expired_at: null,
+    //   status: 0,
+    //   sub_total_price: '23000',
+    //   tax_percent: '2',
+    //   tax_price: '20460',
+    //   adjustment_price: '100000',
+    //   total_price: '143460',
+    //   comment: null,
+    //   store_id: '9c0d2ffc-1cf1-4a4c-bd2f-8cc18afca7c9',
+    //   customer_id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
+    //   voucher_own_id: null,
+    //   employee_id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+    //   nota_link: null,
+    //   account_id: null,
+    //   created_at: '2025-03-29T13:37:08.201Z',
+    //   updated_at: '2025-03-29T13:46:33.815Z',
+    //   deleted_at: null,
+    //   approve: 1,
+    //   approve_by: null,
+    //   store: {
+    //     id: '9c0d2ffc-1cf1-4a4c-bd2f-8cc18afca7c9',
+    //     code: 'HOREE',
+    //     name: 'horee',
+    //     company_id: '61016edc-5c08-4c8b-a303-4dec1c320461',
+    //     is_active: true,
+    //     is_flex_price: false,
+    //     is_float_price: false,
+    //     poin_config: 0,
+    //     tax_percentage: '0',
+    //     balance: '0',
+    //     grace_period: 0,
+    //     percent_tt_adjustment: '0',
+    //     fixed_tt_adjustment: '0',
+    //     percent_kbl_adjustment: '0',
+    //     fixed_kbl_adjustment: '0',
+    //     logo: 'uploads\\logo\\d4b8fa51-25f9-4846-a70a-8a0b0c983f04.png',
+    //     created_at: '2025-03-27T15:03:17.148Z',
+    //     updated_at: '2025-03-27T15:03:17.148Z',
+    //     deleted_at: null
+    //   },
+    //   customer: {
+    //     id: 'edd09595-33d4-4e81-9e88-14b47612bee8',
+    //     name: 'customer1',
+    //     email: 'customer@gmail.com',
+    //     phone: '089681551106',
+    //     is_verified: false,
+    //     device_token: [],
+    //     created_at: '2025-02-12T11:29:52.945Z',
+    //     updated_at: '2025-02-12T01:01:01.000Z',
+    //     deleted_at: null
+    //   },
+    //   voucher_used: null,
+    //   transaction_operations: [
+    //     {
+    //       id: '8b7709cc-146a-4f7a-a7ce-005f3b995127',
+    //       transaction_id: '1bc167e8-78ef-4d43-9e0f-df49649f37c7',
+    //       operation_id: '2019275a-9cee-4dad-8b37-765d429e468b',
+    //       name: 'HOREEOP001 - Operation A',
+    //       type: 'Operation',
+    //       unit: '1',
+    //       price: '23000',
+    //       adjustment_price: '0',
+    //       total_price: '23000',
+    //       comment: null,
+    //       created_at: '2025-03-29T13:37:08.520Z',
+    //       updated_at: '2025-03-29T13:37:08.520Z',
+    //       deleted_at: null,
+    //       operation: [Object]
+    //     }
+    //   ],
+    //   transaction_products: [
+    //     {
+    //       id: '230f609d-7585-48d8-ba26-fb7b57b86d8b',
+    //       transaction_id: '1bc167e8-78ef-4d43-9e0f-df49649f37c7',
+    //       product_code_id: '28fb520e-aadf-4039-b4a7-ef01bc28867d',
+    //       transaction_type: 1,
+    //       name: 'UUAAS0010100080012 - Product A',
+    //       type: 'UUAAS00101 - Category A',
+    //       weight: '10',
+    //       price: '100000',
+    //       is_broken: false,
+    //       adjustment_price: '0',
+    //       discount: '0',
+    //       total_price: '1000000',
+    //       status: 1,
+    //       comment: null,
+    //       created_at: '2025-03-29T13:37:08.322Z',
+    //       updated_at: '2025-03-29T13:37:08.322Z',
+    //       deleted_at: null,
+    //       product_code: [Object],
+    //       TransactionReview: null
+    //     },
+    //     {
+    //       id: '7b8ed799-28c5-4737-a3ed-01f051227c4a',
+    //       transaction_id: '1bc167e8-78ef-4d43-9e0f-df49649f37c7',
+    //       product_code_id: 'd5f5b1f4-bc71-4570-8026-7e7f967c3633',
+    //       transaction_type: 2,
+    //       name: 'UUAAS0010100080001 - Product A',
+    //       type: 'UUAAS00101 - Category A',
+    //       weight: '10',
+    //       price: '100000',
+    //       is_broken: false,
+    //       adjustment_price: '-20000',
+    //       discount: '0',
+    //       total_price: '-980000',
+    //       status: 1,
+    //       comment: null,
+    //       created_at: '2025-03-29T13:37:08.692Z',
+    //       updated_at: '2025-03-29T13:37:08.692Z',
+    //       deleted_at: null,
+    //       product_code: [Object],
+    //       TransactionReview: null
+    //     },
+    //     {
+    //       id: '26652cfc-d8fa-400e-a975-f3c19ee89b6c',
+    //       transaction_id: '1bc167e8-78ef-4d43-9e0f-df49649f37c7',
+    //       product_code_id: null,
+    //       transaction_type: 2,
+    //       name: 'Outside Product',
+    //       type: 'UUAAS00201 - Category B',
+    //       weight: '2',
+    //       price: '10000',
+    //       is_broken: false,
+    //       adjustment_price: '0',
+    //       discount: '0',
+    //       total_price: '-20000',
+    //       status: 1,
+    //       comment: null,
+    //       created_at: '2025-03-29T13:37:08.837Z',
+    //       updated_at: '2025-03-29T13:37:08.837Z',
+    //       deleted_at: null,
+    //       product_code: null,
+    //       TransactionReview: null
+    //     }
+    //   ],
+    //   employee: {
+    //     id: 'd643abb7-2944-4412-8bb5-5475679f5ade',
+    //     name: 'ownera',
+    //     email: 'ownera@gmail.com',
+    //     created_at: '2025-02-12T13:33:54.629Z',
+    //     updated_at: '2025-02-12T00:00:00.000Z',
+    //     deleted_at: null
+    //   }
+    // }
+    let journalData = [];
+
+    // TUKAR TAMBAH / Akun kas perusahaan terima uang 
+    if (data.total_price > 0) 
+    {
+      if (data.status == 0) { // draft / pending
+        const piutangAccount = await this.transAccountSettingsServ.getDefaultAccount(
+          'piutang', data.store_id, data.store.company_id, `Default akun piutang ${data.store.name}`, 1, 'Default Akun Piutang'
+        );
+        journalData.push({
+          account_id: piutangAccount.account_id,
+          amount: Math.abs(data.total_price),
+          detail_description: 'Piutang Usaha',
+          cash_bank: true,
+        })
+      }
+      // status: paid / done
+      else {
+        // payment_method   Int // 1: Cash, 2: Bank Transfer, 3: Credit Card, 4: Debit Card
+        let PaymentMethodAccount;
+        PaymentMethodAccount = await this.transAccountSettingsServ.getPaymentMethodAccount(data);
+        journalData.push({
+          account_id: PaymentMethodAccount.account_id,
+          amount: Math.abs(data.total_price),  // (sub_price - diskon_price + tax_price)
+          description: 'Pembayaran dari customer' + data.payment_method,
+          cash_bank: true,
+          account_code: PaymentMethodAccount.account.code
+        })
+      }
+    }
+    // TUKAR KURANG / Perusahaan keluar uang buat customer
+    else {
+      let kasAccount;
+      if (data.account_id == null) { // default bayar pakai apa.
+        kasAccount = await this.transAccountSettingsServ.getDefaultAccount(
+          'purchaseCust', data.store_id, data.store.company_id, `Default akun beli emas dari customer ${data.store.name}`, 1, 'Default Akun Beli emas dari customer'
+        );
+      } else {
+        kasAccount = await this.accountsService.findOne(data.account_id);
+        kasAccount.account_id = kasAccount.id;
+      }
+      journalData.push({
+        account_id: kasAccount.account_id,
+        amount: Math.abs(data.total_price) * -1,
+        detail_description: 'Kas/Bank buat tukar kurang bayar customer',
+        cash_bank: true,
+      })
+    }
+
+    // Operations TODOELLA operation kok gk tercatat di report journal ya? TRA/HOREE/2025/2/30/001
+    console.log('operation data', data.transaction_operations);
+    data.transaction_operations.forEach(async (operation) => {
+      // Pendapatan Operation
+      // Kas/Bank  (D)
+      // Pendapatan Operation (K)
+      const operationAccount = await this.accountsService.findOne(operation.account_id);
+      console.log('operationAccount', operationAccount);
+      // pendapatan operation
+      journalData.push({
+        account_id: operationAccount.id,
+        amount: Math.abs(operation.total_price) * -1,
+        detail_description: operation.name,
+        cash_bank: false
+      })
+      console.log('operation journal pushed', journalData);
+    });
+    // Products
+    const goldSalesAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'goldSales', data.store_id, data.store.company_id, `Default akun penjualan emas ${data.store.name}`, 2, 'Default Akun Penjualan Emas'
+    )
+    const stockAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'persediaan', data.store_id, data.store.company_id, `Default akun persediaan ${data.store.name}`, 1, 'Default Akun Persediaan'
+    )
+    const hppAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'cogs', data.store_id, data.store.company_id, `Default akun HPP ${data.store.name}`, 2, 'Default Akun HPP'
+    )
+    var totalPendapatanEmas = 0;
+    var totalPersediaan = 0;
+    var totalHpp = 0;
+    data.transaction_products.forEach(async (product) => {
+      // Product Out (Dijual ke customer)
+      // Kas/Bank (D)
+      // Pendapatan penjualan (K)  harga jual per barang
+      // Persediaan (K) harga beli emas
+      // HPP (D) harga beli emas
+      if (product.total_price > 0) {
+        totalPendapatanEmas += Math.abs(product.total_price) * -1;
+        totalPersediaan += Math.abs(product.product_code.buy_price) * -1;
+        totalHpp += Math.abs(product.product_code.buy_price);
+      }
+
+      // Product In (Diterima dari customer) (from store / not from store)
+      // Kas/Bank (K)
+      // Persediaan (D)
+      else if (product.total_price < 0) {
+        totalPersediaan += Math.abs(product.total_price);
+      }
+    });
+    // Product Out
+    // Pendapatan Penjualan (K)
+    if (totalPendapatanEmas != 0) {
+      journalData.push({
+        account_id: goldSalesAccount.account_id,
+        amount: totalPendapatanEmas,
+        detail_description: 'Pendapatan penjualan dari trade emas',
+        cash_bank: false,
+      })
+    }
+    // persediaan harga beli emass (K)
+    if (totalPersediaan != 0) {
+      journalData.push({
+        account_id: stockAccount.account_id,
+        amount: totalPersediaan,
+        detail_description: 'Persediaan harga beli emas untuk trade',
+        cash_bank: false,
+      })
+    }
+    // HPP
+    if (totalHpp != 0) {
+      journalData.push({
+        account_id: hppAccount.account_id,
+        amount: totalHpp,
+        detail_description: 'HPP harga beli emas untuk trade',
+        cash_bank: false,
+      })
+    } 
+
+    // Trade In Fee
+    if (data.adjustment_price != 0) {
+      journalData.push({
+        account_id: goldSalesAccount.account_id,
+        amount: Math.abs(data.adjustment_price),
+        detail_description: 'Trade In Fee' + data.code,
+        cash_bank: false,
+      })
+    }
+
+    // Voucher Diskon (Debit) = subtotal + tax - totalPrice
+    const diskonAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'discountSales', data.store_id, data.store.company_id, `Default akun diskon ${data.store.name}`, 2, 'Default Akun Diskon'
+    );
+    const diskonAmount = Math.abs(data.sub_total_price) + Math.abs(data.tax_price) - Math.abs(data.total_price);
+    if (diskonAmount != 0) {
+      journalData.push({
+        account_id: diskonAccount.account_id,
+        amount: Math.abs(diskonAmount),
+        detail_description: 'Diskon Penjualan',
+        cash_bank: true,
+      })
+    }
+    // Pajak
+    const pajakAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'tax', data.store_id, data.store.company_id, `Default akun hutang pajak ${data.store.name}`, 2, 'Default Akun Pajak'
+    );
+    if (data.tax_price != 0) {
+      journalData.push({
+        account_id: pajakAccount.account_id,
+        amount: Math.abs(data.tax_price) * -1,
+        detail_description: 'Hutang Pajak penjualan',
+        cash_bank: true,
+      })
+    }
+
+    // CREATE TRANSACTION
+    const transType = await this.db.trans_Type.findUnique({ where: { code: 'TT' } });
+    var reportJournal;
+    var reportStock;
+    try {
+      await this.db.$transaction(async (prisma) => {
+        // Insert report journal entries
+        reportJournal = await prisma.report_Journals.createMany({
+          data: journalData.map(row => ({
+            trans_serv_id: data.id,
+            code: data.code,
+            store_id: data.store.id,
+            trans_date: data.created_at,
+            trans_type_id: transType.id,
+            description: 'Trade from customer' + data.code,
+            account_id: row.account_id,
+            amount: row.amount,
+            detail_description: row.detail_description,
+            cash_bank: row.cash_bank,
+          })),
+        });
+
+        // Call handleSoldStock inside the transaction
+        data.trans_serv_id = data.id;
+        reportStock = await this.reportStockService.handleTradeStock(data);
+      });
+    } catch (error) {
+      console.error('Error creating sales transaction:', error);
+      throw new Error(`Error creating sales transaction: ${error.message}`);
+    }
+
+    return reportJournal;
   }
 
   // BUY PRODUCT

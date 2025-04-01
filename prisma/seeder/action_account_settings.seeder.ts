@@ -12,7 +12,7 @@ async function main() {
         id: 1,
         action: 'goldSales',
         name: 'Penjualan Emas',
-        description: 'Akun yang digunakan toko ketika terjadi penjualan emas',
+        description: 'Akun pendapatan yang digunakan toko ketika terjadi penjualan emas',
       },
       {
         id: 2,

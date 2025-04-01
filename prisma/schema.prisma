@@ -275,10 +275,10 @@ model Report_Journals {
   id String @id @db.Uuid @default(uuid())
   trans_id String? @db.Uuid  // uang keluar / masuk
   trans_serv_id String? @db.Uuid // dari transaction service
-    // Kalau product created-> trans_id = product_code_id, 
-    // kalau sales dll -> trans_id = trans_id, 
-    // stock out-> trans_id = product_code_id
-    // Stock opname -> trans_id = stock_opname_id
+    // Kalau product created-> trans_serv_id = product_code_id GANTI JADI trans_serv_id = report_stock.id, 
+    // kalau sales dll -> trans_serv_id = trans_id, 
+    // stock out-> trans_serv_id = product_code_id
+    // Stock opname -> trans_serv_id = stock_opname_id
   code String 
   company_id String? @db.Uuid
   company_name String?

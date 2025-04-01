@@ -414,6 +414,12 @@ export class TransactionController {
           }
           
         }
+        // Trade 
+        else if (newdata.transaction_type == 3) {
+          const result = await this.transactionService.createTrade(newdata);
+          newdata = await this.validateService.validate(this.transactionValidation.CREATETRADE, newdata);
+          return ResponseDto.success('Transaction Created!', result, 201);
+        }
         return ResponseDto.error('Transaction Type Not Found!', null, 400);
       },
       'Error processing transaction_approved event'

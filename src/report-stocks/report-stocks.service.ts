@@ -510,7 +510,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     }
                 }
             });
-            // Ini kalo misal delete nya barang yang dibeli dari customer / ditrade dari customer
+            // Ini kalo misal delete nya barang yang dibeli dari customer / ditrade dari customer dan barang bukan asal toko ini.
             if (fetchPrevReportStock.some(stock => stock.trans_product_id != null)) {
                 await prisma.report_Stocks.updateMany({
                     where: {
@@ -541,7 +541,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 // delete from report journals
                 await prisma.report_Journals.deleteMany({
                     where: {
-                        trans_id: productCode.id,
+                        trans_serv_id: productCode.id,
                         trans_type_id: {
                             in: [8,4,7]
                         }
@@ -697,6 +697,62 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             results.push(result);
         }
         console.log('result purchase from customer', results);
+        return results;
+    }
+
+    async handleTradeStock(data) {
+        const source = await this.stockSourceService.findOne(undefined, { code: 'TRADE' });
+        var results = [];
+        for (let prodCode of data.transaction_products) {
+            console.log('ini product masuk trade',prodCode)
+            const tempWeight = prodCode.total_price > 0 ? // apakah barang dijual?
+                                Math.abs(parseFloat(prodCode.weight)) * -1 :
+                                Math.abs(parseFloat(prodCode.weight));
+            const tempQty = prodCode.total_price > 0 ? // apakah barang dijual?
+                                -1 : 1; // jika barang dijual, qty -1, jika barang dibeli, qty 1
+            let categoryBalance = {
+                category_balance_qty: 0,
+                category_balance_gram: 0,
+            };
+            if (prodCode.product_code?.product?.type?.category_id) {
+                categoryBalance = await this.getCategoryBalance(
+                    prodCode.product_code.product.type.category_id, 
+                    tempQty,
+                    tempWeight, 
+                );
+            }
+            
+            let MappedData :any = {
+                store_id: data.store_id,
+                source_id: source.id,
+                trans_id: data.trans_serv_id,
+                trans_date: data.created_at,
+                category_id: prodCode.product_code?.product?.type?.category_id ?? null,
+                category_code: prodCode.product_code?.product?.type?.category?.code ?? null,
+                category_name: prodCode.product_code?.product?.type.category.name ?? null,
+                type_id: prodCode.product_code?.product?.type?.id ?? null,
+                type_code: prodCode.product_code?.product?.type?.code ?? null,
+                type_name: prodCode.product_code?.product?.type?.name ?? null,
+                product_id: prodCode.product_code?.product?.id ?? null,
+                product_code: prodCode.product_code?.product?.code ?? null,
+                product_name: prodCode.product_code?.product?.name ?? null,
+                product_code_code: prodCode.product_code?.barcode ?? null,
+                product_code_id: prodCode.product_code?.id ?? null,
+                weight: tempWeight,
+                price: Math.abs(parseFloat(prodCode.total_price)),
+                qty: tempQty,
+                created_at: new Date(prodCode.created_at),
+                category_balance_qty: categoryBalance.category_balance_qty ?? 0,
+                category_balance_gram: categoryBalance.category_balance_gram ?? 0,
+            }
+
+            if (prodCode.product_code == null) {
+                MappedData.trans_product_id = prodCode.id; // table transactionProduct.id dari service transaction
+            }
+            console.log('trade stock in mappedData',MappedData)
+            const result = await this.create(MappedData);
+            results.push(result);
+        }
         return results;
     }
 }
