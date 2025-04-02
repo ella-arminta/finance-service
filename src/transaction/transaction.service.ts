@@ -193,7 +193,7 @@ export class TransactionService extends BaseService<Trans> {
     try {
       // Status == 1/approved -> insert report journals
       if (status == 1) {
-        trans.trans_details.forEach(async (row) => {
+        for (let row of trans.trans_details) {
           const data = {
             trans_id: trans.id,
             code: trans.code,
@@ -234,7 +234,7 @@ export class TransactionService extends BaseService<Trans> {
             }
           });
 
-        });
+        };
       }
       // Status == 0/ rejected -> deleted from  report journals
       else if (status == 0) {
@@ -517,7 +517,7 @@ export class TransactionService extends BaseService<Trans> {
     }
     // Details / Journal Entry
     // Sales Operation
-    data.transaction_operations.forEach(det => {
+    for (let det of data.transaction_operations) {
       transDetailsFormated.push({
         account_id: det.operation.account_id,
         account_name: det.operation.account.name,
@@ -526,9 +526,9 @@ export class TransactionService extends BaseService<Trans> {
         cash_bank: false,
         account_code: det.operation.account.code
       })
-    })
+    }
     // Sales Emas 
-    data.transaction_products.forEach(det => {
+    for (let det of data.transaction_products) {
       // {
       //   id: 'f30f5ccc-5f7f-4fe5-aa08-f4233ac80f4f',
       //   transaction_id: 'a9fde691-221b-47a7-aed1-7acfe0423354',
@@ -562,7 +562,7 @@ export class TransactionService extends BaseService<Trans> {
       salesEmasTotal += (Math.abs(det.total_price)) * -1;
       console.log('biy price',det.product_code.buy_price);
       hppTotal += Math.abs(det.product_code.buy_price);
-    })
+    };
 
     // Journal entry sales emas
     const goldSalesAccount = await this.transAccountSettingsServ.getGoldSalesAccount(data);
@@ -579,6 +579,8 @@ export class TransactionService extends BaseService<Trans> {
     // Diskon Penjualan
     const discountAccount = await this.transAccountSettingsServ.getDiscountAccount(data);
     const diskonTotal = Math.abs(data.sub_total_price + data.tax_price - data.total_price);
+    console.log('ini diskon total', diskonTotal, 'subtotalprice', data.sub_total_price, 'taxprice', data.tax_price, 'totalprice', data.total_price);
+    console.log('ini typeof diskon',typeof data.sub_total_price, typeof data.tax_price, typeof data.total_price);
     if (diskonTotal > 0) {
       transDetailsFormated.push({
         account_id: discountAccount.account_id,
@@ -593,7 +595,7 @@ export class TransactionService extends BaseService<Trans> {
     // Journal entry persediaan
     // Hpp (debit)
     const hppAccount = await this.transAccountSettingsServ.getDefaultAccount(
-      'cogs', store.id, store.company_id, `Harga Pokok Penjualan ${store.name}`, 2, 'Default Akun HPP'
+      'cogs', store.id, store.company_id, `Harga Pokok Penjualan ${store.name}`, 1, 'Default Akun HPP'
     )
     transDetailsFormated.push({
       account_id: hppAccount.account_id,
@@ -1048,11 +1050,11 @@ export class TransactionService extends BaseService<Trans> {
 
     // Operations TODOELLA operation kok gk tercatat di report journal ya? TRA/HOREE/2025/2/30/001
     console.log('operation data', data.transaction_operations);
-    data.transaction_operations.forEach(async (operation) => {
+    for (let operation of data.transaction_operations) {
       // Pendapatan Operation
       // Kas/Bank  (D)
       // Pendapatan Operation (K)
-      const operationAccount = await this.accountsService.findOne(operation.account_id);
+      const operationAccount = await this.accountsService.findOne(operation.operation.account_id);
       console.log('operationAccount', operationAccount);
       // pendapatan operation
       journalData.push({
@@ -1062,7 +1064,7 @@ export class TransactionService extends BaseService<Trans> {
         cash_bank: false
       })
       console.log('operation journal pushed', journalData);
-    });
+    };
     // Products
     const goldSalesAccount = await this.transAccountSettingsServ.getDefaultAccount(
       'goldSales', data.store_id, data.store.company_id, `Default akun penjualan emas ${data.store.name}`, 2, 'Default Akun Penjualan Emas'
@@ -1071,18 +1073,21 @@ export class TransactionService extends BaseService<Trans> {
       'persediaan', data.store_id, data.store.company_id, `Default akun persediaan ${data.store.name}`, 1, 'Default Akun Persediaan'
     )
     const hppAccount = await this.transAccountSettingsServ.getDefaultAccount(
-      'cogs', data.store_id, data.store.company_id, `Default akun HPP ${data.store.name}`, 2, 'Default Akun HPP'
+      'cogs', data.store_id, data.store.company_id, `Default akun HPP ${data.store.name}`, 1, 'Default Akun HPP'
     )
-    var totalPendapatanEmas = 0;
-    var totalPersediaan = 0;
-    var totalHpp = 0;
-    data.transaction_products.forEach(async (product) => {
+    var totalPendapatanEmas = Number(0);
+    var totalPersediaan = Number(0);
+    var totalHpp = Number(0);
+    for (let product of data.transaction_products) {
       // Product Out (Dijual ke customer)
       // Kas/Bank (D)
       // Pendapatan penjualan (K)  harga jual per barang
       // Persediaan (K) harga beli emas
       // HPP (D) harga beli emas
       if (product.total_price > 0) {
+        console.log('out', product.total_price);
+        console.log('out buy price', product.product_code.buy_price);
+        console.log('total persediaan 1', totalPersediaan);
         totalPendapatanEmas += Math.abs(product.total_price) * -1;
         totalPersediaan += Math.abs(product.product_code.buy_price) * -1;
         totalHpp += Math.abs(product.product_code.buy_price);
@@ -1092,9 +1097,11 @@ export class TransactionService extends BaseService<Trans> {
       // Kas/Bank (K)
       // Persediaan (D)
       else if (product.total_price < 0) {
+        console.log('in', product.total_price);
         totalPersediaan += Math.abs(product.total_price);
+        console.log('total persediaan 2', totalPersediaan);
       }
-    });
+    };
     // Product Out
     // Pendapatan Penjualan (K)
     if (totalPendapatanEmas != 0) {
@@ -1107,6 +1114,7 @@ export class TransactionService extends BaseService<Trans> {
     }
     // persediaan harga beli emass (K)
     if (totalPersediaan != 0) {
+      console.log('total persediaan akhir hehee', totalPersediaan);
       journalData.push({
         account_id: stockAccount.account_id,
         amount: totalPersediaan,

@@ -398,8 +398,8 @@ export class TransactionController {
       async () => {
         // SALES
         if (newdata.transaction_type == 1) {
-          const result = await this.transactionService.createSales(newdata);
           newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
+          const result = await this.transactionService.createSales(newdata);
           return ResponseDto.success('Transaction Created!', result, 201);
         }
         // PURCHASE FROM CUSTOMER
@@ -416,8 +416,8 @@ export class TransactionController {
         }
         // Trade 
         else if (newdata.transaction_type == 3) {
-          const result = await this.transactionService.createTrade(newdata);
           newdata = await this.validateService.validate(this.transactionValidation.CREATETRADE, newdata);
+          const result = await this.transactionService.createTrade(newdata);
           return ResponseDto.success('Transaction Created!', result, 201);
         }
         return ResponseDto.error('Transaction Type Not Found!', null, 400);

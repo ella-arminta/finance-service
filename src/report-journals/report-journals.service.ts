@@ -61,7 +61,7 @@ export class ReportService extends BaseService<Report_Journals> {
         result.push(revenue);        
 
         // COST OF GOODS SOLD !!!
-        const hpp = await this.rStockService.getHPP(filters);
+        const hpp = await this.rStockService.getHPP(filters.start_date, filters.end_date,filters.owner_id, filters.store, filters.company_id);
         var costOfGoodsSold = {
             'label' : 'Harga Pokok Penjualan',
             'data' : hpp

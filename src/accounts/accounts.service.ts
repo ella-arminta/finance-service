@@ -137,9 +137,9 @@ export class AccountsService extends BaseService<Accounts> {
         { type: 5, name: 'DISKON PENJUALAN', actions: ['discountSales'] },
         { type: 1, name: 'PERSEDIAAN', actions: ['persediaan'] },
         { type: 2, name: 'Beban Kerugian Barang Hilang', actions: ['lost', 'other'] },
-        { type: 2, name: 'Persediaan dalam reparasi', actions: ['repair'] },
+        { type: 1, name: 'Persediaan dalam reparasi', actions: ['repair'] },
         { type: 2, name: 'Beban Penyusutan Reparasi Emas', actions: ['repairDeprec'] },
-        { type: 2, name: 'Harga Pokok Penjualan', actions: ['cogs'] },
+        { type: 1, name: 'Harga Pokok Penjualan', actions: ['cogs'] },
     ].map(({ type, name, actions = [] }) => ({
         company: { connect: { id: company_id } },
         code: codeMap[type]++,
@@ -220,12 +220,12 @@ export class AccountsService extends BaseService<Accounts> {
     }
 
     if (this.isSoftDelete) {
-      const result =  this.db.accounts.update({
+      const result =await  this.db.accounts.update({
         where: { id },
         data: { deleted_at: new Date() },
       });
     } else {
-      const result =  this.db.accounts.delete({
+      const result =  await this.db.accounts.delete({
         where: { id },
       });
     }
@@ -238,7 +238,7 @@ export class AccountsService extends BaseService<Accounts> {
   }
 
   async update(id: any, data: Prisma.AccountsUpdateInput) {
-    const updatedData = this.db.accounts.update({ where: { id }, data });
+    const updatedData = await this.db.accounts.update({ where: { id }, data });
     if (updatedData) {
       this.transClient.emit({ cmd: 'account_updated' }, updatedData);
       this.inventoryClient.emit({ cmd: 'account_updated' }, updatedData);

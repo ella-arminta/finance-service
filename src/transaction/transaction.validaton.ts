@@ -183,6 +183,10 @@ export class TransactionValidation {
       .union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
       .refine((val) => !isNaN(val), { message: "Invalid total_price" }),
+    sub_total_price: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid total_price" }),
     payment_method: z
       .union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseInt(val) : val))
@@ -247,6 +251,16 @@ export class TransactionValidation {
     id: z.string().uuid(),
     code: z.string(),
     date: z.coerce.date(),
+    created_at: z.coerce.date(),
+    adjustment_price: z.union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid adjustment price" }).optional(),
+    sub_total_price: z.union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid adjustment price" }).optional(),
+    tax_price:  z.union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid adjustment price" }).optional(),
     status: z
       .union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseInt(val) : val))
@@ -266,6 +280,10 @@ export class TransactionValidation {
           product: z.any(),
           barcode: z.string(),
           id: z.string().uuid(),
+          buy_price: z 
+            .union([z.string(), z.number()])
+            .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+            .refine((val) => !isNaN(val), { message: "Invalid Buy Price" }),
         }).nullable().optional(),
         total_price: z 
         .union([z.string(), z.number()])
@@ -282,6 +300,22 @@ export class TransactionValidation {
           }
           return val;
         }, z.number().optional().nullable()),
+      })
+    ), 
+    transaction_operations: z.array(
+      z.object({
+        operation_id: z.string().uuid().optional().nullable(),
+        operation: z.record(z.any()).optional().nullable(),
+        total_price: z 
+          .union([z.string(), z.number()])
+          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+          .refine((val) => !isNaN(val), { message: "Invalid total_price" }),
+        name: z.string(),
+        discount: z 
+          .union([z.string(), z.number()])
+          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+          .refine((val) => !isNaN(val), { message: "Invalid discount" })
+          .optional(),
       })
     ), 
   })

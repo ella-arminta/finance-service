@@ -41,7 +41,8 @@ export class OperationController {
     await this.handleEvent(
       context,
       async () => {
-        const newdata = await this.operationService.create(data);
+        const validatedData = await this.validationService.validate(this.operationValidation.CREATE, data);
+        const newdata = await this.operationService.create(validatedData);
         return { success: !!newdata }; // Ensures success is always returned
       },
       'Error processing operation_created event',
@@ -54,7 +55,8 @@ export class OperationController {
     await this.handleEvent(
       context,
       async () => {
-        const updatedata = await this.operationService.update(data.id, data)
+        const validatedData = await this.validationService.validate(this.operationValidation.UPDATE, data);
+        const updatedata = await this.operationService.update(data.id, validatedData)
         return { success: !!updatedata }; // Ensures success is always returned
       },
       'Error processing operation_updated event',

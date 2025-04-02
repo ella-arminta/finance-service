@@ -44,13 +44,15 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
     }
 
     async getAllOperationAccount(owner_id ,store_id = null, company_id = null): Promise<string[]> {
-        const whereQuery = {};
+        const whereQuery = {
+            deleted_at: null
+        };
     
         if (store_id) {
             whereQuery['store_id'] = store_id;
         }
         if (company_id) {
-            whereQuery['store'] = { company_id };
+            whereQuery['store'] = { company_id: company_id };
         }
 
         if (!store_id && !company_id) {
@@ -87,7 +89,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             var lastCodeForPendapatan = await this.db.accounts.findMany({
                 where: {
                     company_id: data.store.company_id,
-                    account_type_id: 5
+                    account_type_id: 5,
+                    deleted_at: null
                 },
                 orderBy: {
                     code: 'desc'
@@ -149,7 +152,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             var lastCodeForPendapatan = await this.db.accounts.findMany({
                 where: {
                     company_id: data.store.company_id,
-                    account_type_id: 5
+                    account_type_id: 5,
+                    deleted_at: null
                 },
                 orderBy: {
                     code: 'desc'
@@ -209,6 +213,7 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 where: {
                     company_id: data.store.company_id,
                     account_type_id: 4,
+                    deleted_at: null
                 },
                 orderBy: {
                     code: 'desc'
@@ -267,7 +272,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             var lastCodeForTax = await this.db.accounts.findMany({
                 where: {
                     company_id: data.store.company_id,
-                    account_type_id: 3
+                    account_type_id: 3,
+                    deleted_at: null
                 },
                 orderBy: {
                     code: 'desc'
@@ -327,7 +333,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             var lastCodeForKas = await this.db.accounts.findMany({
                 where: {
                     company_id: data.store.company_id,
-                    account_type_id: 1
+                    account_type_id: 1,
+                    deleted_at: null
                 },
                 orderBy: {
                     code: 'desc'
@@ -413,7 +420,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             var lastCodeForInventory = await this.db.accounts.findMany({
                 where: {
                     company_id: data.store.company_id,
-                    account_type_id: 1
+                    account_type_id: 1,
+                    deleted_at: null
                 },
                 orderBy: {
                     code: 'desc'
@@ -470,7 +478,8 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             var lastCodeForDefault = await this.db.accounts.findMany({
                 where: {
                     company_id: company_id,
-                    account_type_id: account_type_id
+                    account_type_id: account_type_id,
+                    deleted_at: null
                 },
                 orderBy: {
                     code: 'desc'
