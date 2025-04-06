@@ -122,4 +122,78 @@ export class ReportController {
 
       return ResponseDto.success('Data Retrieved!', datas, 200);
     }
+
+    @MessagePattern({ cmd: 'get:sales-cards'})
+    @Describe({
+        description: 'Get Sales Count and Amount',
+        fe: [
+          'home:open',
+        ]
+    })
+    async getSalesCards(@Payload() data: any) {
+      const filters = data.body;
+
+      console.log('filters prev',filters);
+      function isValidDate(d: any) {
+        return d instanceof Date && !isNaN(d.getTime());
+      }
+      
+      const start = new Date(filters.start_date);
+      if (isValidDate(start)) {
+        filters.start_date = start;
+      } else {
+        filters.start_date = null;
+      }
+      
+      const end = new Date(filters.end_date);
+      if (isValidDate(end)) {
+        end.setHours(23, 59, 59, 0);
+        filters.end_date = end;
+      } else {
+        filters.end_date = null;
+      }
+
+      console.log('filters',filters);
+    
+      const datas =  await this.reportService.getSalesCards(filters);
+
+      return ResponseDto.success('Data Retrieved!', datas, 200);
+    }
+
+    @MessagePattern({ cmd: 'get:sales-chart'})
+    @Describe({
+        description: 'Get Sales Count and Amount',
+        fe: [
+          'home:open',
+        ]
+    })
+    async getSalesChart(@Payload() data: any) {
+      const filters = data.body;
+
+      console.log('filters prev',filters);
+      function isValidDate(d: any) {
+        return d instanceof Date && !isNaN(d.getTime());
+      }
+      
+      const start = new Date(filters.start_date);
+      if (isValidDate(start)) {
+        filters.start_date = start;
+      } else {
+        filters.start_date = null;
+      }
+      
+      const end = new Date(filters.end_date);
+      if (isValidDate(end)) {
+        end.setHours(23, 59, 59, 0);
+        filters.end_date = end;
+      } else {
+        filters.end_date = null;
+      }
+
+      console.log('filters',filters);
+    
+      const datas =  await this.reportService.getSalesChart(filters);
+
+      return ResponseDto.success('Data Retrieved!', datas, 200);
+    }
 }

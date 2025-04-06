@@ -266,7 +266,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 balance_weight,
                 (sum_price_qty1 / NULLIF(sum_weight_qty1, 0)) AS avg_price_per_weight
             FROM RunningTotals
-            ORDER BY date ASC;
+            ORDER BY name,date ASC;
         `;
     
         // Log the final query and parameters for debugging

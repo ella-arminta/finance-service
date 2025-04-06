@@ -302,6 +302,25 @@ export class ReportService extends BaseService<Report_Journals> {
 
     async generatePDF(userId: string, labelRangeSelected: any, filters: any): Promise<Buffer> {
         var profitLossData = await this.getProfitLoss(userId, filters);
+        const company = await this.db.companies.findFirst({
+            where: {
+                id: filters.company_id,
+            },
+            select: {
+                name: true,
+            }
+        });
+        const store = await this.db.stores.findFirst({
+            where: {
+                id: filters.store,
+            },
+            select: {
+                name: true,
+            }
+        });
+        const storeName = filters.store ? store.name : 'All Stores';
+        const companyName = filters.company_id ? company.name : 'All Companies';
+        const storeCompanyName =companyName + ' | ' +  storeName;
     
         var htmlContent = `
             <html>
@@ -358,6 +377,7 @@ export class ReportService extends BaseService<Report_Journals> {
                 </head>
                 <body>
                     <h1 class="profit-loss-title">Profit & Loss Statement</h1>
+                    <h1 class="profit-loss-title">${storeCompanyName}</h1>
                     <h1 class="profit-loss-title">${labelRangeSelected}</h1>
     
                     <span class="spacer"></span>
@@ -573,5 +593,85 @@ export class ReportService extends BaseService<Report_Journals> {
     
         return result;
     }
+
+    async getSalesCards(filters:any) {
+        var result = {
+            'count': 0,
+            'amount': 0,
+        }
+        const accountSettingData = await this.db.trans_Account_Settings.findMany({
+            where: {
+                action: 'goldSales',
+                store_id: filters.auth.store_id,
+            },
+        });
+        if (accountSettingData.length <= 0) {
+            return result;
+        }
+        const accountID = accountSettingData.map((item) => item.account_id)[0];
+
       
+        result.count = await this.db.report_Journals.count({
+            where: {
+                trans_date: {
+                    gte: filters.start_date,
+                    lte: filters.end_date,
+                },
+                account_id: accountID,
+            },
+        });
+
+        const amountData = await this.db.report_Journals.aggregate({
+            _sum: {
+              amount: true,
+            },
+            where: {
+              trans_date: {
+                gte: new Date(filters.start_date),
+                lte: new Date(filters.end_date),
+              },
+              account_id: accountID,
+            },
+        });
+        result.amount = amountData._sum.amount != null ? Math.abs(amountData._sum.amount.toNumber()) : 0;
+        
+        return result;
+    } 
+    
+    async getSalesChart(filters: any) {
+        const accountSettingData = await this.db.trans_Account_Settings.findMany({
+            where: {
+                action: 'goldSales',
+                store_id: filters.auth.store_id,
+            },
+        });
+    
+        if (accountSettingData.length <= 0) {
+            return [];
+        }
+    
+        const accountID = accountSettingData[0].account_id;
+        const journalData = await this.db.report_Journals.findMany({
+            where: {
+                trans_date: {
+                    gte: filters.start_date ? new Date(filters.start_date) : undefined,
+                    lte: filters.end_date ? new Date(filters.end_date) : undefined,
+                },
+                account_id: accountID,
+            },
+            select: {
+                trans_date: true,
+                amount: true,
+            },
+            orderBy: {
+                trans_date: 'asc',
+            },
+        });
+    
+        // Rename trans_date to created_at
+        return journalData.map((item) => ({
+            created_at: item.trans_date,
+            sellPrice: Math.abs(item.amount.toNumber()),
+        }));
+    }
 }
