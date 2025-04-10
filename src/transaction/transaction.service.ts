@@ -1226,25 +1226,12 @@ export class TransactionService extends BaseService<Trans> {
     if (data.adjustment_price != 0) {
       journalData.push({
         account_id: goldSalesAccount.account_id,
-        amount: Math.abs(data.adjustment_price),
+        amount: Math.abs(data.adjustment_price) * -1,
         detail_description: 'Trade In Fee' + data.code,
         cash_bank: false,
       })
     }
 
-    // Voucher Diskon (Debit) = subtotal + tax - totalPrice
-    const diskonAccount = await this.transAccountSettingsServ.getDefaultAccount(
-      'discountSales', data.store_id, data.store.company_id, `Default akun diskon ${data.store.name}`, 2, 'Default Akun Diskon'
-    );
-    const diskonAmount = Math.abs(data.sub_total_price) + Math.abs(data.tax_price) - Math.abs(data.total_price);
-    if (diskonAmount != 0) {
-      journalData.push({
-        account_id: diskonAccount.account_id,
-        amount: Math.abs(diskonAmount),
-        detail_description: 'Diskon Penjualan',
-        cash_bank: true,
-      })
-    }
     // Pajak
     const pajakAccount = await this.transAccountSettingsServ.getDefaultAccount(
       'tax', data.store_id, data.store.company_id, `Default akun hutang pajak ${data.store.name}`, 2, 'Default Akun Pajak'

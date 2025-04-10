@@ -186,6 +186,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 SELECT
                     rs.product_id,
                     rs.trans_code,
+                    rs.price,
                     rs.created_at AS date,
                     rs.product_code_code AS code,
                     rs.product_name AS name,
@@ -243,6 +244,10 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             conditions.push(`com.owner_id = $${params.length + 1}::uuid`);
             params.push(filters.owner_id);
         }
+        if (filters.product_code_code) {
+            conditions.push(`rs.product_code_code = $${params.length + 1}`);
+            params.push(filters.product_code_code);
+        }
     
         // Adding the WHERE clause if conditions exist
         if (conditions.length > 0) {
@@ -256,6 +261,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 trans_code,
                 date,
                 code,
+                price,
                 name,
                 description,
                 "in",

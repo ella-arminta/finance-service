@@ -5,6 +5,7 @@ import { BaseService } from 'src/common/base.service';
 import { DatabaseService } from 'src/database/database.service';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { RecurringType } from '@prisma/client';
+import { last } from 'cheerio/dist/commonjs/api/traversing';
 
 @Injectable()
 export class RecurringService extends BaseService<Trans_Recurring> {
@@ -95,8 +96,10 @@ export class RecurringService extends BaseService<Trans_Recurring> {
             include: this.relations
         });
     
+        console.log('recurrences', recurrences);
         for (const data of recurrences) {
             if (this.shouldRunToday(data, isoToday)) {
+                console.log('data should run today:', data);
                 await this.createTransactionFromRecurring(data);
     
                 await this.db.trans_Recurring.update({
@@ -112,17 +115,17 @@ export class RecurringService extends BaseService<Trans_Recurring> {
             recurringType,
             interval,
             last_recurring_date,
-            trans_start_date,
+            startDate,
             daysOfWeek,
             dayOfMonth,
             monthOfYear,
             dayOfYear,
         } = dataRecurring;
 
-        const lastDate = last_recurring_date ?? trans_start_date;
+        const lastDate = last_recurring_date ?? startDate;
         const diffDays = Math.floor(
             (today.getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24),
-        );
+        ) +  (last_recurring_date == null ? 1 : 0); 
 
         switch (recurringType) {
             case 'DAY':
@@ -130,24 +133,54 @@ export class RecurringService extends BaseService<Trans_Recurring> {
 
             case 'WEEK':
             const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+            console.log('currentDay in week type', currentDay, 'daysofweek', daysOfWeek);
             const weeksPassed = Math.floor(diffDays / 7); // pembulatan kebawah
             return weeksPassed >= interval && daysOfWeek.includes(currentDay);
 
             case 'MONTH':
-            const monthsPassed =
-                (today.getFullYear() - new Date(lastDate).getFullYear()) * 12 +
-                today.getMonth() -
-                new Date(lastDate).getMonth(); // selisih tahun jadiin bulan + selisih bulan
-            return monthsPassed >= interval && today.getDate() === dayOfMonth;
+                const monthsPassed =
+                    (today.getFullYear() - new Date(lastDate).getFullYear()) * 12 +
+                    today.getMonth() -
+                    new Date(lastDate).getMonth();
+            
+                // Determine if today is the last day of the month
+                const isLastDayOfMonth = (() => {
+                    const nextDay = new Date(today);
+                    nextDay.setDate(today.getDate() + 1);
+                    return nextDay.getDate() === 1;
+                })();
+            
+                if (dayOfMonth === -1) {
+                    return monthsPassed >= interval && isLastDayOfMonth;
+                }
+            
+                return monthsPassed >= interval && today.getDate() === dayOfMonth;
+            
 
-            case 'YEAR':
-            const yearsPassed =
-                today.getFullYear() - new Date(lastDate).getFullYear();
-            return (
-                yearsPassed >= interval &&
-                today.getMonth() + 1 === monthOfYear &&
-                today.getDate() === dayOfYear
-            );
+            case 'YEAR': {
+                const yearsPassed =
+                    today.getFullYear() - new Date(lastDate).getFullYear();
+            
+                const currentMonth = today.getMonth(); // 0-11
+                const currentDay = today.getDate();
+            
+                // Check if today is the last day of the month
+                const isLastDayOfMonth = (() => {
+                    const nextDay = new Date(today);
+                    nextDay.setDate(today.getDate() + 1);
+                    return nextDay.getDate() === 1;
+                })();
+            
+                return (
+                    yearsPassed >= interval &&
+                    monthOfYear.includes(currentMonth) &&
+                    (
+                        (dayOfYear === -1 && isLastDayOfMonth) ||
+                        (dayOfYear !== -1 && currentDay === dayOfYear)
+                    )
+                );
+            }
+                
 
             default:
             return false;
