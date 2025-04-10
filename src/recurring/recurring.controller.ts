@@ -5,6 +5,7 @@ import { Describe } from 'src/decorator/describe.decorator';
 import { ResponseDto } from 'src/common/response.dto';
 import { RecurringValidation } from './recurring.validation';
 import { ValidationService } from 'src/common/validation.service';
+import { equals } from 'class-validator';
 
 @Controller()
 export class RecurringController {
@@ -27,24 +28,28 @@ export class RecurringController {
 
       // START DATE 
       if (filtersValidated.start_date) {
-        filtersValidated.trans_start_date = {};
+        filtersValidated.startDate = {};
         const startDate = new Date(filtersValidated.start_date);
         startDate.setHours(0, 0, 0, 0);
         startDate.setDate(startDate.getDate() + 1);
-        filtersValidated.trans_start_date.gte = startDate;
+        filtersValidated.startDate.gte = startDate;
         delete filtersValidated.start_date;
       }
       // END DATE
       if (filtersValidated.end_date) {
-        if (!filtersValidated.trans_start_date) {
-          filtersValidated.trans_start_date = {};
+        if (!filtersValidated.endDate) {
+          filtersValidated.endDate = {};
         }
         const endDate = new Date(filtersValidated.end_date);
         endDate.setHours(23, 59, 59, 999);
         endDate.setDate(endDate.getDate() + 1);
-        filtersValidated.trans_start_date.lte = endDate;
+        filtersValidated.endDate.lte = endDate;
       
         delete filtersValidated.end_date;
+      }
+      console.log('filters', filtersValidated);
+      if (filtersValidated.recurringType) {
+        filtersValidated.recurringType = { equals : filtersValidated.recurringType };
       }
       var result = await this.recurringService.findAll(filtersValidated);
       return ResponseDto.success('Data Retrieved!', result, 200);
@@ -155,9 +160,6 @@ export class RecurringController {
       const params = data.params;
       
       var store_id =  newdata.auth.store_id;
-      if (newdata.store_id) {
-        store_id = newdata.store_id;
-      }
 
       // SANITIZE DATA
       var sanitizedData = {
@@ -166,20 +168,6 @@ export class RecurringController {
         store_id: store_id,
         created_by: params.user.id,
         updated_by: params.user.id,
-        trans_date: new Date(newdata.trans_date),
-      }
-
-      // RECURRING SETTINGS
-      if (sanitizedData.recurring) {
-        // VALIDATE
-        if (!sanitizedData.recurring_period_code) {
-          return ResponseDto.error('Recurring Period Not Found!', 
-            [{
-              message: 'Recurring period must be filled if recurring is checked!',
-              field: 'recurring_period_code',
-              code: 'not_found',
-            }], 400);
-        }
       }
 
       // VALIDATE DATA
@@ -212,4 +200,18 @@ export class RecurringController {
       
       return ResponseDto.success('Data Created!', newdata, 201);
     }
+
+    @MessagePattern({ cmd: 'get:recurring-cron' })
+    @Describe({
+      description: 'Call Recurring Transaction CRON',
+      fe: [
+        'finance/recurring:add', 'finance/mexpenses:add', 'finance/mincomes:add',
+      ]
+    })
+    async callCron(@Payload() data: any) {
+      var params = data.params;
+      var result = await this.recurringService.handleRecurringTransactionCron();
+      return ResponseDto.success('Data Retrieved!', result, 200);
+    }
+
 }

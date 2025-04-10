@@ -93,8 +93,42 @@ export class TransactionController {
   async uangKeluarMasuk(@Payload() data: any) {
     var newdata = data.body;
     const params = data.params;
+    // WITHOUT RECURRING
+    // newdata ini uang keluar masuk {
+    //   auth: {
+    //     company_id: '4f92a7d3-bc16-4e8f-9d91-7c3a8f5e21b0',
+    //     store_id: 'a55ecd94-6934-4630-8550-39cd8cce6bb7'
+    //   },
+    //   owner_id: '4f92a7d3-bc16-4e8f-9d91-7c3a8f5e21b0',
+    //   code: 'UKL/TENGG/2504/00002',
+    //   account_cash_id: [ '69df8581-139b-4d80-9283-f1cc045f37c9' ],
+    //   total: 3679,
+    //   description: 'kjnh',
+    //   trans_date: '2025-04-09',
+    //   accounts: [
+    //     {
+    //       amount: '3679',
+    //       description: 'kjnhb',
+    //       account_id: '69df8581-139b-4d80-9283-f1cc045f37c9'
+    //     }
+    //   ],
+    //   trans_type_id: 1,
+    //   recurring: false
+    // } params {
+    //   '0': 'uang-keluar-masuk',
+    //   service: 'finance',
+    //   user: {
+    //     id: '4f92a7d3-bc16-4e8f-9d91-7c3a8f5e21b0',
+    //     email: 'ownerb@gmail.com',
+    //     is_owner: true,
+    //     timestamp: '2025-04-09T07:00:00.245Z',
+    //     iat: 1744182000,
+    //     exp: 1744268400
+    //   }
+    // }
     
-    //GENERATE TRANSACTION CODE  format : UKL/YYMM/00001 
+    console.log('newdata ini uang keluar masuk',newdata, 'params', params);
+    // //GENERATE TRANSACTION CODE  format : UKL/YYMM/00001 
     if (!newdata.trans_type_id) {
       return ResponseDto.error('Transaction Type Not Found!', 
       [{
@@ -127,57 +161,29 @@ export class TransactionController {
     }
 
     // RECURRING SETTINGS
-    if (sanitizedData.recurring) {
-      // VALIDATE
-      if (!sanitizedData.recurring_period_code) {
-        return ResponseDto.error('Recurring Period Not Found!', 
-          [{
-            message: 'Recurring period must be filled if recurring is checked!',
-            field: 'recurring_period_code',
-            code: 'not_found',
-          }], 400);
-      }
-    }
-    const recurring = sanitizedData.recurring;
 
     // VALIDATE DATA
     var validatedData = await this.validateService.validate(this.transactionValidation.CREATE, sanitizedData);
-    
-    const recurring_period = validatedData.recurring_period_code;
-
     // REFORMAT DATA
-    if (validatedData.trans_type_id == 1) { // UANG KELUAR
-      validatedData.accounts = validatedData.accounts.map((account) => {
-        account.amount = Math.abs(account.amount);
-        return account;
-      });
-      validatedData.total = Math.abs(validatedData.total) * -1;
-    } else { // UANG MASUK
-      validatedData.accounts = validatedData.accounts.map((account) => {
-        account.amount = Math.abs(account.amount) * -1;
-        return account;
-      });
-      validatedData.total = Math.abs(validatedData.total);
-    }
-    validatedData.accounts.push({
-      account_id: validatedData.account_cash_id,
-      amount: validatedData.total,
-      kas: true,
-      description: ''
-    })
-    delete validatedData.account_cash_id;
-
+    validatedData = this.transactionService.reformatToJournalData(validatedData);
     // CREATE TRANSACTION
-    newdata = await this.transactionService.create(validatedData);
-    
-    // RECURRING
-    if (recurring) {
-      var newRecurring = await this.transactionService.createRecurring(validatedData);
+    // validate recurring
+    var recurringValidatedData;
+    if (newdata.recurring) {
+      recurringValidatedData = await this.validateService.validate(this.transactionValidation.CREATERECURRING, sanitizedData);
+      recurringValidatedData = this.transactionService.reformatToJournalData(recurringValidatedData);
+      console.log('recurringValidatedData in controller', recurringValidatedData);
+    } else {
+      recurringValidatedData = null;
     }
 
-    return ResponseDto.success('Data Created!', newdata, 201);
-  }
+    newdata = await this.transactionService.createUangKeluarMasuk(validatedData, recurringValidatedData);
+    if (newdata.success == false) {
+      return ResponseDto.error('Error', newdata.error, newdata.status);
+    }
+    return newdata;
 
+  }
 
   @MessagePattern({ cmd: 'put:uang-keluar-masuk/*' })
   @Describe({

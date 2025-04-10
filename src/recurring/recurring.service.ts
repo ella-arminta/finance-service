@@ -1,14 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { Trans_Recurring } from '@prisma/client';
 import { BaseService } from 'src/common/base.service';
 import { DatabaseService } from 'src/database/database.service';
 import { TransactionService } from 'src/transaction/transaction.service';
+import { RecurringType } from '@prisma/client';
 
 @Injectable()
 export class RecurringService extends BaseService<Trans_Recurring> {
+    protected readonly relations: any;
+
     constructor(
         db: DatabaseService,
-        private readonly transService: TransactionService
+        private readonly transService: TransactionService,
       ) {
         const relations = {
             trans_type: true,
@@ -18,13 +22,13 @@ export class RecurringService extends BaseService<Trans_Recurring> {
                 }
             },
             store: true,
-            recurring_period: true
         }
         super('trans_Recurring', db, relations,true);
+        this.relations = relations;
     }
 
     async findAllRecurringPeriod() {
-        return this.db.recurring_Period.findMany();
+        return Object.values(RecurringType);
     }
 
     async update(id: any, data: any) {
@@ -70,5 +74,125 @@ export class RecurringService extends BaseService<Trans_Recurring> {
     async create(data:any) {
         var newdata = await this.transService.createRecurring(data);
         return newdata;
+    }
+
+    @Cron('0 0 * * *', {
+        timeZone: 'Asia/Jakarta',
+    })
+    async handleRecurringTransactionCron() {
+        const today = new Date();
+        const isoToday = new Date(today.toISOString().split('T')[0]); // normalize to 00:00
+    
+        const recurrences = await this.db.trans_Recurring.findMany({
+            where: {
+                deleted_at: null,
+                startDate: { lte: isoToday },
+                OR: [
+                    { endDate: null },
+                    { endDate: { gte: isoToday } }
+                ]
+            },
+            include: this.relations
+        });
+    
+        for (const data of recurrences) {
+            if (this.shouldRunToday(data, isoToday)) {
+                await this.createTransactionFromRecurring(data);
+    
+                await this.db.trans_Recurring.update({
+                    where: { id: data.id },
+                    data: { last_recurring_date: isoToday },
+                });
+            }
+        }
+    }
+
+    private shouldRunToday(dataRecurring: any, today: Date): boolean {
+        const {
+            recurringType,
+            interval,
+            last_recurring_date,
+            trans_start_date,
+            daysOfWeek,
+            dayOfMonth,
+            monthOfYear,
+            dayOfYear,
+        } = dataRecurring;
+
+        const lastDate = last_recurring_date ?? trans_start_date;
+        const diffDays = Math.floor(
+            (today.getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24),
+        );
+
+        switch (recurringType) {
+            case 'DAY':
+            return diffDays >= interval; // Every X days
+
+            case 'WEEK':
+            const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+            const weeksPassed = Math.floor(diffDays / 7); // pembulatan kebawah
+            return weeksPassed >= interval && daysOfWeek.includes(currentDay);
+
+            case 'MONTH':
+            const monthsPassed =
+                (today.getFullYear() - new Date(lastDate).getFullYear()) * 12 +
+                today.getMonth() -
+                new Date(lastDate).getMonth(); // selisih tahun jadiin bulan + selisih bulan
+            return monthsPassed >= interval && today.getDate() === dayOfMonth;
+
+            case 'YEAR':
+            const yearsPassed =
+                today.getFullYear() - new Date(lastDate).getFullYear();
+            return (
+                yearsPassed >= interval &&
+                today.getMonth() + 1 === monthOfYear &&
+                today.getDate() === dayOfYear
+            );
+
+            default:
+            return false;
+        }
+    }
+    
+    async createTransactionFromRecurring(data: any) {
+        try {
+            // today
+            console.log('data create transaction from recurring', data);
+            const today = new Date();
+            const result = await this.db.$transaction(async (prisma) => {
+                // data only get the transaction 
+                const trans = await this.db.trans.create({
+                    data: {
+                        code: data.code ,
+                        store_id:data.store_id,
+                        trans_date: today,
+                        trans_type_id: data.trans_type_id,
+                        total: data.total,
+                        description: data.description,
+                        updated_at: today,
+                        created_by: data.created_by,
+                        trans_details: {
+                            create: data.trans_details_recurring.map(data => ({
+                                account_id: data.account_id,
+                                amount: data.amount,
+                                description: data.description,
+                                kas: data.kas
+                            })),
+                        },
+                    },
+                    include: this.relations
+                });
+        
+                // If no errors occur, return the created transaction
+                return trans;
+            });
+        
+            // Return the result if everything goes well
+            return result;
+        } catch (error) {
+            console.error('Error creating transaction:', error);
+            // You can throw the error to the caller to handle it further
+            throw new Error('Transaction creation failed');
+        }
     }
 }

@@ -3,6 +3,8 @@ import { AccountsService } from 'src/accounts/accounts.service';
 import { CompaniesService } from 'src/companies/companies.service';
 import { StoresService } from 'src/stores/stores.service';
 import { ZodType, z } from 'zod';
+import { RecurringType } from '@prisma/client';
+const RecurringTypeValues = Object.values(RecurringType)
 
 @Injectable()
 export class TransactionValidation {
@@ -32,7 +34,7 @@ export class TransactionValidation {
     updated_by: z.string().uuid(),
     accounts: z.array(
       z.object({
-        account_id: z.string({ message:'Account must be chosen' }).uuid().refine(
+        account_id: z.string({ message: 'Account must be chosen' }).uuid().refine(
           async (account_id) => {
             const account = await this.accountsService.findOne(account_id);
             return !!account;
@@ -41,7 +43,7 @@ export class TransactionValidation {
             message: 'Account ID does not exist',
           },
         ),
-        amount: z.string({ message:'Amount must be filled'}).refine((val) => {
+        amount: z.string({ message: 'Amount must be filled' }).refine((val) => {
           try {
             parseFloat(val);
             return true;
@@ -52,8 +54,139 @@ export class TransactionValidation {
         description: z.string(),
       }),
     ).min(1, { message: 'At least one account is required' }),
-    recurring_period_code: z.string({ message:'Recurring period expected string' }).optional().nullable(),
   });
+
+  readonly CREATERECURRING: ZodType = z.object({
+    code: z.string(),
+    account_cash_id: z.string().uuid({ message: 'Account Cash must be filled' }),
+    store_id: z.string().uuid().refine(
+      async (store_id) => {
+        const store = await this.storeService.findOne(store_id);
+        return !!store;
+      },
+      {
+        message: 'Store ID does not exist',
+      },
+    ),
+    total: z.number(),
+    trans_date: z.date(),
+    trans_type_id: z.number().int(),
+    description: z.string(),
+    created_by: z.string().uuid(),
+    updated_by: z.string().uuid(),
+    accounts: z.array(
+      z.object({
+        account_id: z.string({ message: 'Account must be chosen' }).uuid().refine(
+          async (account_id) => {
+            const account = await this.accountsService.findOne(account_id);
+            return !!account;
+          },
+          {
+            message: 'Account ID does not exist',
+          },
+        ),
+        amount: z.string({ message: 'Amount must be filled' }).refine((val) => {
+          try {
+            parseFloat(val);
+            return true;
+          } catch (error) {
+            return false;
+          }
+        }, { message: 'Amount must be number' }),
+        description: z.string(),
+      }),
+    ).min(1, { message: 'At least one account is required' }),
+    // recurring conf
+    startDate: z.preprocess((val: any) => {
+      try {
+        const parsed = new Date(val);
+        return new Date(parsed.toISOString());
+      } catch (error) {
+        return val;
+      }
+    }, z.date({
+      required_error: 'Start date is required.',
+      invalid_type_error: 'Start date must be a valid date.',
+    }).optional()),
+
+    endDate: z.preprocess((val: any) => {
+      try {
+        if (val === '') return null;
+        const parsed = new Date(val);
+        return new Date(parsed.toISOString());
+      } catch (error) {
+        return val;
+      }
+    }, z.date({
+      invalid_type_error: 'End date must be a valid date.',
+    }).optional().nullable()),
+
+    recurringType: z
+      .string()
+      .transform((val) => val.toUpperCase())
+      .refine((val): val is RecurringType => RecurringTypeValues.includes(val as RecurringType), {
+        message: 'Recurring type must be one of: DAY, WEEK, MONTH, or YEAR.',
+      })
+      .transform((val) => val as RecurringType),
+
+    interval: z
+      .number({
+        required_error: 'Interval is required.',
+        invalid_type_error: 'Interval must be a number.',
+      })
+      .int('Interval must be a whole number.')
+      .min(1, 'Interval must be at least 1.'),
+
+    daysOfWeek: z
+      .array(
+        z
+          .number({
+            invalid_type_error: 'Each day must be a number.',
+          })
+          .int('Day must be a whole number.')
+          .min(0, 'Days of the week must be between 0 (Sunday) and 6 (Saturday).')
+          .max(6, 'Days of the week must be between 0 (Sunday) and 6 (Saturday).'),
+        {
+          invalid_type_error: 'Days of week must be an array of numbers.',
+        }
+      )
+      .optional()
+      .nullable(),
+
+    dayOfMonth: z
+      .number({ invalid_type_error: 'Day of month must be a number.' })
+      .int('Day of month must be a whole number.')
+      .refine(val => val === -1 || (val >= 1 && val <= 31), {
+        message: 'Day of month must be between 1 and 31, or -1.',
+      })
+      .optional()
+      .nullable(),
+
+    monthOfYear: z
+      .array(
+        z
+          .number({
+            invalid_type_error: 'Month must be a number.',
+          })
+          .int('Month must be a whole number.')
+          .min(0, 'Month of year must be between 0 (January) and 11 (December).')
+          .max(11, 'Month of year must be between 0 (January) and 11 (December).'),
+        {
+          invalid_type_error: 'Months must be an array of numbers.',
+        }
+      )
+      .optional()
+      .nullable(),
+
+    dayOfYear: z
+      .number({ invalid_type_error: 'Day of year must be a number.' })
+      .int('Day of year must be a whole number.')
+      .refine(val => val === -1 || (val >= 1 && val <= 31), {
+        message: 'Day of year must be between 1 and 31, or -1.',
+      })
+      .optional()
+      .nullable(),    
+  })
 
   readonly FILTER: ZodType = z.object({
     trans_type_id: z.preprocess((val) => {
@@ -101,7 +234,7 @@ export class TransactionValidation {
     updated_at: z.date(),
     accounts: z.array(
       z.object({
-        account_id: z.string({ message:'Account must be chosen' }).uuid().refine(
+        account_id: z.string({ message: 'Account must be chosen' }).uuid().refine(
           async (account_id) => {
             const account = await this.accountsService.findOne(account_id);
             return !!account;
@@ -110,7 +243,7 @@ export class TransactionValidation {
             message: 'Account ID does not exist',
           },
         ),
-        amount: z.string({ message:'Amount must be filled'}).refine((val) => {
+        amount: z.string({ message: 'Amount must be filled' }).refine((val) => {
           try {
             var parsedVal = parseFloat(val);
             if (parsedVal == 0 || isNaN(parsedVal)) {
@@ -136,28 +269,28 @@ export class TransactionValidation {
       z.object({
         operation_id: z.string().uuid().optional().nullable(),
         operation: z.record(z.any()).optional().nullable(),
-        total_price: z 
+        total_price: z
           .union([z.string(), z.number()])
           .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
           .refine((val) => !isNaN(val), { message: "Invalid total_price" }),
         name: z.string(),
-        discount: z 
+        discount: z
           .union([z.string(), z.number()])
           .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
           .refine((val) => !isNaN(val), { message: "Invalid discount" })
           .optional(),
       })
-    ), 
+    ),
     transaction_products: z.array(
       z.object({
         operation_id: z.string().uuid().optional().nullable(),
         operation: z.record(z.any()).optional().nullable(),
-        total_price: z 
+        total_price: z
           .union([z.string(), z.number()])
           .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
           .refine((val) => !isNaN(val), { message: "Invalid total_price" }),
         name: z.string(),
-        discount: z 
+        discount: z
           .union([z.string(), z.number()])
           .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
           .refine((val) => !isNaN(val), { message: "Invalid discount" })
@@ -174,7 +307,7 @@ export class TransactionValidation {
           return val;
         }, z.number().optional().nullable()),
       })
-    ), 
+    ),
     status: z
       .union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseInt(val) : val))
@@ -209,11 +342,11 @@ export class TransactionValidation {
       .union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseInt(val) : val))
       .refine((val) => !isNaN(val), { message: "Invalid status" }),
-    paid_amount: z 
-          .union([z.string(), z.number()])
-          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
-          .refine((val) => !isNaN(val), { message: "Invalid Paid Amount" }).optional(),
-    total_price: z 
+    paid_amount: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid Paid Amount" }).optional(),
+    total_price: z
       .union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
       .refine((val) => !isNaN(val), { message: "Invalid Total Price" }),
@@ -225,10 +358,10 @@ export class TransactionValidation {
           barcode: z.string(),
           id: z.string().uuid(),
         }).nullable().optional(),
-        total_price: z 
-        .union([z.string(), z.number()])
-        .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
-        .refine((val) => !isNaN(val), { message: "Invalid Total Price" }),
+        total_price: z
+          .union([z.string(), z.number()])
+          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+          .refine((val) => !isNaN(val), { message: "Invalid Total Price" }),
         weight: z.any(),
         created_at: z.any(),
         buy_price: z.preprocess((val) => {
@@ -241,7 +374,7 @@ export class TransactionValidation {
           return val;
         }, z.number().optional().nullable()),
       })
-    ), 
+    ),
   })
 
   readonly CREATETRADE: ZodType = z.object({
@@ -258,18 +391,18 @@ export class TransactionValidation {
     sub_total_price: z.union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
       .refine((val) => !isNaN(val), { message: "Invalid adjustment price" }).optional(),
-    tax_price:  z.union([z.string(), z.number()])
+    tax_price: z.union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
       .refine((val) => !isNaN(val), { message: "Invalid adjustment price" }).optional(),
     status: z
       .union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseInt(val) : val))
       .refine((val) => !isNaN(val), { message: "Invalid status" }),
-    paid_amount: z 
-          .union([z.string(), z.number()])
-          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
-          .refine((val) => !isNaN(val), { message: "Invalid Paid Amount" }).optional(),
-    total_price: z 
+    paid_amount: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid Paid Amount" }).optional(),
+    total_price: z
       .union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
       .refine((val) => !isNaN(val), { message: "Invalid Total Price" }),
@@ -280,15 +413,15 @@ export class TransactionValidation {
           product: z.any(),
           barcode: z.string(),
           id: z.string().uuid(),
-          buy_price: z 
+          buy_price: z
             .union([z.string(), z.number()])
             .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
             .refine((val) => !isNaN(val), { message: "Invalid Buy Price" }),
         }).nullable().optional(),
-        total_price: z 
-        .union([z.string(), z.number()])
-        .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
-        .refine((val) => !isNaN(val), { message: "Invalid Total Price" }),
+        total_price: z
+          .union([z.string(), z.number()])
+          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+          .refine((val) => !isNaN(val), { message: "Invalid Total Price" }),
         weight: z.any(),
         created_at: z.any(),
         buy_price: z.preprocess((val) => {
@@ -301,23 +434,23 @@ export class TransactionValidation {
           return val;
         }, z.number().optional().nullable()),
       })
-    ), 
+    ),
     transaction_operations: z.array(
       z.object({
         operation_id: z.string().uuid().optional().nullable(),
         operation: z.record(z.any()).optional().nullable(),
-        total_price: z 
+        total_price: z
           .union([z.string(), z.number()])
           .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
           .refine((val) => !isNaN(val), { message: "Invalid total_price" }),
         name: z.string(),
-        discount: z 
+        discount: z
           .union([z.string(), z.number()])
           .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
           .refine((val) => !isNaN(val), { message: "Invalid discount" })
           .optional(),
       })
-    ), 
+    ),
   })
 
 }

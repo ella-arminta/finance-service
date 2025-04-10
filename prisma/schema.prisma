@@ -195,15 +195,32 @@ model GoldPrice {
   updated_at DateTime @updatedAt
 }
 
+enum RecurringType {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
 model Trans_Recurring {
     id String   @id @db.Uuid @default(uuid())
     store_id String @db.Uuid
-    trans_start_date DateTime
-    trans_last_date  DateTime?
-    recurring_period_code String
+    // Data configuration
     trans_type_id Int
     total Decimal?
     description String?
+
+    // recurring configuration
+    startDate DateTime
+    endDate  DateTime?
+    last_recurring_date DateTime?
+    recurringType   RecurringType
+    interval         Int // e.g. repeat every X day/week/month/year
+    daysOfWeek       Int[]  // For weekly: which days of the week (0 = Sunday, 6 = Saturday)    // Only for weekly recurrence
+    dayOfMonth       Int?     // For monthly: repeat on this day of the month (1-31)  // Only for monthly
+    monthOfYear      Int[]      // 1-12   // For yearly: month and day (e.g. Jan 15)
+    dayOfYear        Int?      // 1-31   // For yearly: month and day (e.g. Jan 15)
+
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
     created_by String @db.Uuid
@@ -213,7 +230,6 @@ model Trans_Recurring {
     trans_details_recurring Trans_Details_Recurring[]
     trans_type Trans_Type @relation(fields: [trans_type_id], references: [id])
     store Stores @relation(fields: [store_id], references: [id])
-    recurring_period Recurring_Period @relation(fields: [recurring_period_code], references: [code])
 }
 
 model Trans_Details_Recurring {
@@ -229,16 +245,6 @@ model Trans_Details_Recurring {
   account Accounts @relation(fields: [account_id], references: [id])
 
   @@index([trans_id])
-}
-
-model Recurring_Period {
-  id Int   @default(autoincrement()) @id
-  name String
-  code String @unique
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  trans_recurring Trans_Recurring[]
 }
 
 model Action_Account_Settings {

@@ -3,11 +3,12 @@ import { BaseService } from 'src/common/base.service';
 import { Trans } from '@prisma/client'
 import { DatabaseService } from 'src/database/database.service';
 import { Prisma } from '@prisma/client';
-import { filter } from 'rxjs';
 import { ResponseDto } from 'src/common/response.dto';
 import { TransAccountSettingsService } from 'src/trans-account-settings/trans-account-settings.service';
 import { ReportStocksService } from 'src/report-stocks/report-stocks.service';
 import { AccountsService } from 'src/accounts/accounts.service';
+import { ValidationService } from 'src/common/validation.service';
+import { TransactionValidation } from './transaction.validaton';
 
 @Injectable()
 export class TransactionService extends BaseService<Trans> {
@@ -15,7 +16,9 @@ export class TransactionService extends BaseService<Trans> {
     db: DatabaseService,
     private readonly reportStockService: ReportStocksService,
     private readonly transAccountSettingsServ: TransAccountSettingsService,
-    private readonly accountsService: AccountsService
+    private readonly accountsService: AccountsService,
+    private readonly validateService: ValidationService,
+    private readonly transactionValidation: TransactionValidation,
   ) {
     const relations = {
       trans_type: true,
@@ -33,7 +36,32 @@ export class TransactionService extends BaseService<Trans> {
     super('trans', db, relations, true);
   }
 
-  async create(data: any) {
+  reformatToJournalData(validatedData: any) {
+    console.log('validatedData', validatedData.accounts);
+    if (validatedData.trans_type_id == 1) { // UANG KELUAR
+      validatedData.accounts = validatedData.accounts.map((account) => {
+        account.amount = Math.abs(account.amount);
+        return account;
+      });
+      validatedData.total = Math.abs(validatedData.total) * -1;
+    } else { // UANG MASUK
+      validatedData.accounts = validatedData.accounts.map((account) => {
+        account.amount = Math.abs(account.amount) * -1;
+        return account;
+      });
+      validatedData.total = Math.abs(validatedData.total);
+    }
+    validatedData.accounts.push({
+      account_id: validatedData.account_cash_id,
+      amount: validatedData.total,
+      kas: true,
+      description: ''
+    })
+    delete validatedData.account_cash_id;
+    return validatedData;
+  }
+
+  async createUangKeluarMasuk(data: any, recurringValidatedData:any) {
     try {
       const result = await this.db.$transaction(async (prisma) => {
         // Create the main transaction record
@@ -47,7 +75,7 @@ export class TransactionService extends BaseService<Trans> {
         }
 
 
-        const trans = await this.db.trans.create({
+        const trans = await prisma.trans.create({
           data: {
             ...newtrans,
             trans_details: {
@@ -62,8 +90,22 @@ export class TransactionService extends BaseService<Trans> {
           include: this.relations
         });
 
+        // RECURRING
+        console.log('rawsanitizeddata', recurringValidatedData);
+        if (recurringValidatedData != null) {
+          try {
+            const newRecurring = await this.createRecurring(recurringValidatedData);
+            if (!newRecurring) {
+              throw new Error('Error creating recurring transaction');
+            }
+          } catch (err) {
+            console.error('Recurring creation failed:', err);
+            throw err; // This ensures the transaction is rolled back
+          }
+        }
+
         // If no errors occur, return the created transaction
-        return trans;
+        return ResponseDto.success('Transaction Successfully created', trans)
       });
 
       // Return the result if everything goes well
@@ -71,11 +113,56 @@ export class TransactionService extends BaseService<Trans> {
     } catch (error) {
       console.error('Error creating transaction:', error);
       // You can throw the error to the caller to handle it further
-      throw new Error('Transaction creation failed');
+      // throw new Error('Transaction creation failed');
+      return ResponseDto.error('Transaction creation failed', 'Sorry something went wrong with the server', 500);
     }
   }
 
   async createRecurring(data: any) {
+    console.log('data in create recurring', data);
+    // RECURRING DAY
+    // newdata {
+    //   auth: {
+    //     company_id: '4f92a7d3-bc16-4e8f-9d91-7c3a8f5e21b0',
+    //     store_id: 'a55ecd94-6934-4630-8550-39cd8cce6bb7'
+    //   },
+    //   owner_id: '4f92a7d3-bc16-4e8f-9d91-7c3a8f5e21b0',
+    //   code: 'UKL/TENGG/2504/00002',
+    //   account_cash_id: [ '839c346b-f7ac-499f-86ff-03c83230e2c0' ],
+    //   total: 1000,
+    //   description: 'asdf',
+    //   trans_date: '2025-04-09',
+    //   accounts: [
+    //     {
+    //       amount: '1000',
+    //       description: 'dfasd',
+    //       account_id: '69df8581-139b-4d80-9283-f1cc045f37c9'
+    //     }
+    //   ],
+    //   trans_type_id: 1,
+    //   recurring: true,
+    //   recurring_period_code: '',
+    //   recurringType: 'DAY',
+    //   interval: 7,
+    //   startDate: '2023-10-01',
+    //   endDate: '2023-10-31',
+    //   daysOfWeek: [],
+    //   dayOfMonth: [],
+    //   dayOfYear: [],
+    //   dayOfMonthCustom: [],
+    //   dayOfYearCustom: []
+    // } params {
+    //   '0': 'uang-keluar-masuk',
+    //   service: 'finance',
+    //   user: {
+    //     id: '4f92a7d3-bc16-4e8f-9d91-7c3a8f5e21b0',
+    //     email: 'ownerb@gmail.com',
+    //     is_owner: true,
+    //     timestamp: '2025-04-09T07:00:00.245Z',
+    //     iat: 1744182000,
+    //     exp: 1744268400
+    //   }
+    // }
     try {
       const result = await this.db.$transaction(async (prisma) => {
         // Create the main transaction record
@@ -84,11 +171,10 @@ export class TransactionService extends BaseService<Trans> {
         var newtrans = { ...data };
         delete newtrans.accounts;
         // TRANS START DATE
-        newtrans.trans_start_date = newtrans.trans_date;
         delete newtrans.trans_date;
         delete newtrans.code;
 
-        const trans = await this.db.trans_Recurring.create({
+        const trans = await prisma.trans_Recurring.create({
           data: {
             ...newtrans,
             trans_details_recurring: {
@@ -307,6 +393,10 @@ export class TransactionService extends BaseService<Trans> {
     const Store = await this.db.stores.findFirst({
       where: { id: store_id },
     });
+    
+    if (!Store) {
+      throw new BadRequestException('Store not found');
+    }
     // last transaction code
     const lastReportJournal = await this.db.report_Journals.findFirst({
       where: {
@@ -1254,6 +1344,9 @@ export class TransactionService extends BaseService<Trans> {
       include: { company: true }
     });
     const transType = await this.db.trans_Type.findUnique({ where: { code: 'PURSUP' } });
+    if (!transType) {
+      throw new BadRequestException('Transaction type not found');
+    }
     var transDetailsFormated = [];
     // Persediaan Barang Dagang    (D)
     const inventoryAccount = await this.transAccountSettingsServ.getInventoryAccount(data);

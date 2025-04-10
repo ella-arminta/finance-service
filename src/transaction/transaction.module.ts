@@ -30,6 +30,6 @@ import { SharedModule } from 'src/shared.module';
     TransactionService,
     TransactionValidation,
   ],
-  exports: [TransactionService]
+  exports: [TransactionService, TransactionValidation],
 })
 export class TransactionModule {}
