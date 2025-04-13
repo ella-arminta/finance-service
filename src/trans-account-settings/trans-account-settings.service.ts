@@ -13,6 +13,7 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
         const relations = {
             store: true,
             account: true,
+            maction: true
         }
         super('trans_Account_Settings', db, relations);
     }
@@ -538,10 +539,7 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
         console.log('find params',params);
         var result = this.db.trans_Account_Settings.findMany({
             where: params,
-            include: {
-                account: true,
-                maction: true
-            }
+            include: this.relations,
         })
         return result;
     }
