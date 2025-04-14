@@ -8,6 +8,7 @@ import { AccountsService } from 'src/accounts/accounts.service';
 import { ResponseDto } from 'src/common/response.dto';
 import { CompaniesService } from 'src/companies/companies.service';
 import { CompanyValidation } from 'src/companies/companies.validation';
+import { RmqAckHelper } from 'src/helper/rmq-ack.helper';
 
 @Controller()
 export class StoresController {
@@ -21,32 +22,10 @@ export class StoresController {
     @Inject('MASTER') private readonly masterClient: ClientProxy
   ) {}
 
-  private async handleEvent(
-    context: RmqContext,
-    callback: () => Promise<{ success: boolean }>,
-    errorMessage: string,
-  ) {
-    const channel = context.getChannelRef();
-    const originalMsg = context.getMessage();
-
-    try {
-      const response = await callback();
-      if (response.success) {
-        channel.ack(originalMsg);
-      }
-    } catch (error) {
-      console.error(errorMessage, error.stack);
-      channel.nack(originalMsg);
-    }
-  }
-
   @EventPattern({ cmd: 'store_created' })
   @Exempt()  
   async create(@Payload() data: any , @Ctx() context: RmqContext) {
     console.log('store created emit received:', data);
-    const channel = context.getChannelRef();
-    const originalMsg = context.getMessage();
-
     const sanitizedData = {
       ...data,
       created_at: new Date(data.created_at),
@@ -54,21 +33,24 @@ export class StoresController {
       deleted_at: data.deleted_at ? new Date(data.deleted_at) : null,
     }
 
-    try {
-      let validatedData = await this.validationService.validate(this.storeValidation.CREATE, sanitizedData);
+    await RmqAckHelper.handleMessageProcessing(
+      context,
+      async () => {
+        let validatedData = await this.validationService.validate(this.storeValidation.CREATE, sanitizedData);
 
-      const newData = await this.storesService.create(validatedData);
-      console.log('newdata store', newData);
-      if (newData) {
-        console.log('Store created successfully acked:', newData);
-        // create default accounts for this store
-        await this.accountService.generateDefaultAccountsByStore(newData.id);
-        channel.ack(originalMsg);
-      }
-    } catch (error) {
-      console.error('Error creating Store:', error);
-      channel.nack(originalMsg);
-    }  
+        const newData = await this.storesService.create(validatedData);
+        console.log('newdata store', newData);
+        if (newData) {
+          console.log('Store created successfully acked:', newData);
+          await this.accountService.generateDefaultAccountsByStore(newData.id);
+        }      
+      },
+      {
+        queueName: 'store_created',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.store_created',
+      },
+    )();
   }
 
   @EventPattern({ cmd: 'store_updated' })
@@ -85,44 +67,50 @@ export class StoresController {
       deleted_at: data.deleted_at ? new Date(data.deleted_at) : null,
     }
 
-    try {
-      let validatedData = await this.validationService.validate(this.storeValidation.UPDATE, sanitizedData);
+    await RmqAckHelper.handleMessageProcessing(
+      context,
+      async () => {
+        let validatedData = await this.validationService.validate(this.storeValidation.UPDATE, sanitizedData);
 
-      const updatedData = await this.storesService.update(validatedData.id, validatedData);
-      if (updatedData) {
-        channel.ack(originalMsg);
-        console.log('Store created successfully acked:', updatedData);
-      }
-    } catch (error) {
-      console.error('Error creating Store:', error);
-      channel.nack(originalMsg);
-    } 
+        const updatedData = await this.storesService.update(validatedData.id, validatedData);
+        if (updatedData) {
+          console.log('Store updated successfully acked:', updatedData);
+        }
+      },
+      {
+        queueName: 'store_updated',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.store_updated',
+      },
+    )();
   }
 
   @EventPattern({cmd:'store_deleted'})
   @Exempt()
   async remove(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('Store deleted emit received', data);
-    const channel = context.getChannelRef();
-    const originalMsg = context.getMessage();
 
-    try {
-      const deletedData = await this.storesService.delete(data);
-      if (deletedData) {
-        channel.ack(originalMsg);
-        console.log('store deleted successfully acked:', deletedData);
-      }
-    } catch (error) {
-      console.error('Error processing store_deleted event', error.stack);
-      channel.nack(originalMsg);
-    }
+    await RmqAckHelper.handleMessageProcessing(
+      context,
+      async () => {
+        const deletedData = await this.storesService.delete(data.id);
+        if (deletedData) {
+          console.log('store deleted successfully acked:', deletedData);
+        }
+      },
+      {
+        queueName: 'store_deleted',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.store_deleted',
+      },
+    )();
   }
 
   @MessagePattern({cmd:'get:store-sync'})
   @Exempt()
   async sync(@Payload() data: any) {
     var data = await this.masterClient.send({ cmd: 'get:store' }, {}).toPromise();
-    data = data.data;
+    data = data.data.data;
     var results  = [];
 
     for (const dat of data) {
@@ -157,17 +145,22 @@ export class StoresController {
   @EventPattern({ cmd: 'store_sync' })
   @Exempt()
   async storeSync(@Payload() data: any, @Ctx() context: RmqContext) {
-    await this.handleEvent(
+    await RmqAckHelper.handleMessageProcessing(
       context,
       async () => {
+        console.log('store sync data',data.data);
         const datas = await Promise.all(
-          data.map(async (d) => {
+          data.data.map(async (d) => {
             return await this.validationService.validate(this.storeValidation.CREATE, d);
           })
         );
         return await this.storesService.sync(datas);
       },
-      'Error processing store_sync event',
-    );
+      {
+        queueName: 'store_sync',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.store_sync',
+      },
+    )();
   }
 }

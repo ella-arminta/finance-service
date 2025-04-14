@@ -49,6 +49,17 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
                 },
             },
             {
+                name: 'FINANCE',
+                transport: Transport.RMQ,
+                options: {
+                    urls: ['amqp://localhost:5672'],
+                    queue: 'finance_service_queue',
+                    queueOptions: {
+                        durable: true,
+                    },
+                },
+            },
+            {
                 name: 'TRANSACTION_TCP',
                 transport: Transport.TCP,
                 options: {

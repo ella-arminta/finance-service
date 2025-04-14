@@ -404,3 +404,16 @@ model Report_Receivable {
   payment_date DateTime?
   payment_amount Decimal?
 }
+
+// Model for storing failed RabbitMQ message
+model Failed_Message {
+  id         Int   @id @default(autoincrement())
+  queue      String
+  routingKey String
+  payload    Json
+  error      String
+  timestamp  DateTime @default(now())
+  solved     Boolean @default(false)
+
+  @@map("failed_messages")
+}

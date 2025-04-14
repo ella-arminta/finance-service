@@ -36,6 +36,9 @@ export class AccountsService extends BaseService<Accounts> {
 
   async generateDefaultAccountsByComp(company_id: string) {
     var company = await this.companyService.findOne(company_id);
+    if (!company) {
+      throw new Error('Company not found');
+    }
     var lastCodeForKas = await this.findAll({ company_id: company_id, account_type_id: 1 }, true, { code: 'desc' });
     var codeKas = 11001;
     if (lastCodeForKas.length > 0) {

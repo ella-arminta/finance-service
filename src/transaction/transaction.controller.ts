@@ -12,6 +12,7 @@ import { Exempt } from 'src/decorator/exempt.decorator';
 import { LoggerService } from 'src/common/logger.service';
 import { ReportService } from 'src/report-journals/report-journals.service';
 import { ReportStocksService } from 'src/report-stocks/report-stocks.service';
+import { RmqAckHelper } from 'src/helper/rmq-ack.helper';
 
 @Controller()
 export class TransactionController {
@@ -25,62 +26,6 @@ export class TransactionController {
     private readonly reportStockService: ReportStocksService,
     @Inject('TRANSACTION_TCP') private readonly transactionClientTcp: any,
   ) {}
-
-  // private async handleEvent(
-  //   context: RmqContext,
-  //   callback: () => Promise<any>,
-  //   errorMessage: string,
-  // ) {
-  //   const channel = context.getChannelRef();
-  //   const originalMsg = context.getMessage();
-  //   const maxRetries = 5;
-  //   const headers = originalMsg.properties.headers || {};
-  //   const retryCount = headers['x-retry-count'] ? headers['x-retry-count'] + 1 : 1;
-
-  //   try {
-  //     const response = await callback();
-  //     if (response.success) {
-  //       channel.ack(originalMsg);
-  //     }
-  //   } catch (error) {
-  //     console.error(`${errorMessage}. Retry attempt: ${retryCount}`, error.stack);
-
-      
-  //     if (retryCount >= maxRetries) {
-  //       console.error(`Max retries (${maxRetries}) reached. Logging error and acknowledging message.`);
-  //       // Simpan log error ke file
-  //       this.loggerService.logErrorToFile(errorMessage, error);
-  //       // channel.ack(originalMsg);
-  //       channel.nack(originalMsg, false, false);
-  //     } else {
-  //       console.warn(`Retrying message (${retryCount}/${maxRetries})...`);
-  //       channel.sendToQueue(originalMsg.fields.routingKey, originalMsg.content, {
-  //         persistent: true,
-  //         headers: { ...headers, 'x-retry-count': retryCount },
-  //       });
-  //       channel.nack(originalMsg, false, false);
-  //     }
-  //   }
-  // }
-
-  private async handleEvent(
-    context: RmqContext,
-    callback: () => Promise<any>,
-    errorMessage: string,
-  ) {
-    const channel = context.getChannelRef();
-    const originalMsg = context.getMessage();
-
-    try {
-      const response = await callback();
-      if (response.success) {
-        channel.ack(originalMsg);
-      }
-    } catch (error) {
-      console.error(errorMessage, error);
-      channel.nack(originalMsg);
-    }
-  }
 
   @MessagePattern({ cmd: 'post:uang-keluar-masuk' })
   @Describe({
@@ -399,11 +344,11 @@ export class TransactionController {
     let newdata = data.data;
     console.log('create transaction data',newdata)
     // SALES Trans
-    await this.handleEvent(
+    await RmqAckHelper.handleMessageProcessing(
       context,
       async () => {
-        // SALES
-        if (newdata.transaction_type == 1) {
+         // SALES
+         if (newdata.transaction_type == 1) {
           newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
           const result = await this.transactionService.createSales(newdata);
           return ResponseDto.success('Transaction Created!', result, 201);
@@ -428,8 +373,12 @@ export class TransactionController {
         }
         return ResponseDto.error('Transaction Type Not Found!', null, 400);
       },
-      'Error processing transaction_approved event'
-    );
+      {
+        queueName: 'operation_deleted',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_deleted',
+      },
+    )();
   }
 
   @EventPattern({ cmd: 'transaction_disapproved' })
@@ -439,7 +388,7 @@ export class TransactionController {
     console.log('deleted_data', deleted_data);
 
     // SALES Trans
-    await this.handleEvent(
+    await RmqAckHelper.handleMessageProcessing(
       context,
       async () => {
         // Cancel Report Journal
@@ -454,9 +403,12 @@ export class TransactionController {
         });
         return ResponseDto.success('Transaction Deleted!', {}, 200);
       },
-      'Error processing transaction_approved event'
-    );
-
+      {
+        queueName: 'operation_deleted',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_deleted',
+      },
+    )();
   }
   
   // PURCHASE GOODS
@@ -525,7 +477,8 @@ export class TransactionController {
     //   },
     //   transref_id: 'e965b699-fa70-46ab-934b-0a0482d99464' // transactionProduct.id
     // }
-    await this.handleEvent(
+
+    await RmqAckHelper.handleMessageProcessing(
       context,
       async () => {
         // Product Code generated for Trade or Purchase
@@ -544,8 +497,12 @@ export class TransactionController {
           return ResponseDto.success('Product Code Created!', result, 200);
         }
       },
-      'Error processing product_code_generated event',
-    );
+      {
+        queueName: 'operation_deleted',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_deleted',
+      },
+    )();
   }
 
   // PURCHASE FROM CUSTOMER
@@ -554,51 +511,81 @@ export class TransactionController {
   @EventPattern({ cmd: 'stock_out'})
   @Exempt()
   async handleStockOut(@Payload() data: any, @Ctx() context: RmqContext) {
-    await this.handleEvent(
+    await RmqAckHelper.handleMessageProcessing(
       context,
-      async () => this.transactionService.handleStockOut(data),
-      'Error handling stocks out event',
-    );
+      async () => {
+        this.transactionService.handleStockOut(data);
+      },
+      {
+        queueName: 'operation_deleted',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_deleted',
+      },
+    )();
   }
 
   @EventPattern({ cmd: 'unstock_out' })
   @Exempt()
   async handleUnstockOut(@Payload() data: any, @Ctx() context: RmqContext) {
-    await this.handleEvent(
+    await RmqAckHelper.handleMessageProcessing(
       context,
-      async () => this.transactionService.handleUnstockOut(data),
-      'Error handling unstock out event',
-    );
+      async () => {
+        this.transactionService.handleUnstockOut(data);
+      },
+      {
+        queueName: 'operation_deleted',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_deleted',
+      },
+    )();
   }
 
   @EventPattern({ cmd: 'stock_repaired'})
   @Exempt()
   async handleStockRepaired(@Payload() data: any, @Ctx() context: RmqContext) {
-    await this.handleEvent(
+    await RmqAckHelper.handleMessageProcessing(
       context,
-      async () => this.transactionService.handleStockRepaired(data),
-      'Error handling stocks repaired event',
-    );
+      async () => {
+        this.transactionService.handleStockRepaired(data);
+      },
+      {
+        queueName: 'operation_deleted',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_deleted',
+      },
+    )();
   }
 
   @EventPattern({ cmd: 'stock_opname_approved'})
   @Exempt()
   async handleStockOpnameApproved(@Payload() data: any, @Ctx() context: RmqContext) {
-    await this.handleEvent(
+    await RmqAckHelper.handleMessageProcessing(
       context,
-      async () => this.transactionService.handleStockOpnameApproved(data),
-      'Error handling stock_opname_approved event',
-    );
+      async () => {
+        this.transactionService.handleStockOpnameApproved(data);
+      },
+      {
+        queueName: 'operation_deleted',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_deleted',
+      },
+    )();
   }
   
   @EventPattern({cmd: 'stock_opname_disapproved'})
   @Exempt()
   async handleStockOpnameDisapproved(@Payload() data: any, @Ctx() context: RmqContext) {
-    await this.handleEvent(
+    await RmqAckHelper.handleMessageProcessing(
       context,
-      async () => this.transactionService.handleStockOpnameDisapproved(data),
-      'Error handling stock_opname_disapproved event',
-    )
+      async () => {
+        this.transactionService.handleStockOpnameDisapproved(data);
+      },
+      {
+        queueName: 'operation_deleted',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_deleted',
+      },
+    )();
   }
 
 }

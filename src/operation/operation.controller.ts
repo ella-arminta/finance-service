@@ -5,6 +5,7 @@ import { Exempt } from 'src/decorator/exempt.decorator';
 import { ValidationService } from 'src/common/validation.service';
 import { OperationValidation } from './operation.validation';
 import { ResponseDto } from 'src/common/response.dto';
+import { RmqAckHelper } from 'src/helper/rmq-ack.helper';
 
 @Controller()
 export class OperationController {
@@ -14,65 +15,60 @@ export class OperationController {
     private readonly operationValidation: OperationValidation,
   ) {}
 
-  private async handleEvent(
-    context: RmqContext,
-    callback: () => Promise<{ success: boolean }>,
-    errorMessage: string,
-  ) {
-    const channel = context.getChannelRef();
-    const originalMsg = context.getMessage();
-
-    try {
-      const response = await callback();
-      if (response.success) {
-        channel.ack(originalMsg);
-      }
-    } catch (error) {
-      console.error(errorMessage, error.stack);
-      channel.nack(originalMsg);
-    }
-  }
-
   @EventPattern({ cmd: 'operation_created' })
   @Exempt()
   async operationCreated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('operation data created', data);
-    
-    await this.handleEvent(
+
+    await RmqAckHelper.handleMessageProcessing(
       context,
       async () => {
         const validatedData = await this.validationService.validate(this.operationValidation.CREATE, data);
         const newdata = await this.operationService.create(validatedData);
         return { success: !!newdata }; // Ensures success is always returned
       },
-      'Error processing operation_created event',
-    );
+      {
+        queueName: 'operation_created',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_created',
+      },
+    )();
   }
 
   @EventPattern({ cmd: 'operation_updated' })
   @Exempt()
   async operationUpdated(@Payload() data: any, @Ctx() context: RmqContext) {
-    await this.handleEvent(
+    console.log('operation data updated', data);
+    await RmqAckHelper.handleMessageProcessing(
       context,
       async () => {
         const validatedData = await this.validationService.validate(this.operationValidation.UPDATE, data);
         const updatedata = await this.operationService.update(data.id, validatedData)
         return { success: !!updatedata }; // Ensures success is always returned
       },
-      'Error processing operation_updated event',
-    );
+      {
+        queueName: 'operation_updated',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_updated',
+      },
+    )();
   }
 
   @EventPattern({ cmd: 'operation_deleted' })
   @Exempt()
   async operationDeleted(@Payload() data: any, @Ctx() context: RmqContext) {
-    await this.handleEvent(
+    console.log('operation data deleted', data);
+    await RmqAckHelper.handleMessageProcessing(
       context,
       async () => {
         const deletedData = await this.operationService.delete(data);
         return { success: !!deletedData }; // Ensures success is always returned
       },
-      'Error processing operation_deleted event',
-    );
+      {
+        queueName: 'operation_deleted',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.operation_deleted',
+      },
+    )();
   }
 }
