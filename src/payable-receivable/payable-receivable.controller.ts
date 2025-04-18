@@ -1,10 +1,11 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Res } from '@nestjs/common';
 import { PayableReceivableService } from './payable-receivable.service';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { Describe } from 'src/decorator/describe.decorator';
 import { ResponseDto } from 'src/common/response.dto';
 import { ValidationService } from 'src/common/validation.service';
 import { PayableReceivableValidation } from './payable-receivable.validation';
+import { Exempt } from 'src/decorator/exempt.decorator';
 
 @Controller()
 export class PayableReceivableController {
@@ -174,6 +175,17 @@ export class PayableReceivableController {
       return result;
     } catch (error) {
       return ResponseDto.error('Failed to delete data', error, 400);
+    }
+  }
+
+  @MessagePattern({ cmd: 'post:run-reminder-payables' })
+  @Exempt()
+  async runReminderReceivablePayable(@Payload() data: any) {
+    try {
+      const createData = await this.payableReceivableService.handleReminderJob();
+      return ResponseDto.success('Reminder job executed successfully', createData, 200);
+    } catch (error) {
+      return ResponseDto.error('Failed to update data', error, 400);
     }
   }
 

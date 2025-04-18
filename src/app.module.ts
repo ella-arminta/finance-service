@@ -24,6 +24,7 @@ import { ReportStocksModule } from './report-stocks/report-stocks.module';
 import { OperationModule } from './operation/operation.module';
 import { ActionAccountSettingModule } from './action-account-setting/action-account-setting.module';
 import { PayableReceivableModule } from './payable-receivable/payable-receivable.module';
+import { MailerModule } from '@nestjs-modules/mailer';
 
 @Module({
   imports: [
@@ -48,6 +49,26 @@ import { PayableReceivableModule } from './payable-receivable/payable-receivable
     OperationModule,
     ActionAccountSettingModule,
     PayableReceivableModule,
+    MailerModule.forRoot({
+      transport: {
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: 'brigittaella15@gmail.com',
+          pass: 'bnfivmxofmlgikqf', // use App Password (not your Gmail password)
+        },
+      },
+      defaults: {
+        from: '"Finance App" brigittaella15@gmail.com',
+      },
+      template: {
+        options: {
+          strict: true,
+        },
+      },
+    }),
+
   ],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],

@@ -1,15 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { MailerService } from '@nestjs-modules/mailer';
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { Payable_Receivables } from '@prisma/client';
 import { BaseService } from 'src/common/base.service';
 import { ResponseDto } from 'src/common/response.dto';
 import { DatabaseService } from 'src/database/database.service';
 import { ReportService } from 'src/report-journals/report-journals.service';
+import { add, format, isSameDay } from 'date-fns';
 
 @Injectable()
 export class PayableReceivableService extends BaseService<Payable_Receivables> {
+    private readonly logger = new Logger(PayableReceivableService.name);
+
     constructor(
         db: DatabaseService,
-        private readonly reportJournalService: ReportService
+        private readonly reportJournalService: ReportService,
+        private readonly mailerService: MailerService,
     ) {
         const relations = {
             report_journal: true,
@@ -493,4 +499,111 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
 
         return ResponseDto.success('Reminder deleted', null, 200);
     }
+    
+
+    @Cron('0 0 * * *') // every day at 00:00
+    async handleCron() {
+        this.logger.log('Running cron job...');
+        await this.handleReminderJob();
+    }
+    async handleReminderJob() {
+      this.logger.log('Running reminder cron job...');
+  
+      const today = new Date();
+  
+      const reminders = await this.db.reminder_Payable_Receivables.findMany({
+        where: {
+          OR: [
+            { date_remind: today },
+            {
+              interval: { not: null },
+              period: { not: null },
+            },
+          ],
+          payable_receivable: {
+            due_date: { not: null },
+            status: 0,
+          }
+        },
+        include: {
+          payable_receivable: {
+            include: {
+              report_journal: {
+                include: {
+                    trans_type: true,
+                    account: true,
+                    store: {
+                        include: {
+                            company: true,
+                        },
+                    },
+                },
+              },
+            },
+          },
+        },
+      });
+  
+      for (const reminder of reminders) {
+        const { date_remind, interval, period, emails, payable_receivable } = reminder;
+  
+        const dueDate = payable_receivable.due_date;
+        if (!dueDate) continue;
+  
+        let shouldSend = false;
+  
+        if (date_remind) {
+          shouldSend = isSameDay(new Date(date_remind), today);
+        } else if (interval && period) {
+          const reminderDate = this.subtractPeriod(dueDate, interval, period);
+          shouldSend = isSameDay(reminderDate, today);
+        }
+  
+        if (shouldSend && emails.length > 0) {
+          await this.sendEmail(emails, payable_receivable);
+        }
+      }
+    }
+  
+    subtractPeriod(date: Date, interval: number, period: string): Date {
+        const periodMap = {
+            year: 'years',
+            month: 'months',
+            week: 'weeks',
+            day: 'days',
+        };
+        
+      return add(date, {
+        [periodMap[period]]: -interval,
+      });
+    }
+  
+    async sendEmail(toEmails: string[], payable: any) {
+      const type = payable.type === 1 ? 'Hutang' : 'Piutang';
+      const formattedDate = format(new Date(payable.due_date), 'dd MMM yyyy');
+  
+      await this.mailerService.sendMail({
+        to: toEmails,
+        subject: `[${payable.report_journal.store.name}] Reminder Pembayaran ${type}`,
+        html: `
+          <h3>Pengingat ${type} [${payable.report_journal.code}]</h3>
+          <p>Berikut adalah detail pengingat pembayaran:</p>
+          <ul>
+            <li><strong>Perusahaan:</strong> ${payable.report_journal.store.company.name}</li>
+            <li><strong>Toko:</strong> ${payable.report_journal.store.name}</li>
+            <li><strong>Jenis:</strong> ${type}</li>
+            <li><strong>Tanggal Jatuh Tempo: </strong> ${formattedDate}</li>
+            <li><strong>Jumlah yang belum dibayar: </strong> Rp. ${(payable.report_journal.amount && payable.amount_paid ? (payable.report_journal.amount - payable.amount_paid) : 0).toLocaleString('id-ID')}</li>
+            <li><strong>Status:</strong> ${payable.status === 0 ? 'Belum Lunas' : 'Lunas'}</li>
+            <li><strong>Nama Akun:</strong> ${payable.report_journal.account.name}</li>
+            <li><strong>Transaksi:</strong> ${format(new Date(payable.report_journal.trans_date), 'dd MMM yyyy')}  - ${payable.report_journal.code} - ${payable.report_journal.trans_type.name}</li>
+            <li><strong>Deskripsi:</strong> ${payable.report_journal.description}</li>
+          </ul>
+          <p>Terima kasih.</p>
+        `,
+      });
+  
+      this.logger.log(`Email reminder sent to: ${toEmails.join(', ')}`);
+    }
+  
 }
