@@ -14,6 +14,7 @@ async function main() {
       { name: 'Barang keluar dasaran', code: "KD", created_at: new Date(), updated_at: new Date(), id: 6 },
       { name: 'Tukar tambah', code: "TT", created_at: new Date(), updated_at: new Date(), id: 7 },
       { name: 'Purchase from Supplier', code: "PURSUP", created_at: new Date(), updated_at: new Date(), id: 8 }, // purchase supplier
+      { name: 'Bayar hutang/piutang', code: "BHP", created_at: new Date(), updated_at: new Date(), id: 9 },
     ],
     skipDuplicates: true,
   });

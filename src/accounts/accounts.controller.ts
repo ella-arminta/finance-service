@@ -78,26 +78,42 @@ export class AccountsController {
   })
   async findAll(@Payload() data: any) {
     const params = data.params;
-    var filters =  data.body || {};
-
+    var filters = data.body || {};
+  
     if (!filters.company_id) {
-      filters.company_id = filters.auth.company_id;
-    }    
-
-    if (filters.account_type_id) {
-      try {
-        filters.account_type_id = parseInt(filters.account_type_id);
-      } catch (error) {
-        return ResponseDto.error('Account type ID must be a number!', [{
-          message: 'Account type ID must be a number!',
-          field: 'account_type_id',
-          code: 'not_number',
-        }], 400);
+      filters.company_id = filters.auth?.company_id;
+    }
+  
+    // 🌟 Handle account_type_id: number or array
+    if (filters.account_type_id !== undefined && filters.account_type_id !== null) {
+      if (Array.isArray(filters.account_type_id)) {
+        // Check if all values in the array are numbers
+        const allNumbers = filters.account_type_id.every((val) => !isNaN(parseInt(val)));
+        if (!allNumbers) {
+          return ResponseDto.error('Account type ID must be a number!', [{
+            message: 'Account type ID in array must be a number!',
+            field: 'account_type_id',
+            code: 'not_number',
+          }], 400);
+        }
+        filters.account_type_id = {
+          in: filters.account_type_id.map((val) => parseInt(val)),
+        };
+      } else {
+        const parsed = parseInt(filters.account_type_id);
+        if (isNaN(parsed)) {
+          return ResponseDto.error('Account type ID must be a number!', [{
+            message: 'Account type ID must be a number!',
+            field: 'account_type_id',
+            code: 'not_number',
+          }], 400);
+        }
+        filters.account_type_id = parsed;
       }
     }
     filters = await this.validationService.validate(this.accountValidation.FILTERS, filters);
-    data = await this.accountsService.findAll(filters);
-    return ResponseDto.success('Data Found!', data, 200);
+    const dataResult = await this.accountsService.findAll(filters);
+    return ResponseDto.success('Data Found!', dataResult, 200);
   }
   
 

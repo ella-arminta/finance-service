@@ -14,6 +14,28 @@ export class ReportService extends BaseService<Report_Journals> {
         private readonly rStockService : ReportStocksService
     ) {
         const relations = {
+            store: true, 
+            trans: true, 
+            trans_type: true,
+            account: true,
+            payable_receivables: {
+                include: {
+                    reminder_payable_receivables: true,
+                    report_journal: true, 
+                    payable_receivables_detail: {
+                        include: {
+                            report_journal: {
+                                include: {
+                                    account: true
+                                }
+                            },
+                            journal_reverse: true,
+                        },
+                    }
+                },
+            }, 
+            payable_receivables_detail: true,
+            journal_reverse_detail: true,
         }
         super('report_Journals', db, relations);
     }

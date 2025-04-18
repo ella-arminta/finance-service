@@ -1340,7 +1340,7 @@ export class TransactionService extends BaseService<Trans> {
     transDetailsFormated.push({
       account_id: inventoryAccount.account_id,
       amount: Math.abs(parseFloat(data.buy_price)),
-      detail_description: 'Persediaan Barang Dagang',
+      detail_description: 'Persediaan Barang Dagang' + ' ' + data.product.name + ' ' + data.barcode,
       cash_bank: false
     })
     // PPN Masukan                 (D)
@@ -1349,7 +1349,7 @@ export class TransactionService extends BaseService<Trans> {
       transDetailsFormated.push({
         account_id: taxAccount.account_id,
         amount: Math.abs(parseFloat(data.tax_purchase)),
-        detail_description: 'PPN Masukan',
+        detail_description: 'PPN Masukan' + ' ' + data.product.name + ' ' + data.barcode,
         cash_bank: false,
       })
     }
@@ -1362,7 +1362,7 @@ export class TransactionService extends BaseService<Trans> {
     transDetailsFormated.push({
       account_id: kasBankAccount.id,
       amount: (Math.abs(parseFloat(data.tax_purchase)) + Math.abs(parseFloat(data.buy_price))) * -1,
-      detail_description: 'Pembelian ' + data.product.name,
+      detail_description: 'Pembelian ' + data.product.name + ' ' + data.barcode,
       cash_bank: true,
     })
 

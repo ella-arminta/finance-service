@@ -280,8 +280,8 @@ model Trans_Account_Settings {
 model Report_Journals {
   id String @id @db.Uuid @default(uuid())
   trans_id String? @db.Uuid  // uang keluar / masuk
-  trans_serv_id String? @db.Uuid // dari transaction service
-    // Kalau product created-> trans_serv_id = product_code_id GANTI JADI trans_serv_id = report_stock.id, 
+  trans_serv_id String @db.Uuid // dari transaction service
+    // Kalau product created / Purchase From Supplier-> (Hubungan report_journals.trans_serv_id = report_stocks.product_code_id). TODOELLA : GANTI JADI trans_serv_id = report_stock.id.
     // kalau sales dll -> trans_serv_id = trans_id, 
     // stock out-> trans_serv_id = product_code_id
     // Stock opname -> trans_serv_id = stock_opname_id
@@ -308,7 +308,11 @@ model Report_Journals {
   trans Trans? @relation(fields: [trans_id], references: [id])
   trans_type Trans_Type @relation(fields: [trans_type_id], references: [id])
   account Accounts @relation(fields: [account_id], references: [id])
-  @@index([code, store_id, trans_id, account_id, trans_date, trans_type_id])
+
+  payable_receivables Payable_Receivables?
+  payable_receivables_detail Payable_Receivables_Detail? @relation("DetailReportJournal")
+  journal_reverse_detail Payable_Receivables_Detail? @relation("DetailReportJournalReverse")
+  @@index([code, store_id, trans_id,trans_serv_id, account_id, trans_date, trans_type_id])
 }
 
 model Stock_Source {
@@ -374,35 +378,80 @@ model Operations {
 }
 
 // Hutang
-model Report_Payable {
+// model Report_Payable {
+//   id String @id @db.Uuid @default(uuid())
+//   store_id String @db.Uuid
+//   created_at DateTime @default(now())
+//   record_type String  // Nota beli / Nota bayar beli
+//   trans_code String
+//   trans_date DateTime
+//   due_date DateTime
+//   amount Decimal
+//   payment_id String? @db.Uuid
+//   payment_code String?
+//   payment_date DateTime?
+//   payment_amount Decimal?
+// }
+
+// // Piutang
+// model Report_Receivable {
+//   id String @id @db.Uuid @default(uuid())
+//   store_id String @db.Uuid
+//   created_at DateTime @default(now())
+//   record_type String  // Nota beli / nota bayar
+//   trans_code String
+//   trans_date DateTime
+//   due_date DateTime
+//   amount Decimal
+//   payment_id String? @db.Uuid
+//   payment_code String?
+//   payment_date DateTime?
+//   payment_amount Decimal?
+// }
+
+model Payable_Receivables {
   id String @id @db.Uuid @default(uuid())
-  store_id String @db.Uuid
+  report_journal_id String @db.Uuid @unique
+  due_date DateTime?
+  amount_paid Decimal?
+  type Int // 1 = Hutang, 2 = Piutang
+  status Int @default(0) // 0 = Belum Lunas, 1 = Lunas
   created_at DateTime @default(now())
-  record_type String  // Nota beli / Nota bayar beli
-  trans_code String
-  trans_date DateTime
-  due_date DateTime
-  amount Decimal
-  payment_id String? @db.Uuid
-  payment_code String?
-  payment_date DateTime?
-  payment_amount Decimal?
+  updated_at DateTime? @updatedAt
+  created_by String? @db.Uuid
+  updated_by String? @db.Uuid
+
+  // realtion
+  report_journal Report_Journals @relation(fields: [report_journal_id], references: [id])
+  reminder_payable_receivables Reminder_Payable_Receivables[]
+  payable_receivables_detail Payable_Receivables_Detail[]
 }
 
-// Piutang
-model Report_Receivable {
+model Payable_Receivables_Detail {
   id String @id @db.Uuid @default(uuid())
-  store_id String @db.Uuid
+  payable_receivable_id String @db.Uuid
+  report_journal_id String @db.Uuid @unique
+  journal_reverse_id String @db.Uuid @unique
   created_at DateTime @default(now())
-  record_type String  // Nota beli / nota bayar
-  trans_code String
-  trans_date DateTime
-  due_date DateTime
-  amount Decimal
-  payment_id String? @db.Uuid
-  payment_code String?
-  payment_date DateTime?
-  payment_amount Decimal?
+  created_by String @db.Uuid
+  updated_at DateTime @updatedAt
+
+  // relation
+  report_journal Report_Journals @relation("DetailReportJournal", fields: [report_journal_id], references: [id])
+  journal_reverse Report_Journals @relation("DetailReportJournalReverse", fields: [journal_reverse_id], references: [id])
+  payable_receivable Payable_Receivables @relation(fields: [payable_receivable_id], references: [id])
+}
+
+model Reminder_Payable_Receivables {
+  id String @id @db.Uuid @default(uuid())
+  payable_receivable_id String @db.Uuid
+  interval Int?
+  period String? // day/week/month/year
+  date_remind DateTime?
+  emails String[]
+  
+  // relation
+  payable_receivable Payable_Receivables @relation(fields: [payable_receivable_id], references: [id])
 }
 
 // Model for storing failed RabbitMQ message

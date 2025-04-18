@@ -31,7 +31,12 @@ export class AccountValidation {
   readonly FILTERS: ZodType = z.object({
     code: z.number().int().optional().nullable(),
     name: z.string().min(1).max(255).optional().nullable(),
-    account_type_id: z.number().int().optional().nullable(),
+    account_type_id: z.union([
+      z.number().int(),
+      z.object({
+        in: z.array(z.number().int()),
+      }),
+    ]).optional().nullable(),
     description: z.string().optional().nullable(),
     store_id: z.string().uuid().optional().nullable(),
     company_id: z.any().optional().nullable(),
@@ -39,6 +44,8 @@ export class AccountValidation {
     OR: z.array(z.any()).optional().nullable(),
     company: z.any().optional().nullable(),
   });
+  
+  
 
   readonly UPDATE: ZodType = z.object({
     code: z.number().int().min(1).optional(),

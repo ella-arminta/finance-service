@@ -153,7 +153,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         const MappedData = {
             store_id: validData.product.store.id,
             source_id: source.id,
-            trans_id: null,
+            trans_id: data.id,
             trans_date: validData.created_at,
             category_id: validData.product.type.category_id,
             category_code: validData.product.type.category.code,

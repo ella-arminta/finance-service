@@ -23,6 +23,7 @@ import { TransAccountSettingsModule } from './trans-account-settings/trans-accou
 import { ReportStocksModule } from './report-stocks/report-stocks.module';
 import { OperationModule } from './operation/operation.module';
 import { ActionAccountSettingModule } from './action-account-setting/action-account-setting.module';
+import { PayableReceivableModule } from './payable-receivable/payable-receivable.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ActionAccountSettingModule } from './action-account-setting/action-acco
     ReportStocksModule,
     OperationModule,
     ActionAccountSettingModule,
+    PayableReceivableModule,
   ],
   controllers: [AppController],
   providers: [AppService, MessagePatternDiscoveryService],
