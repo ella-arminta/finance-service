@@ -8,7 +8,8 @@ import { AccountsService } from 'src/accounts/accounts.service';
 import { ResponseDto } from 'src/common/response.dto';
 import { CompaniesService } from 'src/companies/companies.service';
 import { CompanyValidation } from 'src/companies/companies.validation';
-import { RmqAckHelper } from 'src/helper/rmq-ack.helper';
+import { DatabaseService } from 'src/database/database.service';
+import { RmqHelper } from 'src/helper/rmq.helper';
 
 @Controller()
 export class StoresController {
@@ -19,13 +20,15 @@ export class StoresController {
     private readonly storeValidation: StoreValidation,
     private readonly companyService: CompaniesService,
     private readonly companyValidation: CompanyValidation,
-    @Inject('MASTER') private readonly masterClient: ClientProxy
+    @Inject('MASTER') private readonly masterClient: ClientProxy,
+    private readonly db: DatabaseService,
   ) {}
 
-  @EventPattern({ cmd: 'store_created' })
+  @EventPattern('store.created')
   @Exempt()  
   async create(@Payload() data: any , @Ctx() context: RmqContext) {
     console.log('store created emit received:', data);
+
     const sanitizedData = {
       ...data,
       created_at: new Date(data.created_at),
@@ -33,7 +36,7 @@ export class StoresController {
       deleted_at: data.deleted_at ? new Date(data.deleted_at) : null,
     }
 
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         let validatedData = await this.validationService.validate(this.storeValidation.CREATE, sanitizedData);
@@ -46,17 +49,19 @@ export class StoresController {
         }      
       },
       {
-        queueName: 'store_created',
+        queueName: 'store.created',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.store_created',
+        dlqRoutingKey: 'dlq.store.created',
+        prisma: this.db,
       },
     )();
   }
 
-  @EventPattern({ cmd: 'store_updated' })
+  @EventPattern('store.updated')
   @Exempt()  
   async update(@Payload() data: any , @Ctx() context: RmqContext) {
     console.log('store updated emit received:', data);
+    data = data.data;
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
 
@@ -67,7 +72,7 @@ export class StoresController {
       deleted_at: data.deleted_at ? new Date(data.deleted_at) : null,
     }
 
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         let validatedData = await this.validationService.validate(this.storeValidation.UPDATE, sanitizedData);
@@ -78,30 +83,33 @@ export class StoresController {
         }
       },
       {
-        queueName: 'store_updated',
+        queueName: 'store.updated',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.store_updated',
+        dlqRoutingKey: 'dlq.store.updated',
+        prisma: this.db,
       },
     )();
   }
 
-  @EventPattern({cmd:'store_deleted'})
+  @EventPattern('store.deleted')
   @Exempt()
   async remove(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('Store deleted emit received', data);
+    data = data.data;
 
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        const deletedData = await this.storesService.delete(data.id);
+        const deletedData = await this.storesService.delete(data);
         if (deletedData) {
           console.log('store deleted successfully acked:', deletedData);
         }
       },
       {
-        queueName: 'store_deleted',
+        queueName: 'store.deleted',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.store_deleted',
+        dlqRoutingKey: 'dlq.store.deleted',
+        prisma: this.db,
       },
     )();
   }
@@ -145,7 +153,7 @@ export class StoresController {
   @EventPattern({ cmd: 'store_sync' })
   @Exempt()
   async storeSync(@Payload() data: any, @Ctx() context: RmqContext) {
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         console.log('store sync data',data.data);

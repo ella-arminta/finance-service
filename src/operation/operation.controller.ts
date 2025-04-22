@@ -5,7 +5,8 @@ import { Exempt } from 'src/decorator/exempt.decorator';
 import { ValidationService } from 'src/common/validation.service';
 import { OperationValidation } from './operation.validation';
 import { ResponseDto } from 'src/common/response.dto';
-import { RmqAckHelper } from 'src/helper/rmq-ack.helper';
+import { DatabaseService } from 'src/database/database.service';
+import { RmqHelper } from 'src/helper/rmq.helper';
 
 @Controller()
 export class OperationController {
@@ -13,14 +14,16 @@ export class OperationController {
     private readonly operationService: OperationService,
     private readonly validationService: ValidationService,
     private readonly operationValidation: OperationValidation,
+    private readonly db: DatabaseService
   ) {}
 
-  @EventPattern({ cmd: 'operation_created' })
+  @EventPattern('operation.created')
   @Exempt()
   async operationCreated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('operation data created', data);
+    data = data.data;
 
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         const validatedData = await this.validationService.validate(this.operationValidation.CREATE, data);
@@ -28,18 +31,21 @@ export class OperationController {
         return { success: !!newdata }; // Ensures success is always returned
       },
       {
-        queueName: 'operation_created',
+        queueName: 'operation.created',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_created',
+        dlqRoutingKey: 'dlq.operation.created',
+        prisma: this.db,
       },
     )();
   }
 
-  @EventPattern({ cmd: 'operation_updated' })
+  @EventPattern('operation.updated')
   @Exempt()
   async operationUpdated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('operation data updated', data);
-    await RmqAckHelper.handleMessageProcessing(
+    data = data.data;
+
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         const validatedData = await this.validationService.validate(this.operationValidation.UPDATE, data);
@@ -47,27 +53,31 @@ export class OperationController {
         return { success: !!updatedata }; // Ensures success is always returned
       },
       {
-        queueName: 'operation_updated',
+        queueName: 'operation.updated',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_updated',
+        dlqRoutingKey: 'dlq.operation.updated',
+        prisma: this.db,
       },
     )();
   }
 
-  @EventPattern({ cmd: 'operation_deleted' })
+  @EventPattern('operation.deleted')
   @Exempt()
   async operationDeleted(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('operation data deleted', data);
-    await RmqAckHelper.handleMessageProcessing(
+    data = data.data;
+    
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         const deletedData = await this.operationService.delete(data);
         return { success: !!deletedData }; // Ensures success is always returned
       },
       {
-        queueName: 'operation_deleted',
+        queueName: 'operation.deleted',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_deleted',
+        dlqRoutingKey: 'dlq.operation.deleted',
+        prisma: this.db,
       },
     )();
   }

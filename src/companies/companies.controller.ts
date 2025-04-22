@@ -1,14 +1,12 @@
 import { Controller, Inject } from '@nestjs/common';
 import { ClientProxy, Ctx, EventPattern, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import { CompaniesService } from './companies.service';
-import { Prisma } from '@prisma/client';
 import { ValidationService } from 'src/common/validation.service';
 import { CompanyValidation } from './companies.validation';
-import { response } from 'express';
-import { ResponseDto } from 'src/common/response.dto';
 import { Exempt } from 'src/decorator/exempt.decorator';
 import { AccountsService } from 'src/accounts/accounts.service';
-import { RmqAckHelper } from 'src/helper/rmq-ack.helper';
+import { DatabaseService } from 'src/database/database.service';
+import { RmqHelper } from 'src/helper/rmq.helper';
 
 @Controller('companies')
 export class CompaniesController {
@@ -17,13 +15,14 @@ export class CompaniesController {
     private validationService: ValidationService,
     private readonly accountService: AccountsService,
     private readonly companyValidation: CompanyValidation,
-    @Inject('MASTER') private readonly masterClient: ClientProxy
+    private readonly db : DatabaseService
   ) {}
 
-  @EventPattern({ cmd: 'company_created' })
+  @EventPattern('company.created')
   @Exempt()  
   async companyCreated(@Payload() data: any , @Ctx() context: RmqContext) {
     console.log('Company created emit received:', data);
+    data = data.data;
 
     const sanitizedData = {
       ...data,
@@ -32,7 +31,7 @@ export class CompaniesController {
       deleted_at: data.deleted_at ? new Date(data.deleted_at) : null,
     }
 
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         let validatedData = await this.validationService.validate(this.companyValidation.CREATE, sanitizedData);
@@ -43,17 +42,19 @@ export class CompaniesController {
         }
       },
       {
-        queueName: 'company_created',
+        queueName: 'company.created',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.company_created',
+        dlqRoutingKey: 'dlq.company.created',
+        prisma: this.db,
       },
     )();
   }
 
-  @EventPattern( {cmd: 'company_updated'})
+  @EventPattern('company.updated')
   @Exempt()
   async update(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('Company updated emit received:', data);
+    data = data.data;
 
     // sanitize data if there is created_at, updated_at, deleted_at
     const sanitizedData = {
@@ -63,7 +64,7 @@ export class CompaniesController {
       deleted_at: data.deleted_at ? new Date(data.deleted_at) : null,
     }
 
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         let validatedData = await this.validationService.validate(this.companyValidation.UPDATE, sanitizedData);
@@ -73,19 +74,21 @@ export class CompaniesController {
         }
       },
       {
-        queueName: 'company_updated',
+        queueName: 'company.updated',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.company_updated',
+        dlqRoutingKey: 'dlq.company.updated',
+        prisma: this.db,
       },
     )();
   }
 
-  @EventPattern({cmd:'company_deleted'})
+  @EventPattern('company.deleted')
   @Exempt()
   async remove(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('Company deleted emit received', data);
+    data = data.data;
 
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         const deletedData = await this.companiesService.delete(data);
@@ -94,9 +97,10 @@ export class CompaniesController {
         }
       },
       {
-        queueName: 'company_deleted',
+        queueName: 'company.deleted',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.company_deleted',
+        dlqRoutingKey: 'dlq.company.deleted',
+        prisma: this.db,
       },
     )();
   }
@@ -104,7 +108,7 @@ export class CompaniesController {
   @EventPattern({ cmd: 'company_sync' })
   @Exempt()
   async companySync(@Payload() data: any, @Ctx() context: RmqContext) {
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         console.log('company sync data',data.data);
