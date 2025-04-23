@@ -8,6 +8,7 @@ import { ClientProxy, MessagePattern, Payload } from '@nestjs/microservices';
 import { Describe } from '../decorator/describe.decorator';
 import { StoresService } from 'src/stores/stores.service';
 import { Client } from '@nestjs/microservices/external/nats-client.interface';
+import { RmqHelper } from 'src/helper/rmq.helper';
 
 @Controller('accounts')
 export class AccountsController {
@@ -62,6 +63,12 @@ export class AccountsController {
     }
 
     newdata = await this.accountsService.create(newdata);
+    if (newdata) {
+      RmqHelper.publishEvent('account.created', {
+        data: newdata,
+        user: data.params.user.id,
+      });
+    }
     return ResponseDto.success('Data Created!', newdata, 201);
   }
 
@@ -112,6 +119,7 @@ export class AccountsController {
       }
     }
     filters = await this.validationService.validate(this.accountValidation.FILTERS, filters);
+    console.log('filters get account', filters);
     const dataResult = await this.accountsService.findAll(filters);
     return ResponseDto.success('Data Found!', dataResult, 200);
   }
@@ -174,6 +182,12 @@ export class AccountsController {
       }
     }
     var updatedData = await this.accountsService.update(param.id, validatedData);
+    if (updatedData) {
+      RmqHelper.publishEvent('account.updated', {
+        data: updatedData,
+        user: data.params.user.id,
+      });
+    }
     return ResponseDto.success('Data Updated!', updatedData, 201);
   }
 
@@ -187,6 +201,13 @@ export class AccountsController {
     const deletedData = await this.accountsService.delete(param.id);
     if (!deletedData) {
       return ResponseDto.error('Data not found!', null, 404);
+    }
+
+    if (deletedData) {
+      RmqHelper.publishEvent('account.deleted', {
+        data: deletedData.id,
+        user: param.user.id,
+      });
     }
 
     return ResponseDto.success('Data Deleted!', deletedData, 200);

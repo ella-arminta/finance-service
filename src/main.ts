@@ -40,16 +40,16 @@ async function bootstrap() {
   const routingKeys = [
     'company.*',
     'operation.*',
-    'product_code.deleted',
-    'product_code.generated',
+    'product.code.deleted',
+    'product.code.created',
     'store.*',
-    'transaction.approved', // setting jadi approve disapprove doang
-    'transaction.disapproved',
-    'stock_out',
-    'unstock_out',
-    'stock_repaired',
-    'stock_opname.approved',
-    'stock_opname.disapproved',
+    'transaction.approved', // blm setting jadi approve disapprove doang
+    'transaction.disapproved', // blm
+    'stock.out',
+    'stock.unstock.out',
+    'stock.repaired',
+    'stock.opname.approved',
+    'stock.opname.disapproved',
   ];
   await RmqHelper.setupSubscriptionQueue(queueName, routingKeys);
 

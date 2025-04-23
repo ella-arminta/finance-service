@@ -5,6 +5,7 @@ import { connect } from 'http2';
 import { BaseService } from 'src/common/base.service';
 import { CompaniesService } from 'src/companies/companies.service';
 import { DatabaseService } from 'src/database/database.service';
+import { RmqHelper } from 'src/helper/rmq.helper';
 import { StoresService } from 'src/stores/stores.service';
 
 @Injectable()
@@ -208,10 +209,6 @@ export class AccountsService extends BaseService<Accounts> {
       include: this.relations
     });
 
-    if (newdata) {
-      this.transClient.emit({ cmd: 'account_created' }, newdata);
-      this.inventoryClient.emit({ cmd: 'account_created' }, newdata);
-    }
     return newdata;
   }
 
@@ -233,19 +230,11 @@ export class AccountsService extends BaseService<Accounts> {
       });
     }
 
-    if (deletedData) {
-      this.transClient.emit({ cmd: 'account_deleted' }, deletedData.id);
-      this.inventoryClient.emit({ cmd: 'account_deleted' }, deletedData.id);
-    }
     return deletedData;
   }
 
   async update(id: any, data: Prisma.AccountsUpdateInput) {
     const updatedData = await this.db.accounts.update({ where: { id }, data });
-    if (updatedData) {
-      this.transClient.emit({ cmd: 'account_updated' }, updatedData);
-      this.inventoryClient.emit({ cmd: 'account_updated' }, updatedData);
-    }
     return updatedData;
   }
 }

@@ -2,22 +2,16 @@ import { Controller } from '@nestjs/common';
 import { ReportStocksService } from './report-stocks.service';
 import { Ctx, EventPattern, MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import { Exempt } from 'src/decorator/exempt.decorator';
-import { ReportStockValidation } from './report-stocks.validation';
-import { ValidationService } from 'src/common/validation.service';
-import { LoggerService } from 'src/common/logger.service';
-import { StockSourceService } from './stock-source.service';
 import { ResponseDto } from 'src/common/response.dto';
 import { Describe } from 'src/decorator/describe.decorator';
-import { RmqAckHelper } from 'src/helper/rmq-ack.helper';
+import { RmqHelper } from 'src/helper/rmq.helper';
+import { DatabaseService } from 'src/database/database.service';
 
 @Controller()
 export class ReportStocksController {
   constructor(
     private readonly reportStocksService: ReportStocksService,
-    private readonly validationService: ValidationService,
-    private readonly reportStockValidation: ReportStockValidation,
-    private readonly stockSourceService: StockSourceService,
-    private readonly loggerService: LoggerService,
+    private readonly db: DatabaseService, 
   ) { }
 
   @MessagePattern({ cmd: 'get:stock-card' })
@@ -93,18 +87,21 @@ export class ReportStocksController {
     return this.reportStocksService.getStockMutation(body);
   }
 
-  @EventPattern({ cmd: 'product_code_deleted' })
+  @EventPattern('product.code.deleted')
   @Exempt()
   async handleProductCodeCreated(@Payload() data: any, @Ctx() context: RmqContext) {
-    await RmqAckHelper.handleMessageProcessing(
+    console.log('handleProductCodeCreated', data);
+    data = data.data;
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         this.reportStocksService.handleProductCodeDeleted(data);
       },
       {
-        queueName: 'operation_deleted',
+        queueName: 'product.code.deleted',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_deleted',
+        dlqRoutingKey: 'dlq.product.code.deleted',
+        prisma: this.db,
       },
     )();
   }

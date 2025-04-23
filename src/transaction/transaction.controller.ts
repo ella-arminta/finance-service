@@ -13,6 +13,7 @@ import { LoggerService } from 'src/common/logger.service';
 import { ReportService } from 'src/report-journals/report-journals.service';
 import { ReportStocksService } from 'src/report-stocks/report-stocks.service';
 import { RmqAckHelper } from 'src/helper/rmq-ack.helper';
+import { RmqHelper } from 'src/helper/rmq.helper';
 
 @Controller()
 export class TransactionController {
@@ -412,10 +413,11 @@ export class TransactionController {
   }
   
   // PURCHASE GOODS
-  @EventPattern({ cmd: 'product_code_generated' })
+  @EventPattern('product.code.created')
   @Exempt()
   async handleProductCodeCreated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('generated product', data);
+    data = data.data;
     // generated product {
     //   id: 'c17ada64-7847-4995-98b4-bcbcd038183f',
     //   barcode: 'UUAAS0020100090006',
@@ -478,7 +480,7 @@ export class TransactionController {
     //   transref_id: 'e965b699-fa70-46ab-934b-0a0482d99464' // transactionProduct.id
     // }
 
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         // Product Code generated for Trade or Purchase
@@ -498,9 +500,10 @@ export class TransactionController {
         }
       },
       {
-        queueName: 'operation_deleted',
+        queueName: 'product.code.created',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_deleted',
+        dlqRoutingKey: 'dlq.product.code.created',
+        prisma: this.transactionService.db
       },
     )();
   }
@@ -508,82 +511,92 @@ export class TransactionController {
   // PURCHASE FROM CUSTOMER
   // TRADE TRANS
 
-  @EventPattern({ cmd: 'stock_out'})
+  @EventPattern('stock.out')
   @Exempt()
   async handleStockOut(@Payload() data: any, @Ctx() context: RmqContext) {
-    await RmqAckHelper.handleMessageProcessing(
+    data = data.data;
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        this.transactionService.handleStockOut(data);
+        await this.transactionService.handleStockOut(data);
       },
       {
-        queueName: 'operation_deleted',
+        queueName: 'stock.out',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_deleted',
+        dlqRoutingKey: 'dlq.stock.out',
+        prisma: this.transactionService.db,
       },
     )();
   }
 
-  @EventPattern({ cmd: 'unstock_out' })
+  @EventPattern('stock.unstock.out')
   @Exempt()
   async handleUnstockOut(@Payload() data: any, @Ctx() context: RmqContext) {
-    await RmqAckHelper.handleMessageProcessing(
+    data = data.data;
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        this.transactionService.handleUnstockOut(data);
+        await this.transactionService.handleUnstockOut(data);
       },
       {
-        queueName: 'operation_deleted',
+        queueName: 'stock.unstock.out',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_deleted',
+        dlqRoutingKey: 'dlq.stock.unstock.out',
+        prisma: this.transactionService.db,
       },
     )();
   }
 
-  @EventPattern({ cmd: 'stock_repaired'})
+  @EventPattern('stock.repaired')
   @Exempt()
   async handleStockRepaired(@Payload() data: any, @Ctx() context: RmqContext) {
-    await RmqAckHelper.handleMessageProcessing(
+    data = data.data;
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        this.transactionService.handleStockRepaired(data);
+        await this.transactionService.handleStockRepaired(data);
       },
       {
-        queueName: 'operation_deleted',
+        queueName: 'stock.repaired',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_deleted',
+        dlqRoutingKey: 'dlq.stock.repaired',
+        prisma: this.transactionService.db,
       },
     )();
   }
 
-  @EventPattern({ cmd: 'stock_opname_approved'})
+  @EventPattern('stock.opname.approved')
   @Exempt()
   async handleStockOpnameApproved(@Payload() data: any, @Ctx() context: RmqContext) {
-    await RmqAckHelper.handleMessageProcessing(
+    data = data.data;
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        this.transactionService.handleStockOpnameApproved(data);
+        await this.transactionService.handleStockOpnameApproved(data);
       },
       {
-        queueName: 'operation_deleted',
+        queueName: 'stock.opname.approved',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_deleted',
+        dlqRoutingKey: 'dlq.stock.opname.approved',
+        prisma: this.transactionService.db,
       },
     )();
   }
   
-  @EventPattern({cmd: 'stock_opname_disapproved'})
+  @EventPattern('stock.opname.disapproved')
   @Exempt()
   async handleStockOpnameDisapproved(@Payload() data: any, @Ctx() context: RmqContext) {
-    await RmqAckHelper.handleMessageProcessing(
+    data = data.data;
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        this.transactionService.handleStockOpnameDisapproved(data);
+        await this.transactionService.handleStockOpnameDisapproved(data);
       },
       {
-        queueName: 'operation_deleted',
+        queueName: 'stock.opname.disapproved',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_deleted',
+        dlqRoutingKey: 'dlq.stock.opname.disapproved',
+        prisma: this.transactionService.db
       },
     )();
   }

@@ -159,6 +159,7 @@ export class JournalsService{
                 rj.code as code,
                 a.name as account,
                 tt.name as label,
+                rj.description as description,
                 CASE WHEN rj.amount > 0 THEN rj.amount ELSE 0 END AS debit,
                 CASE WHEN rj.amount < 0 THEN rj.amount ELSE 0 END AS credit
             FROM "Report_Journals" rj

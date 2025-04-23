@@ -1381,7 +1381,7 @@ export class TransactionService extends BaseService<Trans> {
             store_id: store.id,
             trans_date: data.created_at,
             trans_type_id: transType.id,
-            description: 'Pembelian ' + data.product.name,
+            description: 'Pembelian ' + data.product.name + ' ' + data.barcode,
             account_id: row.account_id,
             amount: row.amount,
             detail_description: row.detail_description,
@@ -1443,6 +1443,7 @@ export class TransactionService extends BaseService<Trans> {
   }
 
   async handleStockOut(data: any) {
+    console.log('handleStockOut', data);
     // handlestockout data {
     //     productCode: {
     //       id: '4e5df22e-9616-499d-a78e-322090cc944e',
@@ -1482,7 +1483,11 @@ export class TransactionService extends BaseService<Trans> {
     // Persediaan dalam Perbaikan    Rp 1.000.000  
     //     Cr. Persediaan Barang Dagangan      Rp 1.000.000    
     const reasonDict = { 0: 'none', 1: 'repair', 2: 'lost', 3: 'other' };
-    const { reason, productCode, trans_date } = data;
+    const productCode = data.productCode;
+    const reason = data.reason;
+    const trans_date = data.trans_date;
+    console.log('productCode', productCode);
+    console.log('data', data);
     const store = productCode.product.store;
     
     if (reason === 0) return ResponseDto.success('No action needed.', null, 200);
@@ -1520,7 +1525,7 @@ export class TransactionService extends BaseService<Trans> {
                       store_id: store.id, 
                       trans_date, 
                       trans_type_id: transType.id, 
-                      description: `Barang Keluar ${reasonText}`, 
+                      description: `Barang Keluar ${reasonText}` + ' ' + productCode.barcode, 
                       account_id: selectedAccount.account_id, 
                       amount, 
                       detail_description: `${selectedAccount.account.name} ${store.name}`, 
@@ -1535,7 +1540,7 @@ export class TransactionService extends BaseService<Trans> {
                   store_id: store.id, 
                   trans_date,
                   trans_type_id: transType.id, 
-                  description: `Barang Keluar ${reasonText}`, 
+                  description: `Barang Keluar ${reasonText}` + ' ' + productCode.barcode, 
                   account_id: inventoryAccount.account_id, 
                   amount: amount * -1, 
                   detail_description: `Persediaan ${store.name}`, 
@@ -1557,13 +1562,14 @@ export class TransactionService extends BaseService<Trans> {
 
 
   async handleUnstockOut(data: any) {
+    console.log('handleUnstockOut', data);
     try {
       await this.db.$transaction(async (prisma) => {
-        console.log('ini product_code_id', data.productCode.id);
+        console.log('ini product_code_id', data.id);
         // delete from report journals
         const delReportJournals = await this.db.report_Journals.deleteMany({
           where: {
-            trans_serv_id: data.productCode.id,
+            trans_serv_id: data.id,
             trans_type_id: 6
           }
         });
@@ -1572,8 +1578,8 @@ export class TransactionService extends BaseService<Trans> {
         // delete from report stock
         const stockOut = await this.db.report_Stocks.deleteMany({
           where: {
-            product_code_id: data.productCode.id,
-            source_id:data.productCode.taken_out_reason == 1 ? 6 : 2
+            product_code_id: data.id,
+            source_id:data.taken_out_reason == 1 ? 6 : 2
           }
         });
         console.log('stockout report stock',stockOut);
@@ -1588,7 +1594,11 @@ export class TransactionService extends BaseService<Trans> {
 
   async handleStockRepaired(data: any) {
     console.log('data repaired', data);
-    const {productCode, trans_date, account_id, weight, expense } = data;
+    const productCode = data.productCode;
+    const trans_date = data.trans_date;
+    const account_id = data.account_id;
+    const weight = data.weight;
+    const expense = data.expense;
     console.log(productCode, trans_date, account_id, weight, expense);
     // data repaired {
     //   productCode: {
@@ -1679,7 +1689,7 @@ export class TransactionService extends BaseService<Trans> {
             store_id: productCode.product.store_id, 
             trans_date,
             trans_type_id: transType.id, 
-            description: `Beban Perbaikan`, 
+            description: `Beban Perbaikan` + ' ' + productCode.barcode, 
             account_id: repairExpenseAccount.account_id, 
             amount: amountExpense, 
             detail_description: `Beban Perbaikan ${productCode.product.store.name}`, 
@@ -1692,7 +1702,7 @@ export class TransactionService extends BaseService<Trans> {
             store_id: productCode.product.store_id,
             trans_date, 
             trans_type_id: transType.id,
-            description: 'Pembayaran biaya perbaikain',
+            description: 'Pembayaran biaya perbaikain' + ' ' + productCode.barcode,
             account_id: kasAccount.id,
             amount: amountExpense * -1,
             detail_description: 'Pembayaran biaya perbaikan',
@@ -1705,7 +1715,7 @@ export class TransactionService extends BaseService<Trans> {
             store_id: productCode.product.store_id,
             trans_date,
             trans_type_id: transType.id,
-            description: `Masuk persediaan stok habis diperbaiki`,
+            description: `Masuk persediaan stok habis diperbaiki` + ' ' + productCode.barcode,
             account_id: inventoryAccount.account_id,
             amount: Math.abs(hargaBeliAkhir),
             detail_description: 'Masuk persediaan stok habis diperbaiki',
@@ -1719,7 +1729,7 @@ export class TransactionService extends BaseService<Trans> {
               store_id: productCode.product.store_id,
               trans_date,
               trans_type_id: transType.id,
-              description: 'Penyesuaian Persediaan akibat reparasi',
+              description: 'Penyesuaian Persediaan akibat reparasi' + ' ' + productCode.barcode,
               account_id: kerugianPenyusutanEmas !== 0 
                 ? repairDeprecAccount.account_id 
                 : stockAdjAccount.account_id,
@@ -1739,7 +1749,7 @@ export class TransactionService extends BaseService<Trans> {
             store_id: productCode.product.store_id,
             trans_date,
             trans_type_id: transType.id,
-            description: 'Persediaan dalam perbaikan dikeluarkan, barang telah direparasi',
+            description: 'Persediaan dalam perbaikan dikeluarkan, barang telah direparasi' + ' ' + productCode.barcode,
             account_id: repairInventoryAccount.account_id,
             amount: Math.abs(hargaBeliAwal) * -1,
             detail_description: 'Persediaan dalam perbaikan dikeluarkan, barang telah direparasi',
@@ -1850,7 +1860,7 @@ export class TransactionService extends BaseService<Trans> {
               store_id: productCode.product.store_id,
               trans_date: data.trans_date,
               trans_type_id: transType.id,
-              description: `Barang Keluar ${reason} setelah opname stock tgl. ${new Date(data.trans_date).toLocaleDateString('id-ID')}`,
+              description: `Barang Keluar ${reason} setelah opname stock tgl. ${new Date(data.trans_date).toLocaleDateString('id-ID')} ${productCode.barcode}`,
               account_id: inventoryAccount.account_id,
               amount: Math.abs(parseFloat(productCode.buy_price)) * -1,
               detail_description: 'Persediaan Barang Dagang ' + productCode.product.store.name,

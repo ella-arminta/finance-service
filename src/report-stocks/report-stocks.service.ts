@@ -187,7 +187,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     rs.product_id,
                     rs.trans_code,
                     rs.price,
-                    rs.created_at AS date,
+                    rs.trans_date AS date,
                     rs.product_code_code AS code,
                     rs.product_name AS name,
                     ss.name AS description,
@@ -493,7 +493,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         //   },
         //   errors: null
         // }
-        var productCode = data.data;
+        var productCode = data;
 
         await this.db.$transaction(async (prisma) => {
             const fetchPrevReportStock = await prisma.report_Stocks.findMany({
