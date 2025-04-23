@@ -28,7 +28,8 @@ export class StoresController {
   @Exempt()  
   async create(@Payload() data: any , @Ctx() context: RmqContext) {
     console.log('store created emit received:', data);
-
+    data = data.data;
+    
     const sanitizedData = {
       ...data,
       created_at: new Date(data.created_at),
