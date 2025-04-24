@@ -59,9 +59,13 @@ export class TaskScheduleService {
         
                     // Cek jika pecahan adalah 1 gram
                     if (pecahan === '1.0 Gram') {
-                        hargaBeli = hargaBeli.replace('Rp. ', '').replace(',', '.');
-                        hargaJual = hargaJual.replace('Rp. ', '').replace(',', '.');
-            
+                        hargaBeli = hargaBeli.replace('Rp. ', '').replace(/,/g, '');
+                        hargaJual = hargaJual.replace('Rp. ', '').replace(/,/g, '');
+
+
+        
+                        console.log('hargaBeli', hargaBeli);
+                        console.log('hargaJual', hargaJual);
                         harga.sellPrice = hargaBeli;
                         harga.buyPrice = hargaJual;
                     }
@@ -144,6 +148,12 @@ export class TaskScheduleService {
     // }
 
     async getGoldPrice(filter: any = {}) {
+        if (filter.end_date) {
+            const endDate = new Date(filter.end_date);
+            endDate.setHours(23, 59, 59, 999); // Set waktu ke 23:59:59.999
+            filter.end_date = endDate; // Assign kembali ke filter.end_date
+        }
+        
         return this.db.goldPrice.findMany({
             where: {
                 created_at: {
