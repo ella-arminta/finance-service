@@ -9,7 +9,7 @@ async function bootstrap() {
     AppModule,
     {
       transport: Transport.TCP,
-      options: { port: 3002 }, // Unique port for this TCP service
+      options: { port: 3003 }, // Unique port for this TCP service
     },
   );
 
