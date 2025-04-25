@@ -265,6 +265,10 @@ export class TransactionValidation {
       .union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
       .refine((val) => !isNaN(val), { message: "Invalid tax_price" }),
+    tax_percent: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+      .refine((val) => !isNaN(val), { message: "Invalid tax_percent" }),
     transaction_operations: z.array(
       z.object({
         operation_id: z.string().uuid().optional().nullable(),

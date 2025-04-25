@@ -6,13 +6,10 @@ import { ValidationService } from 'src/common/validation.service';
 import { TransactionValidation } from './transaction.validaton';
 import { ResponseDto } from 'src/common/response.dto';
 import { TransTypeService } from 'src/trans-type/trans-type.service';
-import { validate } from 'class-validator';
-import { filter } from 'rxjs';
 import { Exempt } from 'src/decorator/exempt.decorator';
 import { LoggerService } from 'src/common/logger.service';
 import { ReportService } from 'src/report-journals/report-journals.service';
 import { ReportStocksService } from 'src/report-stocks/report-stocks.service';
-import { RmqAckHelper } from 'src/helper/rmq-ack.helper';
 import { RmqHelper } from 'src/helper/rmq.helper';
 
 @Controller()
@@ -339,13 +336,13 @@ export class TransactionController {
     return ResponseDto.success('Data Deleted!', {}, 200);
   }
 
-  @EventPattern({ cmd: 'transaction_approved' })
+  @EventPattern('transaction.finance.approved')
   @Exempt()  
   async createTrans(@Payload() data: any, @Ctx() context: RmqContext) {
-    let newdata = data.data;
+    let newdata = data.data.data;
     console.log('create transaction data',newdata)
     // SALES Trans
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
          // SALES
@@ -375,21 +372,22 @@ export class TransactionController {
         return ResponseDto.error('Transaction Type Not Found!', null, 400);
       },
       {
-        queueName: 'operation_deleted',
+        queueName: 'transaction.finance.approved',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_deleted',
+        dlqRoutingKey: 'dlq.transaction.finance.approved',
+        prisma: this.transactionService.db
       },
     )();
   }
 
-  @EventPattern({ cmd: 'transaction_disapproved' })
+  @EventPattern('transaction.finance.disapproved')
   @Exempt()
   async deleteTrans(@Payload() data: any, @Ctx() context: RmqContext) {
-    let deleted_data = data.data;
+    let deleted_data = data.data.data;
     console.log('deleted_data', deleted_data);
 
     // SALES Trans
-    await RmqAckHelper.handleMessageProcessing(
+    await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         // Cancel Report Journal
@@ -405,9 +403,10 @@ export class TransactionController {
         return ResponseDto.success('Transaction Deleted!', {}, 200);
       },
       {
-        queueName: 'operation_deleted',
+        queueName: 'transaction.finance.disapproved',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.operation_deleted',
+        dlqRoutingKey: 'dlq.transaction.finance.disapproved',
+        prisma: this.transactionService.db
       },
     )();
   }

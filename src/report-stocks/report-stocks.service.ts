@@ -186,6 +186,8 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 SELECT
                     rs.product_id,
                     rs.trans_code,
+                    com.name as company,
+                    st.name as store,
                     rs.price,
                     rs.trans_date AS date,
                     rs.product_code_code AS code,
@@ -261,6 +263,8 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 trans_code,
                 date,
                 code,
+                company,
+                store,
                 price,
                 name,
                 description,

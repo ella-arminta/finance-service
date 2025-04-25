@@ -43,8 +43,8 @@ async function bootstrap() {
     'product.code.deleted',
     'product.code.created',
     'store.*',
-    'transaction.approved', // blm setting jadi approve disapprove doang
-    'transaction.disapproved', // blm
+    'transaction.finance.approved', 
+    'transaction.finance.disapproved',
     'stock.out',
     'stock.unstock.out',
     'stock.repaired',
