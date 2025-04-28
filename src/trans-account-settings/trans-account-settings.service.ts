@@ -378,6 +378,7 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 deactive: false,
                 // created_by: data.employee_id
             });
+            console.log('newAccount created', newAccount, 'action', 'pm' + type, 'store_id', data.store_id);
             // Assign
             paymentMethodAccount = await this.db.trans_Account_Settings.create({
                 data: {
