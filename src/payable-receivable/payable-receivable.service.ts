@@ -67,6 +67,7 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
             const now = new Date();
             const orConditions: any[] = [];
             
+            // Paid
             if (statusList.includes(1)) {
                 orConditions.push({
                 payable_receivables: {
@@ -75,6 +76,7 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
                 });
             }
             
+            // On Progress
             if (statusList.includes(2)) {
                 orConditions.push({
                 payable_receivables: {
@@ -87,8 +89,12 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
                         due_date: null,
                     }
                 });
+                orConditions.push({
+                    payable_receivables: null
+                })
             }
             
+            // Overdue
             if (statusList.includes(3)) {
                 orConditions.push({
                 payable_receivables: {
