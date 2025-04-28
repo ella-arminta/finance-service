@@ -133,7 +133,7 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
             },
         })
         // VALIDATION
-        const totalPaid = payableReceivable?.amount_paid.toNumber() ?? 0;
+        const totalPaid = payableReceivable?.amount_paid?.toNumber() ?? 0;
         const totalAmount = Math.abs(reportJournalParent.amount);
         const currentPayment = Math.abs(data.amount_paid);
         if (payableReceivable?.status == 1) {

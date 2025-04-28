@@ -104,6 +104,7 @@ export class PayableReceivableController {
       const createData = await this.payableReceivableService.update( validatedData.report_journal_id , validatedData);
       return createData;
     } catch (error) {
+      console.log(error);
       return ResponseDto.error('Failed to update data', error, 400);
     }
   }
