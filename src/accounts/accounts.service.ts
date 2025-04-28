@@ -209,6 +209,13 @@ export class AccountsService extends BaseService<Accounts> {
       include: this.relations
     });
 
+    if (newdata) {
+      RmqHelper.publishEvent('account.created', {
+        data: newdata,
+        user: newdata.created_by,
+      });
+    }
+
     return newdata;
   }
 
