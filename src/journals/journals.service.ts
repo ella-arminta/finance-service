@@ -158,6 +158,7 @@ export class JournalsService{
                 rj.trans_date as date, 
                 rj.code as code,
                 a.name as account,
+                a.code as account_code,
                 tt.name as label,
                 rj.description as description,
                 CASE WHEN rj.amount > 0 THEN rj.amount ELSE 0 END AS debit,

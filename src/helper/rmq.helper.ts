@@ -55,7 +55,7 @@ export class RmqHelper {
                   queue: options.queueName ?? originalMsg.fields.routingKey,
                   routingKey: originalMsg.fields.routingKey,
                   payload: JSON.parse(originalMsg.content.toString()),
-                  error: error.stack,
+                  error: error?.stack || error?.message || String(error) || 'Unknown error',
                 },
               });
             } catch (dbError) {

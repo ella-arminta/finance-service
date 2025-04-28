@@ -1430,6 +1430,7 @@ export class TransactionService extends BaseService<Trans> {
         product_code_id: data.id,
         category_balance_qty: categoryBalance.category_balance_qty,
         category_balance_gram: categoryBalance.category_balance_gram,
+        trans_date: new Date()
     }
     var reportStocks;
     await this.db.$transaction(async (prisma) => {

@@ -28,6 +28,7 @@ export class AccountsController {
     var newdata = data.body;
 
     newdata = await this.validationService.validate(this.accountValidation.CREATE, newdata);
+    newdata.created_by = data.params.user.id;
 
     // code id unique in company_id
     var codeValidated = await this.accountsService.findAll({ code: newdata.code, company_id: newdata.company_id }, true);
@@ -63,12 +64,6 @@ export class AccountsController {
     }
 
     newdata = await this.accountsService.create(newdata);
-    if (newdata) {
-      RmqHelper.publishEvent('account.created', {
-        data: newdata,
-        user: data.params.user.id,
-      });
-    }
     return ResponseDto.success('Data Created!', newdata, 201);
   }
 
