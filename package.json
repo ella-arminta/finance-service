@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e:watch": "jest --config ./test/jest-e2e.json --watch",
     "seed": "ts-node runSeeder.ts",
+    "seed2": "ts-node prisma/seeder/*.ts",
     "truncate": "node -r ts-node/register src/database/truncateTable.ts",
     "console:sync-database": "nest console SyncDatabaseService"
   },

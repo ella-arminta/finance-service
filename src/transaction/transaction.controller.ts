@@ -346,7 +346,7 @@ export class TransactionController {
       context,
       async () => {
          // SALES
-         if (newdata.transaction_type == 1) {
+        if (newdata.transaction_type == 1) {
           newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
           const result = await this.transactionService.createSales(newdata);
           return ResponseDto.success('Transaction Created!', result, 201);
