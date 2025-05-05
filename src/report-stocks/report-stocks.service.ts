@@ -180,14 +180,71 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
     async getStockCard(filters: any) {
         console.log('filters in getStockCard:', filters);
     
-        // Start building the query
-        let query = `
+        const conditions: string[] = [];
+        const params: any[] = [];
+        let paramIndex = 1;
+        let hasProductId = false;
+    
+        // Optional filter: product_id
+        if (filters.product_id) {
+            hasProductId = true;
+            conditions.push(`rs.product_id = $${paramIndex}::uuid`);
+            params.push(filters.product_id);  // ensure this is a valid UUID string
+            paramIndex++;
+        }
+    
+        // Optional filters
+        if (filters.dateStart) {
+            conditions.push(`rs.created_at >= $${paramIndex}`);
+            params.push(new Date(filters.dateStart));
+            paramIndex++;
+        }
+        if (filters.dateEnd) {
+            conditions.push(`rs.created_at <= $${paramIndex}`);
+            params.push(new Date(filters.dateEnd));
+            paramIndex++;
+        }
+        if (filters.company_id) {
+            conditions.push(`st.company_id = $${paramIndex}::uuid`);
+            params.push(filters.company_id); // ensure this is a valid UUID string
+            paramIndex++;
+        }
+        if (filters.store_id) {
+            conditions.push(`rs.store_id = $${paramIndex}::uuid`);
+            params.push(filters.store_id); // ensure this is a valid UUID string
+            paramIndex++;
+        }
+        if (filters.category_id) {
+            conditions.push(`rs.category_id = $${paramIndex}::uuid`);
+            params.push(filters.category_id); // ensure this is a valid UUID string
+            paramIndex++;
+        }
+        if (filters.type_id) {
+            conditions.push(`rs.type_id = $${paramIndex}::uuid`);
+            params.push(filters.type_id); // ensure this is a valid UUID string
+            paramIndex++;
+        }
+        if (filters.owner_id) {
+            conditions.push(`com.owner_id = $${paramIndex}::uuid`);
+            params.push(filters.owner_id);  // ensure this is a valid UUID string
+            paramIndex++;
+        }
+        if (filters.product_code_code) {
+            conditions.push(`rs.product_code_code = $${paramIndex}`);
+            params.push(filters.product_code_code);
+            paramIndex++;
+        }
+    
+        // Construct WHERE clause
+        const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    
+        const baseCTE = `
             WITH RunningTotals AS (
                 SELECT
                     rs.product_id,
                     rs.trans_code,
-                    com.name as company,
-                    st.name as store,
+                    com.name AS company,
+                    st.name AS store,
                     rs.price,
                     rs.trans_date AS date,
                     rs.product_code_code AS code,
@@ -205,87 +262,103 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 JOIN "Stock_Source" ss ON rs.source_id = ss.id
                 JOIN "Stores" st ON rs.store_id = st.id
                 JOIN "Companies" com ON st.company_id = com.id
+                ${whereClause}
+            )
         `;
     
-        // Dynamic conditions and params for the WHERE clause
-        let conditions: string[] = [];
-        let params: any[] = [];
+        const unionInitialStock = hasProductId
+            ? `
+            SELECT * FROM (
+                SELECT 
+                    rs.product_id AS product_id,
+                    '' AS trans_code,
+                    'Initial Stock' AS company,
+                    'Initial Stock' AS store,
+                    0::numeric AS price,
+                    $2::date AS date,
+                    '' AS code,
+                    'Initial Stock' AS name,
+                    'Initial Stock' AS description,
+                    0::numeric AS "in",
+                    0::numeric AS "out",
+                    COALESCE(SUM(rs.qty), 0) AS balance,
+                    0::numeric AS weight_in,
+                    0::numeric AS weight_out,
+                    COALESCE(SUM(rs.weight), 0) AS balance_weight,
+                    SUM(rs.price) FILTER (WHERE rs.qty > 0)::NUMERIC AS sum_price_qty1,
+                    SUM(rs.weight) FILTER (WHERE rs.qty > 0)::NUMERIC AS sum_weight_qty1,
+                    (SUM(rs.price) FILTER (WHERE rs.qty > 0) / NULLIF(SUM(rs.weight) FILTER (WHERE rs.qty > 0), 0)) AS avg_price_per_weight
+                FROM "Report_Stocks" rs
+                JOIN "Stock_Source" ss ON rs.source_id = ss.id
+                JOIN "Stores" st ON st.id = rs.store_id 
+                JOIN "Companies" com ON com.id = st.company_id 
+                WHERE rs.product_id = $1::uuid AND rs.trans_date < $2
+                GROUP BY rs.product_id
+
+                UNION ALL
+
+                SELECT 
+                    $1::uuid AS product_id,
+                    '' AS trans_code,
+                    'Initial Stock' AS company,
+                    'Initial Stock' AS store,
+                    0::numeric AS price,
+                    $2::date AS date,
+                    '' AS code,
+                    'Initial Stock' AS name,
+                    'Initial Stock' AS description,
+                    0::numeric AS "in",
+                    0::numeric AS "out",
+                    0::numeric AS balance,
+                    0::numeric AS weight_in,
+                    0::numeric AS weight_out,
+                    0::numeric AS balance_weight,
+                    0::numeric AS sum_price_qty1,
+                    0::numeric AS sum_weight_qty1,
+                    NULL AS avg_price_per_weight
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM "Report_Stocks" rs
+                    WHERE rs.product_id = $1::uuid AND rs.trans_date < $2
+                )
+            ) AS initial_stock_data
+            UNION ALL
+            `
+            : '';
+
     
-        if (filters.product_id) {
-            conditions.push(`rs.product_id = $${params.length + 1}::uuid`);
-            params.push(filters.product_id);
-        }
-        if (filters.dateStart) {
-            const dateStart = new Date(filters.dateStart);
-            conditions.push(`rs.created_at >= $${params.length + 1}`);
-            params.push(dateStart);
-        }
-        if (filters.dateEnd) {
-            const dateEnd = new Date(filters.dateEnd);
-            conditions.push(`rs.created_at <= $${params.length + 1}`);
-            params.push(dateEnd);
-        }
-        if (filters.company_id) {
-            const companyId = filters.company_id.replace(/^"|"$/g, '');
-            conditions.push(`st.company_id = $${params.length + 1}::uuid`);
-            params.push(companyId);
-        }
-        if (filters.store_id) {
-            conditions.push(`rs.store_id = $${params.length + 1}::uuid`);
-            params.push(filters.store_id);
-        }
-        if (filters.category_id) {
-            conditions.push(`rs.category_id = $${params.length + 1}::uuid`);
-            params.push(filters.category_id);
-        }
-        if (filters.type_id) {
-            conditions.push(`rs.type_id = $${params.length + 1}::uuid`);
-            params.push(filters.type_id);
-        }
-        if (filters.owner_id) {
-            conditions.push(`com.owner_id = $${params.length + 1}::uuid`);
-            params.push(filters.owner_id);
-        }
-        if (filters.product_code_code) {
-            conditions.push(`rs.product_code_code = $${params.length + 1}`);
-            params.push(filters.product_code_code);
-        }
-    
-        // Adding the WHERE clause if conditions exist
-        if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' AND ');
-        }
-    
-        // Final SELECT statement to fetch data
-        query += `)
-            SELECT 
-                product_id,
-                trans_code,
-                date,
-                code,
-                company,
-                store,
-                price,
-                name,
-                description,
-                "in",
-                "out",
-                balance,
-                weight_in,
-                weight_out,
-                balance_weight,
-                (sum_price_qty1 / NULLIF(sum_weight_qty1, 0)) AS avg_price_per_weight
-            FROM RunningTotals
-            ORDER BY name,date ASC;
+        const finalQuery = `
+            ${baseCTE}
+            SELECT * FROM (
+                ${unionInitialStock}
+                SELECT
+                    product_id,
+                    trans_code,
+                    company,
+                    store,
+                    price,
+                    date,
+                    code,
+                    name,
+                    description,
+                    "in",
+                    "out",
+                    balance,
+                    weight_in,
+                    weight_out,
+                    balance_weight,
+                    sum_price_qty1,
+                    sum_weight_qty1,
+                    (sum_price_qty1 / NULLIF(sum_weight_qty1, 0)) AS avg_price_per_weight
+                FROM RunningTotals
+            ) AS final_result
+            ORDER BY name, date ASC;
         `;
     
-        // Log the final query and parameters for debugging
-        console.log("Final Query:", query);
+        console.log("Final Query:", finalQuery);
         console.log("Parameters:", params);
     
-        // Execute the query and return the result
         try {
-            const result: any = await this.db.$queryRawUnsafe(query, ...params);
+            const result: any = await this.db.$queryRawUnsafe(finalQuery, ...params);
             return ResponseDto.success('Stock Card fetched!', result, 200);
         } catch (error) {
             console.error('Error executing query:', error);
@@ -683,7 +756,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 weight: tempWeight,
                 price: Math.abs(parseFloat(prodCode.total_price)),
                 qty: tempQty,
-                created_at: new Date(prodCode.created_at),
+                created_at: data.created_at,
                 category_balance_qty: categoryBalance.category_balance_qty ?? 0,
                 category_balance_gram: categoryBalance.category_balance_gram ?? 0,
             }

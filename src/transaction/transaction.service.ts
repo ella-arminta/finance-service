@@ -802,6 +802,7 @@ export class TransactionService extends BaseService<Trans> {
 
         // Call handleSoldStock inside the transaction
         if (data.status == 2) {
+          data.created_at = nowtime;
           reportStock = await this.reportStockService.handleSoldStock(data);
         }
       });
@@ -1067,6 +1068,7 @@ export class TransactionService extends BaseService<Trans> {
           // Call handleSoldStock inside the transaction
           data.trans_serv_id = data.id;
           if (data.status == 2) {
+            data.created_at = nowtime;
             reportStock = await this.reportStockService.handlePurchaseStock(data);
           }
         });
