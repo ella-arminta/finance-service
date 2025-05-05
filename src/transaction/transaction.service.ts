@@ -9,6 +9,7 @@ import { ReportStocksService } from 'src/report-stocks/report-stocks.service';
 import { AccountsService } from 'src/accounts/accounts.service';
 import { ValidationService } from 'src/common/validation.service';
 import { TransactionValidation } from './transaction.validaton';
+import { ReportService } from 'src/report-journals/report-journals.service';
 
 @Injectable()
 export class TransactionService extends BaseService<Trans> {
@@ -19,6 +20,7 @@ export class TransactionService extends BaseService<Trans> {
     private readonly accountsService: AccountsService,
     private readonly validateService: ValidationService,
     private readonly transactionValidation: TransactionValidation,
+    private readonly reportJournalsService: ReportService,
   ) {
     const relations = {
       trans_type: true,
@@ -317,6 +319,7 @@ export class TransactionService extends BaseService<Trans> {
               amount: row.amount,
               detail_description: row.description,
               cash_bank: row.kas,
+              created_at: trans.trans_date
             }
           });
 
@@ -473,7 +476,7 @@ export class TransactionService extends BaseService<Trans> {
   }
 
 
-  async createSales(data: any) {
+  async createSales(data: any, formType: 'submit' | 'updated' = 'submit') {
     // REFORMAT TRANSACTION DETAIL
     // Kas / Piutang Usaha     (D)  9.990  
     // Diskon Penjualan        (D)  1.000  
@@ -584,10 +587,21 @@ export class TransactionService extends BaseService<Trans> {
     //     deleted_at: null
     //   }
     // }
+    // Delete previous data if exists (for update transaction)
+    const prevtransaction = await this.db.report_Journals.findMany({
+      where:{
+        trans_serv_id: data.id,
+      }
+    })
+    if (prevtransaction.length > 0) {
+      await this.deleteTrans(data.id);
+    }
+
     const transType = await this.db.trans_Type.findUnique({ where: { code: 'SAL' } });
     const store = await this.db.stores.findUnique({ where: { id: data.store_id }, include: { company: true } });
     var salesEmasTotal = 0;
     var hppTotal = 0;
+    var operationSalesTotal = 0;
     data.store = store;
     var transDetailsFormated = [];
 
@@ -598,24 +612,25 @@ export class TransactionService extends BaseService<Trans> {
 
       transDetailsFormated.push({
         account_id: taxAccount.account_id,
-        account_name: taxAccount.account.name,
         amount: Math.abs(data.tax_price) * -1,
         detail_description: 'Pajak Penjualan',
         cash_bank: false,
-        account_code: taxAccount.account.code
       })
     }
     // Details / Journal Entry
     // Sales Operation
+    const nowtime = new Date();
     for (let det of data.transaction_operations) {
-      transDetailsFormated.push({
-        account_id: det.operation.account_id,
-        account_name: det.operation.account.name,
-        amount: Math.abs(det.total_price) * -1,
-        detail_description: det.name,
-        cash_bank: false,
-        account_code: det.operation.account.code
-      })
+      operationSalesTotal += Math.abs(det.total_price) * -1;
+      if (data.status == 2) { // baru diakui setelah done
+        transDetailsFormated.push({
+          account_id: det.operation.account_id,
+          amount: Math.abs(det.total_price) * -1,
+          detail_description: det.name,
+          cash_bank: false,
+          created_at: formType == 'submit' ? data.created_at : nowtime
+        })
+      }
     }
     // Sales Emas 
     for (let det of data.transaction_products) {
@@ -654,16 +669,64 @@ export class TransactionService extends BaseService<Trans> {
       hppTotal += Math.abs(det.product_code.buy_price);
     };
 
-    // Journal entry sales emas
+    // Journal entry sales emas penjualan
+    const pendapatanDibayarDimukaAccount = await this.transAccountSettingsServ.getDefaultAccount(
+      'pendapatanDimuka', store.id, store.company_id, `Pendapatan Diterima Dimuka ${store.company.name}`, 3, 'Default Akun Pendapatan Diterima Dimuka', null
+    );
     const goldSalesAccount = await this.transAccountSettingsServ.getGoldSalesAccount(data);
-    transDetailsFormated.push({
-      account_id: goldSalesAccount.account_id,
-      account_name: goldSalesAccount.account.name,
-      amount: salesEmasTotal,
-      detail_description: 'Penjualan Emas',
-      cash_bank: false,
-      account_code: goldSalesAccount.account.code
-    })
+    if (formType == 'submit') {
+      if (data.status == 2) {
+        transDetailsFormated.push({
+          account_id: goldSalesAccount.account_id,
+          amount: salesEmasTotal,
+          detail_description: 'Penjualan Emas',
+          cash_bank: false,
+        })
+      }
+      else if (data.status == 1) {
+        transDetailsFormated.push({
+          account_id: pendapatanDibayarDimukaAccount.account_id,
+          amount: salesEmasTotal + operationSalesTotal,  // (sub_price - diskon_price + tax_price)
+          description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
+          cash_bank: true,
+          created_at: data.created_at
+        })
+      }
+    }
+    else  { // update
+      if (data.status == 2) {
+        transDetailsFormated.push({
+          account_id: pendapatanDibayarDimukaAccount.account_id,
+          amount: salesEmasTotal + operationSalesTotal,  // (sub_price - diskon_price + tax_price)
+          description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
+          cash_bank: true,
+          created_at: data.created_at
+        })
+        // Akun dibalik
+        transDetailsFormated.push({
+          account_id: pendapatanDibayarDimukaAccount.account_id,
+          amount: Math.abs(salesEmasTotal + operationSalesTotal),  // (sub_price - diskon_price + tax_price)
+          description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
+          cash_bank: true,
+          created_at: nowtime
+        })
+        transDetailsFormated.push({
+          account_id: goldSalesAccount.account_id,
+          amount: salesEmasTotal,
+          detail_description: 'Penjualan Emas',
+          cash_bank: false,
+          created_at: nowtime
+        })
+      } else if (data.status == 1) {
+        transDetailsFormated.push({
+          account_id: pendapatanDibayarDimukaAccount.account_id,
+          amount: salesEmasTotal + operationSalesTotal,  // (sub_price - diskon_price + tax_price)
+          description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
+          cash_bank: true,
+          created_at: data.created_at
+        })
+      }
+    }
 
     // JOURNAL ENTRY (DEBIT)
     // Diskon Penjualan
@@ -674,65 +737,46 @@ export class TransactionService extends BaseService<Trans> {
     if (diskonTotal > 0) {
       transDetailsFormated.push({
         account_id: discountAccount.account_id,
-        account_name: discountAccount.account.name,
         amount: diskonTotal,
         detail_description: 'Diskon penjualan',
         cash_bank: true,
-        account_code: discountAccount.account.code
       })
     }
 
     // Journal entry persediaan
-    // Hpp (debit)
-    const hppAccount = await this.transAccountSettingsServ.getDefaultAccount(
-      'cogs', store.id, store.company_id, `Harga Pokok Penjualan ${store.name}`, 1, 'Default Akun HPP'
-    )
-    transDetailsFormated.push({
-      account_id: hppAccount.account_id,
-      account_name: hppAccount.account.name,
-      amount: hppTotal,
-      detail_description: 'Harga Pokok Penjualan',
-      cash_bank: false,
-      account_code: hppAccount.account.code
-    })
-    // persediaan (kredit)
-    const inventoryAccount = await this.transAccountSettingsServ.getDefaultAccount(
-      'persediaan', store.id, store.company_id, `Default akun persediaan ${store.name}`, 1, 'Default Akun Persediaan'
-    )
-    transDetailsFormated.push({
-      account_id: inventoryAccount.account_id,
-      account_name: inventoryAccount.account.name,
-      amount: hppTotal * -1,
-      detail_description: 'Persediaan Barang Dagang',
-      cash_bank: false,
-      account_code: inventoryAccount.account.code
-    })
+    if (data.status == 2) {
+      // Hpp (debit)
+      const hppAccount = await this.transAccountSettingsServ.getDefaultAccount(
+        'cogs', store.id, store.company_id, `Harga Pokok Penjualan ${store.name}`, 1, 'Default Akun HPP'
+      )
+      transDetailsFormated.push({
+        account_id: hppAccount.account_id,
+        amount: hppTotal,
+        detail_description: 'Harga Pokok Penjualan',
+        cash_bank: false,
+        created_at: nowtime
+      })
+      // persediaan (kredit)
+      const inventoryAccount = await this.transAccountSettingsServ.getDefaultAccount(
+        'persediaan', store.id, store.company_id, `Default akun persediaan ${store.name}`, 1, 'Default Akun Persediaan'
+      )
+      transDetailsFormated.push({
+        account_id: inventoryAccount.account_id,
+        amount: hppTotal * -1,
+        detail_description: 'Persediaan Barang Dagang',
+        cash_bank: false,
+        created_at: nowtime
+      })
+    }
 
-    // Journal Entry PIUTANG
-    if (data.status == 0) { // draft / pending
-      const piutangAccount = await this.transAccountSettingsServ.getPiutangAccount(data);
-      transDetailsFormated.push({
-        account_id: piutangAccount.account_id,
-        account_name: piutangAccount.account.name,
-        amount: data.total_price, // TODOELLA : Check if this is correct
-        detail_description: 'Piutang Usaha',
-        cash_bank: true,
-        account_code: piutangAccount.account.code
-      })
-    }
-    // status: paid / done
-    else {
-      // payment_method   Int // 1: Cash, 2: Bank Transfer, 3: Credit Card, 4: Debit Card
-      const PaymentMethodAccount = await this.transAccountSettingsServ.getPaymentMethodAccount(data);
-      transDetailsFormated.push({
-        account_id: PaymentMethodAccount.account_id,
-        account_name: PaymentMethodAccount.account.name,
-        amount: data.total_price,  // (sub_price - diskon_price + tax_price)
-        description: 'Pembayaran ' + data.payment_method,
-        cash_bank: true,
-        account_code: PaymentMethodAccount.account.code
-      })
-    }
+    // payment_method   Int // 1: Cash, 2: Bank Transfer, 3: Credit Card, 4: Debit Card
+    const PaymentMethodAccount = await this.transAccountSettingsServ.getPaymentMethodAccount(data);
+    transDetailsFormated.push({
+      account_id: PaymentMethodAccount.account_id,
+      amount: data.total_price,  // (sub_price - diskon_price + tax_price)
+      description: 'Pembayaran ' + data.payment_method,
+      cash_bank: true,
+    })
 
     // CREATE TRANSACTION
     var reportJournal;
@@ -744,28 +788,22 @@ export class TransactionService extends BaseService<Trans> {
           data: transDetailsFormated.map(row => ({
             trans_serv_id: data.id,
             code: data.code,
-            company_id: store.company_id,
-            company_name: store.company.name,
-            company_code: store.company.code,
             store_id: store.id,
-            store_name: store.name,
-            store_code: store.code,
             trans_date: data.created_at,
             trans_type_id: transType.id, // SALES
-            trans_type_code: transType.code,
-            trans_type_name: transType.name,
-            description: data.description,
+            description: row.detail_description,
             account_id: row.account_id,
-            account_name: row.account_name,
-            account_code: row.account_code,
             amount: row.amount,
             detail_description: row.detail_description,
             cash_bank: row.cash_bank,
+            created_at: row.created_at != null ? row.created_at : data.created_at,
           })),
         });
 
         // Call handleSoldStock inside the transaction
-        reportStock = await this.reportStockService.handleSoldStock(data);
+        if (data.status == 2) {
+          reportStock = await this.reportStockService.handleSoldStock(data);
+        }
       });
     } catch (error) {
       console.error('Error creating sales transaction:', error);
@@ -775,7 +813,7 @@ export class TransactionService extends BaseService<Trans> {
     return reportJournal;
   }
 
-  async createPurchase(data: any) {
+  async createPurchase(data: any, formType: 'submit' | 'updated' = 'submit') {
       console.log('purchase data hehe',data);
         // purchase data hehe {
         //   id: '31628e90-34d4-479a-ba43-970cf639bd3f',
@@ -863,12 +901,19 @@ export class TransactionService extends BaseService<Trans> {
         //     deleted_at: null
         //   }
         // }
+      // Delete previous data if exists (for update transaction)
+      if (data.id != null) {
+        await this.deleteTrans(data.id);
+      }
 
       const transType = await this.db.trans_Type.findUnique({ where: { code: 'PUR' } });
       // Persediaan (Debit)
       // Kas/Bank (Kredit)
       const inventoryAccount = await this.transAccountSettingsServ.getDefaultAccount(
         'persediaan', data.store_id, data.store.company_id, `Default akun persediaan ${data.store.name}`, 2, 'Default Akun Persediaan'
+      )
+      const piutangAccount = await this.transAccountSettingsServ.getDefaultAccount(
+        'piutangPembelian', data.store_id, data.store.company_id, `Akun piutang pembelian`, 2, 'Default Akun Piutang Pembelian Emas', null
       )
       // Draft / pending
       let KasAccount;
@@ -887,6 +932,128 @@ export class TransactionService extends BaseService<Trans> {
           throw new BadRequestException('Account not found');
         }
       }
+      const nowtime = new Date();
+
+      var reportJournalData = [];
+      // Kas/Bank
+      reportJournalData.push(
+        {
+          trans_serv_id: data.id,
+          code: data.code,
+          store_id: data.store_id,
+          trans_date: data.created_at,
+          trans_type_id: transType.id,
+          description: 'Purchase from customer' + data.code,
+          account_id: KasAccount.id,
+          amount: Math.abs(data.total_price) * -1,
+          detail_description: 'Uang keluar untuk beli dari customer' + data.store.name,
+          cash_bank: false,
+          created_at: data.created_at,
+        },
+      )
+      // Persediaan
+      if (formType == 'submit') {
+        if (data.status == 2) {
+          reportJournalData.push(
+            {
+              trans_serv_id: data.id,
+              code: data.code,
+              store_id: data.store_id,
+              trans_date: data.created_at,
+              trans_type_id: transType.id,
+              description: 'Purchase from customer' + data.code,
+              account_id: inventoryAccount.account_id,
+              amount: Math.abs(data.total_price),
+              detail_description: 'Persediaan masuk beli dari customer' + data.store.name,
+              cash_bank: true, 
+              created_at: data.created_at,
+            },
+          );
+        } else if (data.status == 1) {
+          reportJournalData.push(
+            {
+              trans_serv_id: data.id,
+              code: data.code,
+              store_id: data.store_id,
+              trans_date: data.created_at,
+              trans_type_id: transType.id,
+              description: 'Piutang purchase from customer' + data.code,
+              account_id: piutangAccount.account_id,
+              amount: Math.abs(data.total_price),
+              detail_description: 'Piutang masuk beli dari customer' + data.store.name,
+              cash_bank: true, 
+              created_at: data.created_at,
+            },
+          );
+        }
+      } else { // update
+        if (data.status == 2) {
+          reportJournalData.push(
+            {
+              trans_serv_id: data.id,
+              code: data.code,
+              store_id: data.store_id,
+              description: 'Piutang purchase from customer' + data.code,
+              account_id: piutangAccount.account_id,
+              amount: Math.abs(data.total_price),
+              detail_description: 'Piutang masuk beli dari customer' + data.store.name,
+              cash_bank: true, 
+              trans_date: data.created_at,
+              trans_type_id: transType.id,
+              created_at: data.created_at,
+            },
+          );
+          // Balik Akun
+          reportJournalData.push(
+            {
+              trans_serv_id: data.id,
+              code: data.code,
+              store_id: data.store_id,
+              trans_date: data.created_at,
+              trans_type_id: transType.id,
+              description: 'Piutang purchase from customer' + data.code,
+              account_id: piutangAccount.account_id,
+              amount: Math.abs(data.total_price) * -1,
+              detail_description: 'Piutang masuk beli dari customer' + data.store.name,
+              cash_bank: true, 
+              created_at: nowtime,
+            },
+          );
+          reportJournalData.push(
+            {
+              trans_serv_id: data.id,
+              code: data.code,
+              store_id: data.store_id,
+              trans_date: data.created_at,
+              trans_type_id: transType.id,
+              description: 'Inventory in purchase from customer' + data.code,
+              account_id: inventoryAccount.account_id,
+              amount: Math.abs(data.total_price),
+              detail_description: 'Persediaan masuk beli dari customer' + data.store.name,
+              cash_bank: true, 
+              created_at: nowtime,
+            },
+          );
+        }
+        else if (data.status == 1) {
+          reportJournalData.push(
+            {
+              trans_serv_id: data.id,
+              code: data.code,
+              store_id: data.store_id,
+              trans_date: data.created_at,
+              trans_type_id: transType.id,
+              description: 'Piutang purchase from customer' + data.code,
+              account_id: piutangAccount.account_id,
+              amount: Math.abs(data.total_price),
+              detail_description: 'Piutang masuk beli dari customer' + data.store.name,
+              cash_bank: true, 
+              created_at: data.created_at,
+            },
+          );
+        }
+      }
+      console.log('ini report journal data',reportJournalData);
 
       var reportJournal;
       var reportStock;
@@ -894,39 +1061,14 @@ export class TransactionService extends BaseService<Trans> {
         await this.db.$transaction(async (prisma) => {
           // Insert report journal entries
           reportJournal = await prisma.report_Journals.createMany({
-            data: [
-              // Persediaan
-              {
-                trans_serv_id: data.id,
-                code: data.code,
-                store_id: data.store_id,
-                trans_date: data.date,
-                trans_type_id: transType.id,
-                description: 'Purchase from customer' + data.code,
-                account_id: inventoryAccount.account_id,
-                amount: Math.abs(data.total_price),
-                detail_description: 'Persediaan masuk beli dari customer' + data.store.name,
-                cash_bank: true
-              },
-              // Kas/Bank
-              {
-                trans_serv_id: data.id,
-                code: data.code,
-                store_id: data.store_id,
-                trans_date: data.date,
-                trans_type_id: transType.id,
-                description: 'Purchase from customer' + data.code,
-                account_id: KasAccount.id,
-                amount: Math.abs(data.total_price) * -1,
-                detail_description: 'Uang keluar untuk beli dari customer' + data.store.name,
-                cash_bank: false
-              },
-            ]
+            data: reportJournalData
           });
 
           // Call handleSoldStock inside the transaction
           data.trans_serv_id = data.id;
-          reportStock = await this.reportStockService.handlePurchaseStock(data);
+          if (data.status == 2) {
+            reportStock = await this.reportStockService.handlePurchaseStock(data);
+          }
         });
       } catch (error) {
         console.error('Error creating sales transaction:', error);
@@ -935,7 +1077,7 @@ export class TransactionService extends BaseService<Trans> {
       return data;
   }
 
-  async createTrade(data: any) {
+  async createTrade(data: any, formType: 'submit' | 'updated' = 'submit') {
     // create transaction data {
     //   id: '1bc167e8-78ef-4d43-9e0f-df49649f37c7',
     //   date: '2025-03-29T00:00:00.000Z',
@@ -1089,6 +1231,12 @@ export class TransactionService extends BaseService<Trans> {
     //     deleted_at: null
     //   }
     // }
+    
+    // Delete previous data if exists (for update transaction)
+    if (data.id != null) {
+      await this.deleteTrans(data.id);
+    }
+
     let journalData = [];
 
     // TUKAR TAMBAH / Akun kas perusahaan terima uang 
@@ -1138,14 +1286,13 @@ export class TransactionService extends BaseService<Trans> {
       })
     }
 
-    // Operations TODOELLA operation kok gk tercatat di report journal ya? TRA/HOREE/2025/2/30/001
+    // Operations
     console.log('operation data', data.transaction_operations);
     for (let operation of data.transaction_operations) {
       // Pendapatan Operation
       // Kas/Bank  (D)
       // Pendapatan Operation (K)
       const operationAccount = await this.accountsService.findOne(operation.operation.account_id);
-      console.log('operationAccount', operationAccount);
       // pendapatan operation
       journalData.push({
         account_id: operationAccount.id,
@@ -1264,6 +1411,7 @@ export class TransactionService extends BaseService<Trans> {
             amount: row.amount,
             detail_description: row.detail_description,
             cash_bank: row.cash_bank,
+            created_at: row.created_at ?? data.created_at,
           })),
         });
 
@@ -1277,6 +1425,20 @@ export class TransactionService extends BaseService<Trans> {
     }
 
     return reportJournal;
+  }
+
+  async deleteTrans(trans_id) {
+    // Cancel Report Journal
+    await this.reportJournalsService.deleteAll({ 
+      trans_serv_id: trans_id,
+      // trans_type_code: 'SAL'
+    });
+    // Cancel Stock Sold
+    await this.reportStockService.deleteAll({
+      trans_id: trans_id,
+      // source_id: 3
+    });
+    return true;
   }
 
   // BUY PRODUCT
@@ -1386,6 +1548,7 @@ export class TransactionService extends BaseService<Trans> {
             amount: row.amount,
             detail_description: row.detail_description,
             cash_bank: row.cash_bank,
+            created_at: data.created_at,
           })),
         });
         // Signal Stock In 
@@ -1530,7 +1693,8 @@ export class TransactionService extends BaseService<Trans> {
                       account_id: selectedAccount.account_id, 
                       amount, 
                       detail_description: `${selectedAccount.account.name} ${store.name}`, 
-                      cash_bank: true 
+                      cash_bank: true,
+                      created_at: trans_date
                     },
             });
             console.log('reportJournalDebit',reportJournalDebit);
@@ -1545,7 +1709,8 @@ export class TransactionService extends BaseService<Trans> {
                   account_id: inventoryAccount.account_id, 
                   amount: amount * -1, 
                   detail_description: `Persediaan ${store.name}`, 
-                  cash_bank: false 
+                  cash_bank: false,
+                  created_at: trans_date
                 }
             });
             console.log('reportJournalKredit',reportJournalKredit);
@@ -1694,7 +1859,8 @@ export class TransactionService extends BaseService<Trans> {
             account_id: repairExpenseAccount.account_id, 
             amount: amountExpense, 
             detail_description: `Beban Perbaikan ${productCode.product.store.name}`, 
-            cash_bank: true 
+            cash_bank: true ,
+            created_at: trans_date
           },
           // Kas Utang (Kredit)
           {
@@ -1707,7 +1873,8 @@ export class TransactionService extends BaseService<Trans> {
             account_id: kasAccount.id,
             amount: amountExpense * -1,
             detail_description: 'Pembayaran biaya perbaikan',
-            cash_bank: false
+            cash_bank: false,
+            created_at: trans_date
           },
           // Persediaan Barang (Debit)   
           {
@@ -1720,7 +1887,8 @@ export class TransactionService extends BaseService<Trans> {
             account_id: inventoryAccount.account_id,
             amount: Math.abs(hargaBeliAkhir),
             detail_description: 'Masuk persediaan stok habis diperbaiki',
-            cash_bank: false
+            cash_bank: false,
+            created_at: trans_date
           },
            // Kerugian Penyusutan Emas (Debit) / Penyesuaian Persediaan (Kredit)
         ...(kerugianPenyusutanEmas != 0 || penyesuaianPersediaan != 0
@@ -1729,6 +1897,7 @@ export class TransactionService extends BaseService<Trans> {
               code: transCode,
               store_id: productCode.product.store_id,
               trans_date,
+              created_at: trans_date,
               trans_type_id: transType.id,
               description: 'Penyesuaian Persediaan akibat reparasi' + ' ' + productCode.barcode,
               account_id: kerugianPenyusutanEmas !== 0 
@@ -1740,7 +1909,7 @@ export class TransactionService extends BaseService<Trans> {
               detail_description: kerugianPenyusutanEmas !== 0 
                 ? 'Kerugian Penyusutan Emas akibat reparasi' 
                 : 'Penyesuaian Persediaan akibat reparasi',
-              cash_bank: false
+              cash_bank: false,
             }]
           : []),
           // Persediaan dalam Perbaikan (Kredit)
@@ -1850,7 +2019,8 @@ export class TransactionService extends BaseService<Trans> {
               account_id: lostAccount.account_id,
               amount: Math.abs(parseFloat(productCode.buy_price)),
               detail_description: 'Beban Kerugian Barang Hilang ' + productCode.product.store.name,
-              cash_bank: true
+              cash_bank: true,
+              created_at: data.trans_date
             }
           })
           // Credit
@@ -1865,7 +2035,8 @@ export class TransactionService extends BaseService<Trans> {
               account_id: inventoryAccount.account_id,
               amount: Math.abs(parseFloat(productCode.buy_price)) * -1,
               detail_description: 'Persediaan Barang Dagang ' + productCode.product.store.name,
-              cash_bank: false
+              cash_bank: false,
+              created_at: data.trans_date
             }
           })
 

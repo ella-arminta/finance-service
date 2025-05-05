@@ -336,16 +336,21 @@ export class TransactionController {
     return ResponseDto.success('Data Deleted!', {}, 200);
   }
 
-  @EventPattern('transaction.finance.approved')
+  // Ini buat status Done
+  @EventPattern('transaction.finance.created')
   @Exempt()  
   async createTrans(@Payload() data: any, @Ctx() context: RmqContext) {
     let newdata = data.data.data;
+    console.log('create transaction data first', data);
     console.log('create transaction data',newdata)
     // SALES Trans
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-         // SALES
+        if (newdata.status != 1 && newdata.status != 2) {
+          throw new Error('Transaction done only!');
+        }
+        // SALES
         if (newdata.transaction_type == 1) {
           newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
           const result = await this.transactionService.createSales(newdata);
@@ -372,15 +377,66 @@ export class TransactionController {
         return ResponseDto.error('Transaction Type Not Found!', null, 400);
       },
       {
-        queueName: 'transaction.finance.approved',
+        queueName: 'transaction.finance.created',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.transaction.finance.approved',
+        dlqRoutingKey: 'dlq.transaction.finance.created',
         prisma: this.transactionService.db
       },
     )();
   }
 
-  @EventPattern('transaction.finance.disapproved')
+  @EventPattern('transaction.finance.updated')
+  @Exempt()
+  async updateTrans(@Payload() data: any, @Ctx() context: RmqContext) {
+    let newdata = data.data.data;
+    console.log('create transaction data',newdata)
+    
+    if (newdata.status == 0) {
+      return this.deleteTrans(data, context);
+    }
+    // SALES Trans
+    await RmqHelper.handleMessageProcessing(
+      context,
+      async () => {
+        if (newdata.status != 1 && newdata.status != 2) {
+          throw new Error('Transaction done only!');
+        }
+        // SALES
+        if (newdata.transaction_type == 1) {
+          newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
+          const result = await this.transactionService.createSales(newdata, 'updated');
+          return ResponseDto.success('Transaction Created!', result, 201);
+        }
+        // PURCHASE FROM CUSTOMER
+        else if (newdata.transaction_type == 2) {
+          newdata = await this.validateService.validate(this.transactionValidation.CREATEPURCHASE, newdata);
+          try {
+            const result = await this.transactionService.createPurchase(newdata, 'updated');
+            return ResponseDto.success('Transaction Created!', result, 201);
+          } catch (error) {
+            console.error('Error creating purchase from customer', error);
+            return ResponseDto.error('Error creating purchase from customer', error, error.status);
+          }
+          
+        }
+        // Trade 
+        else if (newdata.transaction_type == 3) {
+          newdata = await this.validateService.validate(this.transactionValidation.CREATETRADE, newdata);
+          const result = await this.transactionService.createTrade(newdata, 'updated');
+          return ResponseDto.success('Transaction Created!', result, 201);
+        }
+        return ResponseDto.error('Transaction Type Not Found!', null, 400);
+      },
+      {
+        queueName: 'transaction.finance.updated',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.transaction.finance.updated',
+        prisma: this.transactionService.db
+      },
+    )();
+  }
+
+  @EventPattern('transaction.finance.deleted')
   @Exempt()
   async deleteTrans(@Payload() data: any, @Ctx() context: RmqContext) {
     let deleted_data = data.data.data;
@@ -390,22 +446,13 @@ export class TransactionController {
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        // Cancel Report Journal
-        await this.reportJournalsService.deleteAll({ 
-          trans_serv_id: deleted_data.id,
-          // trans_type_code: 'SAL'
-        });
-        // Cancel Stock Sold
-        await this.reportStockService.deleteAll({
-          trans_id: deleted_data.id,
-          // source_id: 3
-        });
+        await this.transactionService.deleteTrans(deleted_data.id);
         return ResponseDto.success('Transaction Deleted!', {}, 200);
       },
       {
-        queueName: 'transaction.finance.disapproved',
+        queueName: 'transaction.finance.deleted',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.transaction.finance.disapproved',
+        dlqRoutingKey: 'dlq.transaction.finance.deleted',
         prisma: this.transactionService.db
       },
     )();

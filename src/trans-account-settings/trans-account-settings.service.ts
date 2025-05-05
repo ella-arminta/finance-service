@@ -464,11 +464,22 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
         return inventoryAccount;
     }
 
-    async getDefaultAccount(action, store_id, company_id, name, account_type_id, description) {
+    async getDefaultAccount(
+        action: string,
+        store_id: string,
+        company_id: string,
+        name: string,
+        account_type_id: number,
+        description: string,
+        account_store_id: string | null = store_id
+    ) {
         var defaultAccount = await this.db.trans_Account_Settings.findFirst({
             where: {
                 store_id: store_id,
-                action: action
+                action: action,
+                store: {
+                    company_id: company_id
+                }
             },
             include: {
                 account: true
@@ -498,6 +509,7 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 account_type: { connect: { id: account_type_id } },
                 description: description,
                 company: { connect: { id: company_id } },
+                ...(account_store_id != null ? { store: { connect: { id: account_store_id } } } : {}),
                 deactive: false,
             });
             // Assign

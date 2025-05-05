@@ -668,7 +668,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 source_id: source.id,
                 trans_id: data.trans_serv_id,
                 trans_code: data.code,
-                trans_date: data.date,
+                trans_date: data.created_at,
                 category_id: prodCode.product_code?.product?.type?.category_id ?? null,
                 category_code: prodCode.product_code?.product?.type?.category?.code ?? null,
                 category_name: prodCode.product_code?.product?.type.category.name ?? null,

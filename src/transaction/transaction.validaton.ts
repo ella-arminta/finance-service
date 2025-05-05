@@ -341,7 +341,7 @@ export class TransactionValidation {
     account_id: z.string().uuid().nullable().optional(),
     id: z.string().uuid(),
     code: z.string(),
-    date: z.coerce.date(),
+    created_at: z.string().datetime(),
     status: z
       .union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseInt(val) : val))
@@ -387,7 +387,7 @@ export class TransactionValidation {
     account_id: z.string().uuid().nullable().optional(),
     id: z.string().uuid(),
     code: z.string(),
-    date: z.coerce.date(),
+    created_at: z.string().datetime(),
     payment_method: z
     .preprocess((val) => {
       if (val === null || val === undefined) return val;
@@ -396,8 +396,7 @@ export class TransactionValidation {
     }, z.number().nullable().optional())
     .refine((val) => val === null || val === undefined || !isNaN(val), {
       message: "Invalid payment method",
-    }),  
-    created_at: z.coerce.date(),
+    }),
     adjustment_price: z.union([z.string(), z.number()])
       .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
       .refine((val) => !isNaN(val), { message: "Invalid adjustment price" }).optional(),

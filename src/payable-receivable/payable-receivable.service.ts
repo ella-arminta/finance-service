@@ -50,12 +50,27 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
                 }
             }
         });
+        const pendapatanDibayarDimuka = await this.db.trans_Account_Settings.findMany({
+            where: {
+                action: 'pendapatanDimuka',
+                store: {
+                    company_id: params.company_id,
+                }
+            }
+        });
 
         const taxAccountIDs = taxAccounts.map((item) => item.account_id);
+        const pendapatanDibayarDimukaAccountIDs = pendapatanDibayarDimuka.map((item) => item.account_id);
 
         params.account_id = {
-            notIn: taxAccountIDs
+            not: {
+                in: [
+                ...taxAccountIDs,
+                ...pendapatanDibayarDimukaAccountIDs,
+                ]
+            }
         };
+          
 
         params.payable_receivables_detail = null;
         params.journal_reverse_detail = null;

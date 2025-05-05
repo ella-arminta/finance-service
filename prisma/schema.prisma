@@ -303,6 +303,7 @@ model Report_Journals {
   amount Decimal
   detail_description String?
   cash_bank Boolean @default(false) // true = Cash/Bank Account, false = Destination Account
+  created_at DateTime @default(now())
 
   store Stores @relation(fields: [store_id], references: [id])
   trans Trans? @relation(fields: [trans_id], references: [id])

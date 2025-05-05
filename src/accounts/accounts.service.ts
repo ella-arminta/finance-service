@@ -236,6 +236,10 @@ export class AccountsService extends BaseService<Accounts> {
         where: { id },
       });
     }
+    // delete in accoutn settings service
+    await this.db.trans_Account_Settings.deleteMany({
+      where: { account_id: id },
+    });
 
     return deletedData;
   }

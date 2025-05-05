@@ -155,7 +155,7 @@ export class JournalsService{
     
         let query = `
             SELECT
-                rj.trans_date as date, 
+                rj.created_at as date, 
                 rj.code as code,
                 a.name as account,
                 a.code as account_code,
