@@ -426,7 +426,7 @@ model Payable_Receivables {
   updated_by String? @db.Uuid
 
   // realtion
-  report_journal Report_Journals @relation(fields: [report_journal_id], references: [id])
+  report_journal Report_Journals @relation(fields: [report_journal_id], references: [id], onDelete: Cascade)
   reminder_payable_receivables Reminder_Payable_Receivables[]
   payable_receivables_detail Payable_Receivables_Detail[]
 }
@@ -441,9 +441,9 @@ model Payable_Receivables_Detail {
   updated_at DateTime @updatedAt
 
   // relation
-  report_journal Report_Journals @relation("DetailReportJournal", fields: [report_journal_id], references: [id])
-  journal_reverse Report_Journals @relation("DetailReportJournalReverse", fields: [journal_reverse_id], references: [id])
-  payable_receivable Payable_Receivables @relation(fields: [payable_receivable_id], references: [id])
+  report_journal Report_Journals @relation("DetailReportJournal", fields: [report_journal_id], references: [id], onDelete: Cascade)
+  journal_reverse Report_Journals @relation("DetailReportJournalReverse", fields: [journal_reverse_id], references: [id], onDelete: Cascade)
+  payable_receivable Payable_Receivables @relation(fields: [payable_receivable_id], references: [id], onDelete: Cascade)
 }
 
 model Reminder_Payable_Receivables {
@@ -455,7 +455,7 @@ model Reminder_Payable_Receivables {
   emails String[]
   
   // relation
-  payable_receivable Payable_Receivables @relation(fields: [payable_receivable_id], references: [id])
+  payable_receivable Payable_Receivables @relation(fields: [payable_receivable_id], references: [id], onDelete: Cascade)
 }
 
 // Model for storing failed RabbitMQ message
