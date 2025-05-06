@@ -485,88 +485,93 @@ export class ReportService extends BaseService<Report_Journals> {
 
     // Ledger 
     async getTrialBalance(data: any) {
+        const params: any[] = [];
+        const conditions: string[] = [];
+        let subQueryCondition = '';
+    
+        // Add dateStart for subquery only if it's provided
+        if (data.dateStart) {
+            params.push(data.dateStart); // $1 for subquery
+            subQueryCondition = 'AND rj2.trans_date < $1::date';
+        }
+    
+        // Track index offset depending on whether dateStart was added for subquery
+        let offset = params.length;
+    
+        // Main query filters
+        if (data.dateStart) {
+            params.push(data.dateStart); // $offset + 1
+            conditions.push(`rj.trans_date > $${params.length}::date`);
+        }
+    
+        if (data.dateEnd) {
+            params.push(data.dateEnd);
+            conditions.push(`rj.trans_date <= $${params.length}::date`);
+        }
+    
+        if (data.company_id) {
+            params.push(data.company_id.replace(/^"|"$/g, ''));
+            conditions.push(`s.company_id = $${params.length}::uuid`);
+        }
+    
+        if (data.store_id) {
+            params.push(data.store_id);
+            conditions.push(`rj.store_id = $${params.length}::uuid`);
+        }
+    
+        if (data.owner_id) {
+            params.push(data.owner_id);
+            conditions.push(`c.owner_id = $${params.length}::uuid`);
+        }
+    
+        // Build the query string
         let query = `
-        SELECT 
+            SELECT 
             a.code,
-            rj.account_id as id, 
-            a.name, 
-            SUM(CASE WHEN rj.amount >= 0 THEN rj.amount ELSE 0 END) AS debit, 
-            SUM(CASE WHEN rj.amount < 0 THEN rj.amount ELSE 0 END) AS credit, 
+            rj.account_id AS id,
+            a.name,
+            COALESCE((
+                SELECT 
+                CASE WHEN at.type = 1 THEN SUM(rj2.amount) ELSE 0 END
+                FROM "Report_Journals" rj2
+                JOIN "Accounts" a2 ON rj2.account_id = a2.id
+                JOIN "Account_Types" at ON a2.account_type_id = at.id
+                WHERE rj2.account_id = rj.account_id
+                ${subQueryCondition}
+                GROUP BY at.type
+            ), 0) AS "startBalance",
+            SUM(CASE WHEN rj.amount >= 0 THEN rj.amount ELSE 0 END) AS debit,
+            SUM(CASE WHEN rj.amount < 0 THEN -rj.amount ELSE 0 END) AS credit,
             SUM(rj.amount) AS balance
-        FROM "Report_Journals" rj  
-        JOIN "Accounts" a ON rj.account_id = a.id  
-        JOIN "Stores" s ON rj.store_id = s.id
-        JOIN "Companies" c ON s.company_id = c.id
+            FROM "Report_Journals" rj
+            JOIN "Accounts" a ON rj.account_id = a.id
+            JOIN "Stores" s ON rj.store_id = s.id
+            JOIN "Companies" c ON s.company_id = c.id
         `;
     
-        // Build the WHERE clause conditions and parameters
-        const conditions: string[] = [];
-        const params: any[] = [];
-    
-        if (data.dateStart) {
-            conditions.push(`rj.trans_date > $${params.length + 1}`);
-            params.push(data.dateStart);
-        }
-    
-        if (data.dateEnd) {
-            conditions.push(`rj.trans_date <= $${params.length + 1}`);
-            params.push(data.dateEnd);
-        }
-    
-        if (data.company_id) {
-            const companyId = data.company_id.replace(/^"|"$/g, ''); // Removes leading/trailing double quotes
-            conditions.push(`s.company_id = $${params.length + 1}::uuid`);
-            params.push(companyId);
-        }        
-    
-        if (data.store_id) {
-            conditions.push(`rj.store_id = $${params.length + 1}::uuid`);
-            params.push(data.store_id);
-        }
-
-        // Store with owner_id tersebut
-        conditions.push(`c.owner_id = $${params.length + 1}::uuid`);
-        params.push(data.owner_id);
-    
-        // Append the WHERE clause if there are any conditions
         if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' AND ');
+            query += ` WHERE ` + conditions.join(' AND ');
         }
     
-        // Append GROUP BY
-        query += ' GROUP BY rj.account_id, a.name, a.code';
+        query += ` GROUP BY rj.account_id, a.name, a.code`;
     
-        // console.log("Final Query:", query);
-        // console.log("Parameters:", params);
-
+        // Debug log
+        console.log('Final query:', query);
+        console.log('Params:', params);
+    
+        // Execute the query
         const result = await this.db.$queryRawUnsafe(query, ...params);
-    
         return result;
-    }
-    async getLedger(data:any) {
-        let query = `
-          SELECT 
-            a.code as infoacc,
-            a.name as account_name,
-            rj.trans_date  as date,
-            rj.code as code,
-            rj.detail_description as description,
-            CASE WHEN rj.amount >= 0 THEN rj.amount ELSE 0 END AS debit, 
-            CASE WHEN rj.amount < 0 THEN rj.amount ELSE 0 END AS credit, 
-            rj.amount AS balance
-        from "Report_Journals" rj 
-        join "Accounts" a on rj.account_id  = a.id 
-        join "Stores" s on rj.store_id = s.id
-        join "Companies" c on s.company_id = c.id
-        `;
+    }         
 
-        // Build the WHERE clause conditions and parameters
-        const conditions: string[] = [];
+    async getLedger(data: any) {
         const params: any[] = [];
-    
+        const conditions: string[] = [];
+        
+        // Tambahkan data.dateStart ke params sebelum query
         if (data.dateStart) {
-            conditions.push(`rj.trans_date > $${params.length + 1}`);
-            params.push(data.dateStart);
+            params.push(data.dateStart);  // Pastikan params sudah berisi dateStart
+            conditions.push(`rj.trans_date >= $${params.length}`);
         }
     
         if (data.dateEnd) {
@@ -575,46 +580,120 @@ export class ReportService extends BaseService<Report_Journals> {
         }
     
         if (data.company_id) {
-            const companyId = data.company_id.replace(/^"|"$/g, ''); // Removes leading/trailing double quotes
+            const companyId = data.company_id.replace(/^"|"$/g, '');
             conditions.push(`s.company_id = $${params.length + 1}::uuid`);
             params.push(companyId);
-        }        
+        }
     
         if (data.store_id) {
             conditions.push(`rj.store_id = $${params.length + 1}::uuid`);
             params.push(data.store_id);
         }
-
-        // Update account_id filter to handle array of account IDs
+    
         if (data.account_id && Array.isArray(data.account_id)) {
-            const accountIds = data.account_id.map((id: string, index: number) => {
-                return `$${params.length + index + 1}::uuid`;
-            });
-            conditions.push(`rj.account_id IN (${accountIds.join(', ')})`);
+            const ids = data.account_id.map((_, i) => `$${params.length + i + 1}::uuid`);
+            conditions.push(`rj.account_id IN (${ids.join(', ')})`);
             params.push(...data.account_id);
         } else if (data.account_id) {
-            // If account_id is a single ID (not an array)
             conditions.push(`rj.account_id = $${params.length + 1}::uuid`);
             params.push(data.account_id);
         }
-        
-        // Store with owner_id tersebut
+    
         conditions.push(`c.owner_id = $${params.length + 1}::uuid`);
         params.push(data.owner_id);
     
-        // Append the WHERE clause if there are any conditions
-        if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' AND ');
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+        
+        let saldoAwalQuery = '';
+        // Query saldo awal per akun only if account_id is present
+        if (data.account_id) {
+            saldoAwalQuery = `
+                WITH saldo_awal_data AS (
+                    SELECT 
+                        a.code AS infoacc,
+                        a.name AS account_name,
+                        $${params.length + 1}::date - INTERVAL '1 day' AS date,
+                        NULL AS code,
+                        'Saldo Awal' AS description,
+                        0 AS debit,
+                        0 AS credit,
+                        CASE WHEN at.type = 1 then SUM(rj.amount) else 0 end AS balance
+                    FROM "Report_Journals" rj
+                    JOIN "Accounts" a ON rj.account_id = a.id
+                    JOIN "Stores" s ON rj.store_id = s.id
+                    JOIN "Companies" c ON s.company_id = c.id
+                    JOIN "Account_Types" at ON a.account_type_id = at.id
+                    WHERE rj.trans_date < $${params.length + 1}
+                        ${data.company_id ? `AND s.company_id = $${params.indexOf(data.company_id) + 1}::uuid` : ''}
+                        ${data.store_id ? `AND rj.store_id = $${params.indexOf(data.store_id) + 1}::uuid` : ''}
+                        ${data.account_id ? (Array.isArray(data.account_id)
+                            ? `AND rj.account_id IN (${data.account_id.map((_, i) => `$${params.indexOf(data.account_id[0]) + i + 1}`).join(', ')})`
+                            : `AND rj.account_id = $${params.indexOf(data.account_id) + 1}::uuid`) : ''}
+                        AND c.owner_id = $${params.indexOf(data.owner_id) + 1}::uuid
+                    GROUP BY a.code, a.name, at.type
+                )
+                SELECT 
+                    infoacc,
+                    account_name,
+                    date,
+                    code,
+                    description,
+                    debit,
+                    credit,
+                    COALESCE(balance, 0) AS balance
+                FROM saldo_awal_data
+                UNION ALL
+                SELECT 
+                    NULL AS infoacc,
+                    'Saldo Awal' AS account_name,
+                    $${params.length + 1}::date - INTERVAL '1 day' AS date,
+                    NULL AS code,
+                    'Saldo Awal' AS description,
+                    0 AS debit,
+                    0 AS credit,
+                    0 AS balance
+                WHERE NOT EXISTS (SELECT 1 FROM saldo_awal_data)
+            `;
+            params.push(data.dateStart);  // Pindahkan ke sini setelah `saldoAwalQuery`
         }
-
-
-        // console.log("Final Query:", query);
-        // console.log("Parameters:", params);
-
-        const result = await this.db.$queryRawUnsafe(query, ...params);
     
-        return result;
+        // Query transaksi berjalan
+        const transaksiQuery = `
+            SELECT 
+                a.code AS infoacc,
+                a.name AS account_name,
+                rj.trans_date AS date,
+                rj.code AS code,
+                rj.detail_description AS description,
+                CASE WHEN rj.amount >= 0 THEN rj.amount ELSE 0 END AS debit, 
+                CASE WHEN rj.amount < 0 THEN ABS(rj.amount) ELSE 0 END AS credit,
+                SUM(rj.amount) OVER (
+                    PARTITION BY rj.account_id 
+                    ORDER BY rj.trans_date, rj.code
+                ) + COALESCE((
+                    SELECT SUM(amount)
+                    FROM "Report_Journals"
+                    WHERE account_id = rj.account_id
+                      AND trans_date < $${params.length + 1}
+                ), 0) AS balance
+            FROM "Report_Journals" rj 
+            JOIN "Accounts" a ON rj.account_id = a.id 
+            JOIN "Stores" s ON rj.store_id = s.id
+            JOIN "Companies" c ON s.company_id = c.id
+            ${whereClause}
+        `;
+        
+        params.push(data.dateStart);  // Jangan lupa tambahkan params untuk transaksiQuery
+    
+        const finalQuery = `
+            ${saldoAwalQuery ? `(${saldoAwalQuery}) UNION ALL` : ''}
+            (${transaksiQuery})
+            ORDER BY date, infoacc, code
+        `;
+        
+        return await this.db.$queryRawUnsafe(finalQuery, ...params);
     }
+    
 
     async getSalesCards(filters:any) {
         var result = {

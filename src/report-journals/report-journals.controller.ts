@@ -80,8 +80,12 @@ export class ReportController {
         filters.dateEnd = endDate;
       }
       
-      const datas =  await this.reportService.getTrialBalance(filters);
-      return ResponseDto.success('Data Retrieved!', datas, 200);
+      try {
+        const datas =  await this.reportService.getTrialBalance(filters);
+        return ResponseDto.success('Data Retrieved!', datas, 200);
+      } catch (error) {
+        return ResponseDto.error('Failed to retrieve data', error, 500);
+      }
     }
     
     @MessagePattern({ cmd: 'get:ledger'})

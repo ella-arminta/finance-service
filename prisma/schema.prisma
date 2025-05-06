@@ -57,6 +57,9 @@ model Account_Types {
   name        String @unique
   code Int
   description String
+  type Int @default(0)  // jenis akun
+    // 1 =TIDAK direset ke 0 tiap awal periode  / neraca / real
+    // 0 = di reset ke 0 tiap akhir periode / laba rugi /nominal
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
   deleted_at   DateTime?
