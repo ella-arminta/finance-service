@@ -62,31 +62,31 @@ async function main() {
       id: 10,
       action: 'repair',
       name: 'Persediaan dalam reparasi',
-      description: 'Akun persediaan toko ketika barang dalam kondisi reparasi',
+      description: 'Akun persediaan toko ketika barang dalam kondisi reparasi pada STOK KELUAR',
     },
     {
       id: 11,
       action: 'repairCost',
-      name: 'Biaya reparasi',
-      description: 'Akun yang digunakan toko ketika terdapat biaya reparasi',
+      name: 'Biaya reparasi (Debit)',
+      description: 'Akun beban yang digunakan toko ketika terdapat biaya reparasi untuk perbaikan pada STOK KELUAR',
     },
     {
       id: 12,
       action: 'lost',
       name: 'Barang Keluar Hilang',
-      description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi hilang',
+      description: 'Akun beban yang digunakan toko ketika terjadi barang keluar kondisi hilang pada STOK OPNAME atau STOK KELUAR',
     },
     {
       id: 13,
       action: 'other',
       name: 'Barang Keluar lainnya',
-      description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi lainnya',
+      description: 'Akun yang digunakan toko ketika terjadi barang keluar kondisi lainnya pada STOK KELUAR',
     },
     {
       id: 14,
       action: 'repairDeprec',
-      name: 'Penyusutan emas setelah diperbaiki',
-      description: 'Akun yang digunakan toko ketika terjadi penyusutan berat emas akibat diperbaiki',
+      name: 'Penyusutan emas setelah diperbaiki (Debit)',
+      description: 'Akun beban yang digunakan toko ketika terjadi penyusutan berat emas akibat diperbaiki pada STOK KEMBALI',
     },
     {
       id: 15,
@@ -122,7 +122,7 @@ async function main() {
       id: 20, 
       action: 'piutangPembelian',
       name: 'Piutang Pembelian Emas dari Customer (Debit)',
-      description: 'Akun piutang yang digunakan toko ketika telah membayar namun belum mendapatkan emasnya dari customer pada transaksi PURCHASE EMAS dan TRADE EMAS'
+      description: 'Akun piutang yang digunakan toko ketika telah membayar namun belum mendapatkan emasnya dari customer pada transaksi PURCHASE EMAS'
     }
   ];  
 

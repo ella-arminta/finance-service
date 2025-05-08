@@ -674,6 +674,8 @@ export class TransactionService extends BaseService<Trans> {
       'pendapatanDimuka', store.id, store.company_id, `Pendapatan Diterima Dimuka ${store.company.name}`, 3, 'Default Akun Pendapatan Diterima Dimuka', null
     );
     const goldSalesAccount = await this.transAccountSettingsServ.getGoldSalesAccount(data);
+    const discountAccount = await this.transAccountSettingsServ.getDiscountAccount(data);
+    const diskonTotal = Math.abs(data.sub_total_price + data.tax_price - data.total_price);
     if (formType == 'submit') {
       if (data.status == 2) {
         transDetailsFormated.push({
@@ -682,11 +684,24 @@ export class TransactionService extends BaseService<Trans> {
           detail_description: 'Penjualan Emas',
           cash_bank: false,
         })
+
+        // JOURNAL ENTRY (DEBIT)
+        // Diskon Penjualan
+        console.log('ini diskon total', diskonTotal, 'subtotalprice', data.sub_total_price, 'taxprice', data.tax_price, 'totalprice', data.total_price);
+        console.log('ini typeof diskon',typeof data.sub_total_price, typeof data.tax_price, typeof data.total_price);
+        if (diskonTotal > 0) {
+          transDetailsFormated.push({
+            account_id: discountAccount.account_id,
+            amount: diskonTotal,
+            detail_description: 'Diskon penjualan',
+            cash_bank: true,
+          })
+        }
       }
       else if (data.status == 1) {
         transDetailsFormated.push({
           account_id: pendapatanDibayarDimukaAccount.account_id,
-          amount: salesEmasTotal + operationSalesTotal,  // (sub_price - diskon_price + tax_price)
+          amount: salesEmasTotal + operationSalesTotal + diskonTotal,  // (sub_price - diskon_price + tax_price)
           description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
           cash_bank: true,
           created_at: data.created_at
@@ -697,7 +712,7 @@ export class TransactionService extends BaseService<Trans> {
       if (data.status == 2) {
         transDetailsFormated.push({
           account_id: pendapatanDibayarDimukaAccount.account_id,
-          amount: salesEmasTotal + operationSalesTotal,  // (sub_price - diskon_price + tax_price)
+          amount: salesEmasTotal + operationSalesTotal + diskonTotal,  // (sub_price - diskon_price + tax_price)
           description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
           cash_bank: true,
           created_at: data.created_at
@@ -705,7 +720,7 @@ export class TransactionService extends BaseService<Trans> {
         // Akun dibalik
         transDetailsFormated.push({
           account_id: pendapatanDibayarDimukaAccount.account_id,
-          amount: Math.abs(salesEmasTotal + operationSalesTotal),  // (sub_price - diskon_price + tax_price)
+          amount: Math.abs(salesEmasTotal + operationSalesTotal + diskonTotal),  // (sub_price - diskon_price + tax_price)
           description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
           cash_bank: true,
           created_at: nowtime
@@ -717,30 +732,24 @@ export class TransactionService extends BaseService<Trans> {
           cash_bank: false,
           created_at: nowtime
         })
+        if (diskonTotal > 0) {
+          transDetailsFormated.push({
+            account_id: discountAccount.account_id,
+            amount: diskonTotal,
+            detail_description: 'Diskon penjualan',
+            cash_bank: true,
+            created_at: nowtime,
+          })
+        }
       } else if (data.status == 1) {
         transDetailsFormated.push({
           account_id: pendapatanDibayarDimukaAccount.account_id,
-          amount: salesEmasTotal + operationSalesTotal,  // (sub_price - diskon_price + tax_price)
+          amount: salesEmasTotal + operationSalesTotal + diskonTotal,  // (sub_price - diskon_price + tax_price)
           description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
           cash_bank: true,
           created_at: data.created_at
         })
       }
-    }
-
-    // JOURNAL ENTRY (DEBIT)
-    // Diskon Penjualan
-    const discountAccount = await this.transAccountSettingsServ.getDiscountAccount(data);
-    const diskonTotal = Math.abs(data.sub_total_price + data.tax_price - data.total_price);
-    console.log('ini diskon total', diskonTotal, 'subtotalprice', data.sub_total_price, 'taxprice', data.tax_price, 'totalprice', data.total_price);
-    console.log('ini typeof diskon',typeof data.sub_total_price, typeof data.tax_price, typeof data.total_price);
-    if (diskonTotal > 0) {
-      transDetailsFormated.push({
-        account_id: discountAccount.account_id,
-        amount: diskonTotal,
-        detail_description: 'Diskon penjualan',
-        cash_bank: true,
-      })
     }
 
     // Journal entry persediaan
