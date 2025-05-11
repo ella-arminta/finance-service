@@ -30,3 +30,10 @@ COPY --from=builder /app/prisma ./prisma
 
 # Install only production dependencies
 RUN npm install --production
+
+# Install ts-node for running TypeScript seeders
+RUN npm install ts-node --save-dev
+
+# Copy Prisma Client
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
