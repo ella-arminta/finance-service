@@ -15,7 +15,9 @@ const seedFiles = readdirSync(seederDir).filter((file) => file.endsWith('.ts'));
 if (specifiedFile) {
   // Validate if the specified file exists
   if (!seedFiles.includes(specifiedFile)) {
-    console.error(`Error: Specified file '${specifiedFile}' not found in ${seederDir}`);
+    console.error(
+      `Error: Specified file '${specifiedFile}' not found in ${seederDir}`,
+    );
     process.exit(1);
   }
 
