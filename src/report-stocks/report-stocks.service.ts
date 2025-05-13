@@ -315,7 +315,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     0::numeric AS balance_weight,
                     0::numeric AS sum_price_qty1,
                     0::numeric AS sum_weight_qty1,
-                    NULL AS avg_price_per_weight
+                    0 AS avg_price_per_weight
                 WHERE NOT EXISTS (
                     SELECT 1 FROM "Report_Stocks" rs
                     WHERE rs.product_id = $1::uuid AND rs.trans_date < $2
