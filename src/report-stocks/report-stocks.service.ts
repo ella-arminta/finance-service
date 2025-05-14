@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Prisma, Report_Stocks } from '@prisma/client';
 import { BaseService } from 'src/common/base.service';
 import { DatabaseService } from 'src/database/database.service';
@@ -6,10 +6,9 @@ import { StockSourceService } from './stock-source.service';
 import { ReportStockValidation } from './report-stocks.validation';
 import { ValidationService } from 'src/common/validation.service';
 import { ResponseDto } from 'src/common/response.dto';
-import { filter } from 'cheerio/dist/commonjs/api/traversing';
 import { TransAccountSettingsService } from 'src/trans-account-settings/trans-account-settings.service';
 import { Decimal } from '@prisma/client/runtime/library';
-import { connect } from 'http2';
+import { ClientProxy } from '@nestjs/microservices';
 
 @Injectable()
 export class ReportStocksService extends BaseService<Report_Stocks> {
@@ -19,6 +18,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         private readonly reportStockValidation: ReportStockValidation,
         private readonly validationService: ValidationService,
         private readonly transAccountSettingsServ: TransAccountSettingsService,
+        @Inject('INVENTORY_READER') private readonly inventoryReaderClient: ClientProxy,
     ) {
         const relations = {
         }
@@ -735,6 +735,58 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     tempWeight, 
                 );
             }
+
+            // Item not from store fetch category and type
+            let fetchType = null;
+            if (prodCode.product_code == null && prodCode.type != null && prodCode.type != '') {
+                try {
+                    // get api
+                    // prodCode.type =  PERUX00102 - LAPAK 01
+                    const prodCodeType = prodCode.type.split('-')[0].trim();
+                    const response = await this.inventoryReaderClient
+                        .send({ cmd: 'get:type' }, {
+                            body: {
+                                code: prodCodeType,
+                                store_id: data.store_id,
+                                company_id: data.store.company_id,
+                            }
+                        })
+                        .toPromise();
+                    // console.log('data response get category and type',response.data);
+                    // data response get category and type {
+                    //     data: [
+                    //         {
+                    //         id: '16d95fea-22c8-4755-b635-5e76242833cd',
+                    //         code: 'PERUX00102',
+                    //         name: 'Bintang 2',
+                    //         description: '',
+                    //         category_id: 'c3a06c3b-bf16-4dda-8434-ba6b9aac241d',
+                    //         percent_price_reduction: '1',
+                    //         fixed_price_reduction: '0',
+                    //         percent_broken_reduction: '1',
+                    //         fixed_broken_reduction: '0',
+                    //         created_at: '2025-05-09T02:14:57.024Z',
+                    //         updated_at: '2025-05-09T02:14:57.024Z',
+                    //         deleted_at: null,
+                    //         products: [Array],
+                    //         prices: [Array],
+                    //         category: [Object]
+                    //         }
+                    //     ]
+                    //     }
+                    fetchType = response.data.data.length > 0 ? response.data.data[0] : null;
+                } catch(error) {
+                    console.log('error get category and type',error);
+                    await this.db.failed_Message.create({
+                        data: {
+                            queue: 'transaction_finance_updated',
+                            routingKey: 'finance_service_queue',
+                            payload: '',
+                            error: 'Item Not From Store Fetch Category and Type error : '  + error.stack,
+                        },
+                    });
+                }
+            }
             
             let MappedData :any = {
                 store_id: data.store_id,
@@ -742,12 +794,12 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 trans_id: data.trans_serv_id,
                 trans_code: data.code,
                 trans_date: data.created_at,
-                category_id: prodCode.product_code?.product?.type?.category_id ?? null,
-                category_code: prodCode.product_code?.product?.type?.category?.code ?? null,
-                category_name: prodCode.product_code?.product?.type.category.name ?? null,
-                type_id: prodCode.product_code?.product?.type?.id ?? null,
-                type_code: prodCode.product_code?.product?.type?.code ?? null,
-                type_name: prodCode.product_code?.product?.type?.name ?? null,
+                category_id: prodCode.product_code?.product?.type?.category_id ?? (fetchType != null ? fetchType?.category?.id : null),
+                category_code: prodCode.product_code?.product?.type?.category?.code ?? (fetchType != null ? fetchType?.category?.code : null),
+                category_name: prodCode.product_code?.product?.type?.category?.name ?? (fetchType != null ? fetchType?.category?.name : null),
+                type_id: prodCode.product_code?.product?.type?.id ?? (fetchType != null ? fetchType?.id : null),
+                type_code: prodCode.product_code?.product?.type?.code ?? (fetchType != null ? fetchType?.code : null),
+                type_name: prodCode.product_code?.product?.type?.name ?? (fetchType != null ? fetchType?.name : null),
                 product_id: prodCode.product_code?.product?.id ?? null,
                 product_code: prodCode.product_code?.product?.code ?? null,
                 product_name: prodCode.product_code?.product?.name ?? null,

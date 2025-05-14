@@ -475,6 +475,14 @@ export class TransactionService extends BaseService<Trans> {
     }
   }
 
+  // payment method code
+  paymentMethod = {
+    1: 'Cash',
+    2: 'Bank Transfer',
+    3: 'Credit Card',
+    4: 'Debit Card',
+    5: 'Marketplace',
+  }
 
   async createSales(data: any, formType: 'submit' | 'updated' = 'submit') {
     // REFORMAT TRANSACTION DETAIL
@@ -702,7 +710,7 @@ export class TransactionService extends BaseService<Trans> {
         transDetailsFormated.push({
           account_id: pendapatanDibayarDimukaAccount.account_id,
           amount: salesEmasTotal + operationSalesTotal + diskonTotal,  // (sub_price - diskon_price + tax_price)
-          description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
+          detail_description: 'Penerimaan pembayaran dari customer ' + this.paymentMethod[data.payment_method],
           cash_bank: true,
           created_at: data.created_at
         })
@@ -713,7 +721,7 @@ export class TransactionService extends BaseService<Trans> {
         transDetailsFormated.push({
           account_id: pendapatanDibayarDimukaAccount.account_id,
           amount: salesEmasTotal + operationSalesTotal + diskonTotal,  // (sub_price - diskon_price + tax_price)
-          description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
+          detail_description: 'Penerimaan pembayaran dari customer ' + this.paymentMethod[data.payment_method],
           cash_bank: true,
           created_at: data.created_at
         })
@@ -721,7 +729,7 @@ export class TransactionService extends BaseService<Trans> {
         transDetailsFormated.push({
           account_id: pendapatanDibayarDimukaAccount.account_id,
           amount: Math.abs(salesEmasTotal + operationSalesTotal + diskonTotal),  // (sub_price - diskon_price + tax_price)
-          description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
+          detail_description: 'Penerimaan pembayaran dari customer ' + this.paymentMethod[data.payment_method],
           cash_bank: true,
           created_at: nowtime
         })
@@ -745,7 +753,7 @@ export class TransactionService extends BaseService<Trans> {
         transDetailsFormated.push({
           account_id: pendapatanDibayarDimukaAccount.account_id,
           amount: salesEmasTotal + operationSalesTotal + diskonTotal,  // (sub_price - diskon_price + tax_price)
-          description: 'Penerimaan pembayaran dari customer ' + data.payment_method,
+          detail_description: 'Penerimaan pembayaran dari customer ' + this.paymentMethod[data.payment_method],
           cash_bank: true,
           created_at: data.created_at
         })
@@ -783,7 +791,7 @@ export class TransactionService extends BaseService<Trans> {
     transDetailsFormated.push({
       account_id: PaymentMethodAccount.account_id,
       amount: data.total_price,  // (sub_price - diskon_price + tax_price)
-      description: 'Pembayaran ' + data.payment_method,
+      detail_description: 'Pembayaran ' + this.paymentMethod[data.payment_method],
       cash_bank: true,
     })
 
@@ -800,7 +808,7 @@ export class TransactionService extends BaseService<Trans> {
             store_id: store.id,
             trans_date: data.created_at,
             trans_type_id: transType.id, // SALES
-            description: row.detail_description,
+            description: 'Penjualan emas ' + data.code,
             account_id: row.account_id,
             amount: row.amount,
             detail_description: row.detail_description,
@@ -1272,7 +1280,7 @@ export class TransactionService extends BaseService<Trans> {
         journalData.push({
           account_id: PaymentMethodAccount.account_id,
           amount: Math.abs(data.total_price),  // (sub_price - diskon_price + tax_price)
-          description: 'Pembayaran dari customer' + data.payment_method,
+          description: 'Pembayaran dari customer' + this.paymentMethod[data.payment_method],
           cash_bank: true,
           account_code: PaymentMethodAccount.account.code
         })
