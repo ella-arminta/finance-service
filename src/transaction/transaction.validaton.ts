@@ -377,6 +377,7 @@ export class TransactionValidation {
           }
           return val;
         }, z.number().optional().nullable()),
+        type: z.string().optional().nullable(),
       })
     ),
   })

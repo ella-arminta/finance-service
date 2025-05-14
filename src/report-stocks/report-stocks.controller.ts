@@ -32,7 +32,7 @@ export class ReportStocksController {
       }
 
       const result = await this.reportStocksService.getStockCard(filters);
-      console.log('result', result);
+      // console.log('result', result);
       return result;
   }
 
