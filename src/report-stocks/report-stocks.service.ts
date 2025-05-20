@@ -195,12 +195,12 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
     
         // Optional filters
         if (filters.dateStart) {
-            conditions.push(`rs.created_at >= $${paramIndex}`);
+            conditions.push(`rs.trans_date >= $${paramIndex}`);
             params.push(new Date(filters.dateStart));
             paramIndex++;
         }
         if (filters.dateEnd) {
-            conditions.push(`rs.created_at <= $${paramIndex}`);
+            conditions.push(`rs.trans_date <= $${paramIndex}`);
             params.push(new Date(filters.dateEnd));
             paramIndex++;
         }
@@ -252,12 +252,12 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     ss.name AS description,
                     CASE WHEN rs.qty >= 0 THEN rs.qty ELSE 0 END AS "in",
                     CASE WHEN rs.qty < 0 THEN -rs.qty ELSE 0 END AS "out",
-                    SUM(rs.qty) OVER (PARTITION BY rs.product_id ORDER BY rs.created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS balance,
+                    SUM(rs.qty) OVER (PARTITION BY rs.product_id ORDER BY rs.trans_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS balance,
                     CASE WHEN rs.qty >= 0 THEN rs.weight ELSE 0 END AS weight_in,
                     CASE WHEN rs.qty < 0 THEN -rs.weight ELSE 0 END AS weight_out,
-                    SUM(rs.weight) OVER (PARTITION BY rs.product_id ORDER BY rs.created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS balance_weight,
-                    SUM(rs.price) FILTER (WHERE rs.qty > 0) OVER (PARTITION BY rs.product_id ORDER BY rs.created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS sum_price_qty1,
-                    SUM(rs.weight) FILTER (WHERE rs.qty > 0) OVER (PARTITION BY rs.product_id ORDER BY rs.created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS sum_weight_qty1
+                    SUM(rs.weight) OVER (PARTITION BY rs.product_id ORDER BY rs.trans_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS balance_weight,
+                    SUM(rs.price) FILTER (WHERE rs.qty > 0) OVER (PARTITION BY rs.product_id ORDER BY rs.trans_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS sum_price_qty1,
+                    SUM(rs.weight) FILTER (WHERE rs.qty > 0) OVER (PARTITION BY rs.product_id ORDER BY rs.trans_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC AS sum_weight_qty1
                 FROM "Report_Stocks" rs
                 JOIN "Stock_Source" ss ON rs.source_id = ss.id
                 JOIN "Stores" st ON rs.store_id = st.id
