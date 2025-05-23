@@ -282,40 +282,16 @@ export class TransactionService extends BaseService<Trans> {
       // Status == 1/approved -> insert report journals
       if (status == 1) {
         for (let row of trans.trans_details) {
-          const data = {
-            trans_id: trans.id,
-            code: trans.code,
-            company_id: trans.store.company.id,
-            company_name: trans.store.company.name,
-            store_id: trans.store_id,
-            store_name: trans.store.name,
-            trans_date: trans.trans_date,
-            trans_type_id: trans.trans_type_id,
-            trans_type_code: trans.trans_type.code,
-            trans_type_name: trans.trans_type.name,
-            description: trans.description,
-            account_id: row.account_id,
-            account_name: row.account.name,
-            amount: row.amount,
-            detail_description: row.description,
-            cash_bank: row.kas,
-          };
           const result = await this.db.report_Journals.create({
             data: {
+              trans_id: trans.id,
               trans_serv_id: trans.id,
               code: trans.code,
-              company_id: trans.store.company.id,
-              company_name: trans.store.company.name,
               store_id: trans.store_id,
-              store_name: trans.store.name,
               trans_date: trans.trans_date,
               trans_type_id: trans.trans_type_id,
-              trans_type_code: trans.trans_type.code,
-              trans_type_name: trans.trans_type.name,
               description: trans.description,
               account_id: row.account_id,
-              account_name: row.account.name,
-              account_code: row.account.code,
               amount: row.amount,
               detail_description: row.description,
               cash_bank: row.kas,
@@ -328,13 +304,15 @@ export class TransactionService extends BaseService<Trans> {
       // Status == 0/ rejected -> deleted from  report journals
       else if (status == 0) {
         // Delete from report journals
-        const result = await this.db.report_Journals.deleteMany({
+       const result = await this.db.report_Journals.deleteMany({
           where: {
-            trans_serv_id: trans.id,
+            OR: [
+              { trans_serv_id: trans.id },
+              { trans_id: trans.id }
+            ]
           }
         });
       }
-
     } catch (error) {
       return ResponseDto.error('Error updating transaction status', null);
     }
@@ -1593,11 +1571,6 @@ export class TransactionService extends BaseService<Trans> {
     }
     const tempWeight = prevReportStock.weight;
     const tempQty = prevReportStock.qty;
-    const categoryBalance = await this.reportStockService.getCategoryBalance(
-        data.product.type.category_id, 
-        tempQty,
-        tempWeight, 
-    );
     const MappedData = {
         category_id: data.product.type.category_id,
         category_code: data.product.type.category.code,
@@ -1610,8 +1583,6 @@ export class TransactionService extends BaseService<Trans> {
         product_name: data.product.name,
         product_code_code: data.barcode,
         product_code_id: data.id,
-        category_balance_qty: categoryBalance.category_balance_qty,
-        category_balance_gram: categoryBalance.category_balance_gram,
         trans_date: new Date()
     }
     var reportStocks;

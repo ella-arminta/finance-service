@@ -25,24 +25,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         super('report_Stocks', db, relations);
     }
 
-    async getCategoryBalance(category_id: string, addBalQty: number | Decimal, addBalGram: number | Decimal) {
-        const lastCategoryBalance = await this.db.report_Stocks.findFirst({
-            where: { category_id },
-            orderBy: { trans_date: "desc" },
-            select: { category_balance_gram: true, category_balance_qty: true },
-            take: 1,
-        });
-    
-        // Pastikan semua perhitungan menggunakan Decimal
-        const bal_gram = new Decimal(lastCategoryBalance?.category_balance_gram ?? 0).plus(addBalGram);
-        const bal_qty = new Decimal(lastCategoryBalance?.category_balance_qty ?? 0).plus(addBalQty);
-    
-        return {
-            category_balance_gram: bal_gram.toNumber(),
-            category_balance_qty: bal_qty.toNumber(),
-        };
-    }    
-
     async handleSoldStock(data: any) {
         // console.log('Product:', prod, 'type', prod.product_code.product.type);
         // Product: {
@@ -97,11 +79,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             for (const prod of data.transaction_products) {
                 const tempWeight = Math.abs(parseFloat(prod.product_code.weight)) * -1;
                 const tempQty = -1;
-                const categoryBalance = await this.getCategoryBalance(
-                    prod.product_code.product.type.category.id, 
-                    tempQty,
-                    tempWeight, 
-                );
     
                 const mappedData = {
                     store_id: data.store.id,
@@ -125,8 +102,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     price: parseFloat(prod.product_code.fixed_price),
                     qty: tempQty,
                     created_at: new Date(data.created_at),
-                    category_balance_qty: categoryBalance.category_balance_qty,
-                    category_balance_gram: categoryBalance.category_balance_gram,
                 };
                 stocksReports.push(mappedData);
             }
@@ -145,11 +120,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         const validData = await this.validationService.validate(this.reportStockValidation.CREATE, data);
         const tempWeight = Math.abs(validData.weight);
         const tempQty = 1;
-        const categoryBalance = await this.getCategoryBalance(
-            validData.product.type.category_id, 
-            tempQty,
-            tempWeight, 
-        );
         const MappedData = {
             store_id: validData.product.store.id,
             source_id: source.id,
@@ -170,14 +140,389 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             price: validData.buy_price,
             qty: tempQty,
             created_at: new Date(validData.created_at),
-            category_balance_qty: categoryBalance.category_balance_qty,
-            category_balance_gram: categoryBalance.category_balance_gram,
         }
         const result = await this.create(MappedData);
         return result;
     }
 
     async getStockCard(filters: any) {
+        console.log('filters in getStockCard:', filters);
+
+        const conditions: string[] = [];
+        const params: any[] = [];
+        let paramIndex = 1;
+
+        // Build dynamic WHERE conditions for main stock query (starting at dateStart)
+        if (filters.product_id) {
+            conditions.push(`rs.product_id = $${paramIndex}::uuid`);
+            params.push(filters.product_id);
+            paramIndex++;
+        }
+        if (filters.dateStart) {
+            conditions.push(`rs.trans_date >= $${paramIndex}`);
+            params.push(filters.dateStart);
+            paramIndex++;
+        }
+        if (filters.dateEnd) {
+            conditions.push(`rs.trans_date <= $${paramIndex}`);
+            params.push(filters.dateEnd);
+            paramIndex++;
+        }
+        if (filters.company_id) {
+            conditions.push(`st.company_id = $${paramIndex}::uuid`);
+            params.push(filters.company_id);
+            paramIndex++;
+        }
+        if (filters.store_id) {
+            conditions.push(`rs.store_id = $${paramIndex}::uuid`);
+            params.push(filters.store_id);
+            paramIndex++;
+        }
+        if (filters.category_id) {
+            conditions.push(`rs.category_id = $${paramIndex}::uuid`);
+            params.push(filters.category_id);
+            paramIndex++;
+        }
+        if (filters.type_id) {
+            conditions.push(`rs.type_id = $${paramIndex}::uuid`);
+            params.push(filters.type_id);
+            paramIndex++;
+        }
+        if (filters.owner_id) {
+            conditions.push(`com.owner_id = $${paramIndex}::uuid`);
+            params.push(filters.owner_id);
+            paramIndex++;
+        }
+        if (filters.product_code_code) {
+            conditions.push(`rs.product_code_code = $${paramIndex}`);
+            params.push(filters.product_code_code);
+            paramIndex++;
+        }
+
+        const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+        // Prepare query to get stock card starting from dateStart
+        const stockCardQuery = `
+            WITH RECURSIVE
+            transaksi AS (
+                SELECT 
+                    rs.*,
+                    com.name AS company,
+                    st.name AS store,
+                    ss.name AS description,
+                    CASE 
+                        WHEN rs.qty >= 0 AND rs.weight > 0 THEN rs.price * rs.weight
+                        ELSE 0
+                    END AS incoming_value,
+                    CASE 
+                        WHEN rs.qty >= 0 THEN rs.weight
+                        ELSE 0
+                    END AS incoming_weight
+                FROM "Report_Stocks" rs
+                JOIN "Stock_Source" ss ON rs.source_id = ss.id
+                JOIN "Stores" st ON rs.store_id = st.id
+                JOIN "Companies" com ON st.company_id = com.id
+                ${whereClause}
+            ),
+            ordered AS (
+                SELECT *, ROW_NUMBER() OVER (ORDER BY trans_date, created_at) AS rn
+                FROM transaksi
+            ),
+            rekursif_avg AS (
+                SELECT 
+                    o.*,
+                    incoming_value AS total_value,
+                    incoming_weight AS total_weight,
+                    CASE 
+                        WHEN incoming_weight > 0 THEN incoming_value / incoming_weight
+                        ELSE 0
+                    END AS unit_price
+                FROM ordered o
+                WHERE rn = 1
+
+                UNION ALL
+
+                SELECT 
+                    o.*,
+                    CASE 
+                        WHEN o.qty >= 0 THEN
+                            ra.total_value + o.incoming_value
+                        ELSE
+                            ra.total_value - (ABS(o.weight) * ra.unit_price)
+                    END AS total_value,
+                    CASE 
+                        WHEN o.qty >= 0 THEN
+                            ra.total_weight + o.incoming_weight
+                        ELSE
+                            ra.total_weight - ABS(o.weight)
+                    END AS total_weight,
+                    CASE 
+                        WHEN o.qty >= 0 THEN
+                            (ra.total_value + o.incoming_value) / NULLIF(ra.total_weight + o.incoming_weight, 0)
+                        ELSE
+                            ra.unit_price
+                    END AS unit_price
+                FROM rekursif_avg ra
+                JOIN ordered o ON o.rn = ra.rn + 1
+            )
+            SELECT 
+                product_id,
+                trans_code,
+                company,
+                store,
+                trans_date AS date,
+                product_code_code AS code,
+                product_name AS name,
+                description,
+                price,
+                CASE WHEN qty >= 0 THEN qty ELSE 0 END AS "in",
+                CASE WHEN qty < 0 THEN -qty ELSE 0 END AS "out",
+                SUM(qty) OVER (
+                    PARTITION BY product_id 
+                    ORDER BY trans_date, created_at 
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                )::NUMERIC AS balance,
+                CASE WHEN qty >= 0 THEN weight ELSE 0 END AS weight_in,
+                CASE WHEN qty < 0 THEN -weight ELSE 0 END AS weight_out,
+                SUM(weight) OVER (
+                    PARTITION BY product_id 
+                    ORDER BY trans_date, created_at 
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                )::NUMERIC AS balance_weight,
+                ROUND(unit_price, 2) AS unit_price,
+                ROUND(total_value, 2) AS stock_value
+            FROM rekursif_avg
+            ORDER BY trans_date, created_at
+        `;
+
+        // If both dateStart and product_id exist, get initial stock before dateStart
+        if (filters.dateStart && filters.product_id) {
+            // Query to get initial stock before dateStart for product_id
+            const initialStockQuery = `
+                SELECT 
+                    $1::uuid AS product_id,
+                    '' AS trans_code,
+                    '' AS company,
+                    '' AS store,
+                    ($2::date - INTERVAL '1 day')::date AS date,
+                    '' AS code,
+                    '' AS name,
+                    '' AS description,
+                    0 AS price,
+                    0 AS "in",
+                    0 AS "out",
+                    COALESCE(SUM(qty), 0)::numeric AS balance,
+                    0 AS weight_in,
+                    0 AS weight_out,
+                    COALESCE(SUM(weight), 0)::numeric AS balance_weight,
+                    ROUND(
+                        CASE WHEN COALESCE(SUM(weight), 0) > 0 
+                            THEN SUM(price * weight) / SUM(weight)
+                            ELSE 0
+                        END, 2)::numeric AS unit_price,
+                    ROUND(
+                        CASE WHEN COALESCE(SUM(weight), 0) > 0 
+                            THEN SUM(price * weight)
+                            ELSE 0
+                        END, 2)::numeric AS stock_value
+                FROM "Report_Stocks"
+                WHERE product_id = $1::uuid
+                AND trans_date < $2
+            `;
+
+            try {
+                const initialStockResult: any = await this.db.$queryRawUnsafe(initialStockQuery, filters.product_id, filters.dateStart);
+                const stockCardResult: any = await this.db.$queryRawUnsafe(stockCardQuery, ...params);
+
+                // Prepend initial stock row only if initialStockResult found or even zeros (always one row)
+                const initialStockRow = initialStockResult[0];
+                // For company/store/name/description we put empty strings per requirement
+                // in/out is zero, balance, unit_price, stock_value calculated above
+
+                const finalResult = [initialStockRow, ...stockCardResult];
+
+                return ResponseDto.success('Stock Card fetched with initial stock!', finalResult, 200);
+            } catch (error) {
+                console.error('Error executing query:', error);
+                return ResponseDto.error('Failed to fetch stock Card', 500);
+            }
+        } else {
+            // No need to add initial stock, just run main query
+            try {
+                const result: any = await this.db.$queryRawUnsafe(stockCardQuery, ...params);
+                return ResponseDto.success('Stock Card fetched!', result, 200);
+            } catch (error) {
+                console.error('Error executing query:', error);
+                return ResponseDto.error('Failed to fetch stock Card', 500);
+            }
+        }
+    }
+
+    // async getStockCard(filters: any) {
+    //     console.log('filters in getStockCard:', filters);
+
+    //     const conditions: string[] = [];
+    //     const params: any[] = [];
+    //     let paramIndex = 1;
+
+    //     // Build dynamic WHERE conditions
+    //     if (filters.product_id) {
+    //         conditions.push(`rs.product_id = $${paramIndex}::uuid`);
+    //         params.push(filters.product_id);
+    //         paramIndex++;
+    //     }
+    //     if (filters.dateStart) {
+    //         conditions.push(`rs.trans_date >= $${paramIndex}`);
+    //         params.push(filters.dateStart);
+    //         paramIndex++;
+    //     }
+    //     if (filters.dateEnd) {
+    //         conditions.push(`rs.trans_date <= $${paramIndex}`);
+    //         params.push(filters.dateEnd);
+    //         paramIndex++;
+    //     }
+    //     if (filters.company_id) {
+    //         conditions.push(`st.company_id = $${paramIndex}::uuid`);
+    //         params.push(filters.company_id);
+    //         paramIndex++;
+    //     }
+    //     if (filters.store_id) {
+    //         conditions.push(`rs.store_id = $${paramIndex}::uuid`);
+    //         params.push(filters.store_id);
+    //         paramIndex++;
+    //     }
+    //     if (filters.category_id) {
+    //         conditions.push(`rs.category_id = $${paramIndex}::uuid`);
+    //         params.push(filters.category_id);
+    //         paramIndex++;
+    //     }
+    //     if (filters.type_id) {
+    //         conditions.push(`rs.type_id = $${paramIndex}::uuid`);
+    //         params.push(filters.type_id);
+    //         paramIndex++;
+    //     }
+    //     if (filters.owner_id) {
+    //         conditions.push(`com.owner_id = $${paramIndex}::uuid`);
+    //         params.push(filters.owner_id);
+    //         paramIndex++;
+    //     }
+    //     if (filters.product_code_code) {
+    //         conditions.push(`rs.product_code_code = $${paramIndex}`);
+    //         params.push(filters.product_code_code);
+    //         paramIndex++;
+    //     }
+
+    //     // Build WHERE clause string
+    //     const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    //     // Final Query string with WITH RECURSIVE
+    //     const finalQuery = `
+    //         WITH RECURSIVE
+    //         transaksi AS (
+    //             SELECT 
+    //                 rs.*,
+    //                 com.name AS company,
+    //                 st.name AS store,
+    //                 ss.name AS description,
+    //                 CASE 
+    //                     WHEN rs.qty >= 0 AND rs.weight > 0 THEN rs.price * rs.weight
+    //                     ELSE 0
+    //                 END AS incoming_value,
+    //                 CASE 
+    //                     WHEN rs.qty >= 0 THEN rs.weight
+    //                     ELSE 0
+    //                 END AS incoming_weight
+    //             FROM "Report_Stocks" rs
+    //             JOIN "Stock_Source" ss ON rs.source_id = ss.id
+    //             JOIN "Stores" st ON rs.store_id = st.id
+    //             JOIN "Companies" com ON st.company_id = com.id
+    //             ${whereClause}
+    //         ),
+    //         ordered AS (
+    //             SELECT *, ROW_NUMBER() OVER (ORDER BY trans_date, created_at) AS rn
+    //             FROM transaksi
+    //         ),
+    //         rekursif_avg AS (
+    //             SELECT 
+    //                 o.*,
+    //                 incoming_value AS total_value,
+    //                 incoming_weight AS total_weight,
+    //                 CASE 
+    //                     WHEN incoming_weight > 0 THEN incoming_value / incoming_weight
+    //                     ELSE 0
+    //                 END AS unit_price
+    //             FROM ordered o
+    //             WHERE rn = 1
+
+    //             UNION ALL
+
+    //             SELECT 
+    //                 o.*,
+    //                 CASE 
+    //                     WHEN o.qty >= 0 THEN
+    //                         ra.total_value + o.incoming_value
+    //                     ELSE
+    //                         ra.total_value - (ABS(o.weight) * ra.unit_price)
+    //                 END AS total_value,
+    //                 CASE 
+    //                     WHEN o.qty >= 0 THEN
+    //                         ra.total_weight + o.incoming_weight
+    //                     ELSE
+    //                         ra.total_weight - ABS(o.weight)
+    //                 END AS total_weight,
+    //                 CASE 
+    //                     WHEN o.qty >= 0 THEN
+    //                         (ra.total_value + o.incoming_value) / NULLIF(ra.total_weight + o.incoming_weight, 0)
+    //                     ELSE
+    //                         ra.unit_price
+    //                 END AS unit_price
+    //             FROM rekursif_avg ra
+    //             JOIN ordered o ON o.rn = ra.rn + 1
+    //         )
+    //         SELECT 
+    //             product_id,
+    //             trans_code,
+    //             company,
+    //             store,
+    //             trans_date AS date,
+    //             product_code_code AS code,
+    //             product_name AS name,
+    //             description,
+    //             price,
+    //             CASE WHEN qty >= 0 THEN qty ELSE 0 END AS "in",
+    //             CASE WHEN qty < 0 THEN -qty ELSE 0 END AS "out",
+    //             SUM(qty) OVER (
+    //                 PARTITION BY product_id 
+    //                 ORDER BY trans_date, created_at 
+    //                 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    //             )::NUMERIC AS balance,
+    //             CASE WHEN qty >= 0 THEN weight ELSE 0 END AS weight_in,
+    //             CASE WHEN qty < 0 THEN -weight ELSE 0 END AS weight_out,
+    //             SUM(weight) OVER (
+    //                 PARTITION BY product_id 
+    //                 ORDER BY trans_date, created_at 
+    //                 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    //             )::NUMERIC AS balance_weight,
+    //             ROUND(unit_price, 2) AS unit_price,
+    //             ROUND(total_value, 2) AS stock_value
+    //         FROM rekursif_avg
+    //         ORDER BY trans_date, created_at
+    //     `;
+
+    //     console.log("Final Query:", finalQuery);
+    //     console.log("Parameters:", params);
+
+    //     try {
+    //         const result: any = await this.db.$queryRawUnsafe(finalQuery, ...params);
+    //         // Add initial stock query here then append it
+    //         return ResponseDto.success('Stock Card fetched!', result, 200);
+    //     } catch (error) {
+    //         console.error('Error executing query:', error);
+    //         return ResponseDto.error('Failed to fetch stock Card', 500);
+    //     }
+    // }
+
+    async getStockCardOld(filters: any) {
         console.log('filters in getStockCard:', filters);
     
         const conditions: string[] = [];
@@ -601,9 +946,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                         product_code: null,
                         product_name: null,
                         product_code_code: null,
-                        product_code_id: null,
-                        category_balance_qty: null,
-                        category_balance_gram: null,                
+                        product_code_id: null,         
                     }
                 })
             } 
@@ -647,11 +990,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         
         const tempWeight = Math.abs(parseFloat(data.productCode.weight)) * -1;
         const tempQty = -1;
-        const categoryBalance = await this.getCategoryBalance(
-            data.productCode.product.type.category_id, 
-            tempQty,
-            tempWeight, 
-        );
         const source = await this.stockSourceService.findOne(undefined, { code });
         const MappedData = {
             store_id: data.productCode.product.store_id,
@@ -673,8 +1011,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             price: parseFloat(data.productCode.buy_price),
             qty: tempQty,
             created_at: new Date(data.productCode.created_at),
-            category_balance_qty: categoryBalance.category_balance_qty,
-            category_balance_gram: categoryBalance.category_balance_gram,
         }
         const result = await this.create(MappedData);
         console.log('stock out result',result);
@@ -684,11 +1020,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         const source = await this.stockSourceService.findOne(undefined, { code: 'REPAIR' });
         const tempWeight = Math.abs(parseFloat(data.weight));
         const tempQty = 1;
-        const categoryBalance = await this.getCategoryBalance(
-            data.productCode.product.type.category_id, 
-            tempQty,
-            tempWeight, 
-        );
         const MappedData = {
             store_id: data.productCode.product.store_id,
             source_id: source.id,
@@ -709,8 +1040,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             price: parseFloat(data.productCode.buy_price),
             qty: tempQty,
             created_at: new Date(data.productCode.created_at),
-            category_balance_qty: categoryBalance.category_balance_qty,
-            category_balance_gram: categoryBalance.category_balance_gram,
         }
         const result = await this.create(MappedData);
         console.log('result stock in repaired', result);
@@ -724,17 +1053,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             console.log('ini product masuk purchae',prodCode)
             const tempWeight = Math.abs(parseFloat(prodCode.weight));
             const tempQty = 1;
-            let categoryBalance = {
-                category_balance_qty: 0,
-                category_balance_gram: 0,
-            };
-            if (prodCode.product_code?.product?.type?.category_id) {
-                categoryBalance = await this.getCategoryBalance(
-                    prodCode.product_code.product.type.category_id, 
-                    tempQty,
-                    tempWeight, 
-                );
-            }
 
             // Item not from store fetch category and type
             let fetchType = null;
@@ -809,8 +1127,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 price: Math.abs(parseFloat(prodCode.total_price)),
                 qty: tempQty,
                 created_at: data.created_at,
-                category_balance_qty: categoryBalance.category_balance_qty ?? 0,
-                category_balance_gram: categoryBalance.category_balance_gram ?? 0,
             }
 
             if (prodCode.product_code == null) {
@@ -834,17 +1150,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                                 Math.abs(parseFloat(prodCode.weight));
             const tempQty = prodCode.total_price > 0 ? // apakah barang dijual?
                                 -1 : 1; // jika barang dijual, qty -1, jika barang dibeli, qty 1
-            let categoryBalance = {
-                category_balance_qty: 0,
-                category_balance_gram: 0,
-            };
-            if (prodCode.product_code?.product?.type?.category_id) {
-                categoryBalance = await this.getCategoryBalance(
-                    prodCode.product_code.product.type.category_id, 
-                    tempQty,
-                    tempWeight, 
-                );
-            }
             
             let MappedData :any = {
                 store_id: data.store_id,
@@ -867,8 +1172,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 price: Math.abs(parseFloat(prodCode.total_price)),
                 qty: tempQty,
                 created_at: new Date(prodCode.created_at),
-                category_balance_qty: categoryBalance.category_balance_qty ?? 0,
-                category_balance_gram: categoryBalance.category_balance_gram ?? 0,
             }
 
             if (prodCode.product_code == null) {

@@ -289,20 +289,20 @@ model Report_Journals {
     // stock out-> trans_serv_id = product_code_id
     // Stock opname -> trans_serv_id = stock_opname_id
   code String 
-  company_id String? @db.Uuid
-  company_name String?
-  company_code String?
+  // company_id String? @db.Uuid
+  // company_name String?
+  // company_code String?
   store_id String @db.Uuid
-  store_name String?
-  store_code String?
+  // store_name String?
+  // store_code String?
   trans_date DateTime
   trans_type_id Int
-  trans_type_code String?  // Uang keluar lain / Uang masuk lain / Sales
-  trans_type_name String?
+  // trans_type_code String?  // Uang keluar lain / Uang masuk lain / Sales
+  // trans_type_name String?
   description String?
   account_id String @db.Uuid
-  account_code Int?
-  account_name String?
+  // account_code Int?
+  // account_name String?
   amount Decimal
   detail_description String?
   cash_bank Boolean @default(false) // true = Cash/Bank Account, false = Destination Account
@@ -355,8 +355,8 @@ model Report_Stocks {
   created_by        String?       @db.Uuid
   source            Stock_Source @relation(fields: [source_id], references: [id])
   store             Stores        @relation(fields: [store_id], references: [id])
-  category_balance_qty  Decimal? @default(0)
-  category_balance_gram Decimal? @default(0)
+  // category_balance_qty  Decimal? @default(0)
+  // category_balance_gram Decimal? @default(0)
 
   @@index([trans_date, source_id, product_code_id])
 }
