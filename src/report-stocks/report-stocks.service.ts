@@ -211,9 +211,9 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     st.name AS store,
                     ss.name AS description,
                     CASE 
-                        WHEN rs.qty >= 0 AND rs.weight > 0 THEN rs.price * rs.weight
+                        WHEN rs.qty >= 0 AND rs.weight > 0 THEN rs.price / rs.weight
                         ELSE 0
-                    END AS incoming_value,
+                    END AS incoming_price_per_weight,
                     CASE 
                         WHEN rs.qty >= 0 THEN rs.weight
                         ELSE 0
@@ -231,10 +231,10 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             rekursif_avg AS (
                 SELECT 
                     o.*,
-                    incoming_value AS total_value,
+                    incoming_price_per_weight AS price_per_weight,
                     incoming_weight AS total_weight,
                     CASE 
-                        WHEN incoming_weight > 0 THEN incoming_value / incoming_weight
+                        WHEN incoming_weight > 0 THEN incoming_price_per_weight
                         ELSE 0
                     END AS unit_price
                 FROM ordered o
@@ -246,10 +246,10 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     o.*,
                     CASE 
                         WHEN o.qty >= 0 THEN
-                            ra.total_value + o.incoming_value
+                            ra.price_per_weight
                         ELSE
-                            ra.total_value - (ABS(o.weight) * ra.unit_price)
-                    END AS total_value,
+                            ra.price_per_weight
+                    END AS price_per_weight,
                     CASE 
                         WHEN o.qty >= 0 THEN
                             ra.total_weight + o.incoming_weight
@@ -258,7 +258,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     END AS total_weight,
                     CASE 
                         WHEN o.qty >= 0 THEN
-                            (ra.total_value + o.incoming_value) / NULLIF(ra.total_weight + o.incoming_weight, 0)
+                            (ra.unit_price * ra.total_weight + o.incoming_price_per_weight * o.incoming_weight) / NULLIF(ra.total_weight + o.incoming_weight, 0)
                         ELSE
                             ra.unit_price
                     END AS unit_price
@@ -274,7 +274,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 product_code_code AS code,
                 product_name AS name,
                 description,
-                price,
+                price / NULLIF(weight, 0) AS price,
                 CASE WHEN qty >= 0 THEN qty ELSE 0 END AS "in",
                 CASE WHEN qty < 0 THEN -qty ELSE 0 END AS "out",
                 SUM(qty) OVER (
@@ -290,7 +290,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
                 )::NUMERIC AS balance_weight,
                 ROUND(unit_price, 2) AS unit_price,
-                ROUND(total_value, 2) AS stock_value
+                ROUND((unit_price * total_weight), 2) AS stock_value
             FROM rekursif_avg
             ORDER BY trans_date, created_at
         `;
@@ -298,50 +298,10 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         // If both dateStart and product_id exist, get initial stock before dateStart
         if (filters.dateStart && filters.product_id) {
             // Query to get initial stock before dateStart for product_id
-            const initialStockQuery = `
-                SELECT 
-                    $1::uuid AS product_id,
-                    '' AS trans_code,
-                    '' AS company,
-                    '' AS store,
-                    ($2::date - INTERVAL '1 day')::date AS date,
-                    '' AS code,
-                    '' AS name,
-                    '' AS description,
-                    0 AS price,
-                    0 AS "in",
-                    0 AS "out",
-                    COALESCE(SUM(qty), 0)::numeric AS balance,
-                    0 AS weight_in,
-                    0 AS weight_out,
-                    COALESCE(SUM(weight), 0)::numeric AS balance_weight,
-                    ROUND(
-                        CASE WHEN COALESCE(SUM(weight), 0) > 0 
-                            THEN SUM(price * weight) / SUM(weight)
-                            ELSE 0
-                        END, 2)::numeric AS unit_price,
-                    ROUND(
-                        CASE WHEN COALESCE(SUM(weight), 0) > 0 
-                            THEN SUM(price * weight)
-                            ELSE 0
-                        END, 2)::numeric AS stock_value
-                FROM "Report_Stocks"
-                WHERE product_id = $1::uuid
-                AND trans_date < $2
-            `;
 
             try {
-                const initialStockResult: any = await this.db.$queryRawUnsafe(initialStockQuery, filters.product_id, filters.dateStart);
                 const stockCardResult: any = await this.db.$queryRawUnsafe(stockCardQuery, ...params);
-
-                // Prepend initial stock row only if initialStockResult found or even zeros (always one row)
-                const initialStockRow = initialStockResult[0];
-                // For company/store/name/description we put empty strings per requirement
-                // in/out is zero, balance, unit_price, stock_value calculated above
-
-                const finalResult = [initialStockRow, ...stockCardResult];
-
-                return ResponseDto.success('Stock Card fetched with initial stock!', finalResult, 200);
+                return ResponseDto.success('Stock Card fetched with initial stock!', stockCardResult, 200);
             } catch (error) {
                 console.error('Error executing query:', error);
                 return ResponseDto.error('Failed to fetch stock Card', 500);
@@ -713,7 +673,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
 
     async getStockMutation(filters: any) {
         const { company_id, dateStart, dateEnd, category_id, store_id } = filters;
-        // TODOELLA ganti mutasi stok jadi per Category /lapak. Gak Pake Unit_price, unit_price pindah ke kartu stok
         let query = `
             SELECT 
                 rs.category_id,
@@ -741,26 +700,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 COALESCE(SUM(CASE WHEN rs.source_id = 4 AND rs.trans_date BETWEEN $2::timestamp AND $3::timestamp THEN rs.weight ELSE 0 END), 0)::numeric AS trade_gram,
     
                 COALESCE(SUM(CASE WHEN rs.trans_date < $4 THEN rs.qty ELSE 0 END), 0)::numeric AS final,
-                COALESCE(SUM(CASE WHEN rs.trans_date < $4 THEN rs.weight ELSE 0 END), 0)::numeric AS final_gram,
-    
-                COALESCE(
-                  SUM(
-                    CASE 
-                      WHEN (rs.source_id IN (1, 5) OR (rs.source_id = 4 AND rs.qty > 0)) -- in stock, purchase from customer, trade
-                        AND rs.trans_date < $4
-                      THEN rs.price
-                      ELSE 0
-                    END
-                  ) / NULLIF(
-                    SUM(
-                      CASE 
-                        WHEN (rs.source_id IN (1, 5) OR (rs.source_id = 4 AND rs.qty > 0))
-                          AND rs.trans_date < $4
-                        THEN rs.weight
-                        ELSE 0
-                      END
-                    ), 0)
-                , 0)::numeric AS unit_price
+                COALESCE(SUM(CASE WHEN rs.trans_date < $4 THEN rs.weight ELSE 0 END), 0)::numeric AS final_gram
             FROM "Report_Stocks" rs
             JOIN "Stores" s ON s.id = rs.store_id
             JOIN "Companies" c ON s.company_id = c.id

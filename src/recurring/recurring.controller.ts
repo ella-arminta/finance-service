@@ -51,6 +51,14 @@ export class RecurringController {
       if (filtersValidated.recurringType) {
         filtersValidated.recurringType = { equals : filtersValidated.recurringType };
       }
+      if (!filters.store_id && !filters.company_id) {
+        const owner_id = data.body.owner_id;
+        filtersValidated.store = {
+          company: {
+            owner_id: owner_id
+          }
+        }
+      }
       var result = await this.recurringService.findAll(filtersValidated);
       return ResponseDto.success('Data Retrieved!', result, 200);
     }
