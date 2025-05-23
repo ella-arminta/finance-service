@@ -371,6 +371,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     // change description to 'Initial Stock'
                     lastRow.description = 'Initial Stock';
                     lastRow.detail_description = '';
+                    lastRow.code = '';
                     lastRow.trans_code = '';
                     lastRow.date = dateEnd;
                     lastRow.price = 0;
@@ -382,14 +383,14 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     allresults = [lastRow, ...stockCardResult];
                 }else {
                     // craete initial stock row with all value 0
-                    const initialStockRow =         {
+                    const initialStockRow =  {
                         "product_id": "",
                         "trans_code": null,
-                        "company": "Perusahaan A",
-                        "store": "X Toko",
+                        "company": "",
+                        "store": "",
                         "date": dateEnd,
-                        "code": "COMPA0010100260001",
-                        "name": "Cincin Disney Mickey",
+                        "code": "",
+                        "name": "",
                         "description": "Initial Stock",
                         "price": "0",
                         "in": 0,
