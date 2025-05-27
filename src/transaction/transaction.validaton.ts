@@ -300,6 +300,10 @@ export class TransactionValidation {
           .refine((val) => !isNaN(val), { message: "Invalid discount" })
           .optional(),
         product_code: z.any().optional().nullable(),
+        weight: z
+          .union([z.string(), z.number()])
+          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+          .refine((val) => !isNaN(val), { message: "Invalid weight" }),
         // buy price parseFloat
         buy_price: z.preprocess((val) => {
           if (typeof val === 'string') {
@@ -435,7 +439,10 @@ export class TransactionValidation {
           .union([z.string(), z.number()])
           .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
           .refine((val) => !isNaN(val), { message: "Invalid Total Price" }),
-        weight: z.any(),
+        weight: z
+          .union([z.string(), z.number()])
+          .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
+          .refine((val) => !isNaN(val), { message: "Invalid weight" }),
         created_at: z.any(),
         buy_price: z.preprocess((val) => {
           if (typeof val === 'string') {

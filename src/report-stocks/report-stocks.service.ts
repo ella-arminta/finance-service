@@ -10,6 +10,7 @@ import { TransAccountSettingsService } from 'src/trans-account-settings/trans-ac
 import { Decimal } from '@prisma/client/runtime/library';
 import { ClientProxy } from '@nestjs/microservices';
 import { all } from 'axios';
+import { last } from 'cheerio/dist/commonjs/api/traversing';
 
 @Injectable()
 export class ReportStocksService extends BaseService<Report_Stocks> {
@@ -104,6 +105,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     qty: tempQty,
                     created_at: new Date(data.created_at),
                 };
+                await this.updateUnitPrice(mappedData.product_id, mappedData.qty, mappedData.weight);
                 stocksReports.push(mappedData);
             }
             const reportStocks = await this.db.report_Stocks.createMany({
@@ -143,6 +145,9 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             created_at: new Date(validData.created_at),
         }
         const result = await this.create(MappedData);
+        if (result) {
+            await this.addUnitPrice(MappedData.product_id, (MappedData.price / MappedData.weight), MappedData.qty, MappedData.weight);
+        }
         return result;
     }
 
@@ -992,6 +997,13 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                         product_code_id: null,         
                     }
                 })
+                if (fetchPrevReportStock.length > 0) {
+                    for (let stock of fetchPrevReportStock) {
+                        if (stock.product_id) {
+                            await this.delUnitPrice(stock.product_id, (stock.price.toNumber() / stock.weight.toNumber()), stock.qty, stock.weight);
+                        }
+                    }
+                }
             } 
             // Delete product purchase from supplier
             else {
@@ -1005,6 +1017,16 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     }
                 });
         
+                const fetchCreateProductCode = await prisma.report_Stocks.findFirst({
+                    where: {
+                        product_code_id: productCode.id,
+                        source_id: 1
+                    }
+                })
+                if (fetchCreateProductCode) {
+                    await this.delUnitPrice(fetchCreateProductCode.product_id, (fetchCreateProductCode.price.toNumber() / fetchCreateProductCode.weight.toNumber()), fetchCreateProductCode.qty, fetchCreateProductCode.weight);
+                }
+
                 // delete from report stocks
                 await prisma.report_Stocks.deleteMany({
                     where: {
@@ -1057,6 +1079,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         }
         const result = await this.create(MappedData);
         console.log('stock out result',result);
+        await this.updateUnitPrice(MappedData.product_id, MappedData.qty, MappedData.weight);
         return result;
     }
     async handleStockInRepaired(data: any) {
@@ -1086,6 +1109,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         }
         const result = await this.create(MappedData);
         console.log('result stock in repaired', result);
+        await this.updateUnitPrice(MappedData.product_id, MappedData.qty, MappedData.weight);
         return result;
     }
 
@@ -1178,6 +1202,9 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             console.log('purchase stock in mappedData',MappedData)
             const result = await this.create(MappedData);
             results.push(result);
+            if (MappedData.product_id) {
+                await this.addUnitPrice(MappedData.product_id, (MappedData.price / MappedData.weight), MappedData.qty, MappedData.weight);
+            }
         }
         console.log('result purchase from customer', results);
         return results;
@@ -1223,7 +1250,126 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             console.log('trade stock in mappedData',MappedData)
             const result = await this.create(MappedData);
             results.push(result);
+            if (MappedData.product_id && tempQty > 0) {
+                await this.addUnitPrice(MappedData.product_id, (MappedData.price / MappedData.weight), MappedData.qty, MappedData.weight);
+            } else if (MappedData.product_id && tempQty < 0) {
+                await this.updateUnitPrice(MappedData.product_id, tempQty, tempWeight);
+            }
         }
         return results;
+    }
+
+    async addUnitPrice(product_id, price_per_gram, qty, weight) {
+        if (product_id == null) {
+            return null;
+        }
+        let lastUnitPrice = await this.db.unit_Prices.findUnique({
+            where: { product_id }
+        });
+        qty = Math.abs(qty);
+        weight = Math.abs(weight);
+
+        let newUnitPrice;
+
+        if (!lastUnitPrice) {
+            newUnitPrice = await this.db.unit_Prices.create({
+                data: {
+                    product_id,
+                    avg_price: new Decimal(price_per_gram).toDecimalPlaces(2),
+                    qty: new Decimal(qty).toDecimalPlaces(2),
+                    weight: new Decimal(weight).toDecimalPlaces(2),
+                }
+            });
+        } else {
+            const lastQty = lastUnitPrice.qty.toNumber();
+            const lastWeight = lastUnitPrice.weight.toNumber();
+            const lastAvg = lastUnitPrice.avg_price.toNumber();
+            const newQty = lastQty + qty;
+            const newWeight = lastUnitPrice.weight.toNumber() + weight;
+            let newPrice = lastAvg;
+            if (newWeight != 0 && !isNaN(newWeight)) {
+                newPrice = ((lastAvg * lastWeight) + (price_per_gram * weight)) / newWeight;
+            }
+            console.log('addUnit price', 'lastQty', lastQty, 'lastWeight', lastWeight, 'lastAvg', lastAvg, 'newQty', newQty, 'newWeight', newWeight, 'newPrice', newPrice);
+
+            newUnitPrice = await this.db.unit_Prices.update({
+                where: { product_id },
+                data: {
+                    avg_price: new Decimal(isNaN(newPrice) ? 0 : newPrice).toDecimalPlaces(2),
+                    qty: new Decimal(newQty).toDecimalPlaces(2),
+                    weight: new Decimal(newWeight).toDecimalPlaces(2),
+                }
+            });
+        }
+
+        return newUnitPrice;
+    }
+
+    async delUnitPrice(product_id, price_per_gram, qty, weight) {
+        let lastUnitPrice = await this.db.unit_Prices.findUnique({
+            where: { product_id }
+        });
+        qty = Math.abs(qty);
+        weight = Math.abs(weight);
+
+        if (lastUnitPrice) {
+            const lastQty = lastUnitPrice.qty.toNumber();
+            const lastAvg = lastUnitPrice.avg_price.toNumber();
+            const lastWeight = lastUnitPrice.weight.toNumber();
+            const newQty = lastQty - qty;
+            const newWeight = lastWeight - weight;
+            let newPrice = lastAvg; // default to last average price if newWeight is 0
+            if (newWeight != 0 && !isNaN(newWeight)) {
+                newPrice = ((lastAvg * lastWeight) - (price_per_gram * weight)) / newWeight;
+            }
+            console.log('newPrice', newPrice, 'newQty', newQty, 'newWeight', newWeight, 'lastAvg', lastAvg, 'lastWeight', lastWeight, 'lastQty', lastQty, 'price_per_gram', price_per_gram, 'weight', weight);
+
+            lastUnitPrice = await this.db.unit_Prices.update({
+                where: { product_id },
+                data: {
+                    avg_price: new Decimal(isNaN(newPrice) ? 0 : newPrice).toDecimalPlaces(2),
+                    qty: new Decimal(newQty).toDecimalPlaces(2),
+                    weight: new Decimal(newWeight).toDecimalPlaces(2),
+                }
+            });
+        }
+
+        return lastUnitPrice;
+    }
+
+    async updateUnitPrice(product_id, qty, weight) { // qty bisa negatif atau positif
+        let lastUnitPrice = await this.db.unit_Prices.findUnique({
+            where: { product_id }
+        });
+
+        if (lastUnitPrice) {
+            const lastQty = lastUnitPrice.qty.toNumber();
+            const newQty = lastQty + qty;
+            const newWeight = lastUnitPrice.weight.toNumber() + weight;
+
+            return await this.db.unit_Prices.update({
+                where: { product_id },
+                data: {
+                    qty: new Decimal(newQty).toDecimalPlaces(2),
+                    weight: new Decimal(newWeight).toDecimalPlaces(2),
+                }
+            });
+        }
+        return null;
+    }
+
+
+    async getAvgUnitPrice(product_id) {
+        console.log('getAvgUnitPrice', product_id);
+        let lastUnitPrice = await this.db.unit_Prices.findUnique({
+            where: {
+                product_id: product_id,
+            }
+        });
+        if (lastUnitPrice) {
+            return lastUnitPrice.avg_price.toNumber();
+        } else {
+            return 0;
+        }
     }
 }

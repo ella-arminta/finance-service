@@ -470,3 +470,13 @@ model Failed_Message {
 
   @@map("failed_messages")
 }
+
+model Unit_Prices {
+  id String @id @db.Uuid @default(uuid())
+  product_id String @db.Uuid @unique
+  avg_price Decimal 
+  qty Decimal 
+  weight Decimal
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}

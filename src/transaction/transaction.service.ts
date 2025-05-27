@@ -10,6 +10,7 @@ import { AccountsService } from 'src/accounts/accounts.service';
 import { ValidationService } from 'src/common/validation.service';
 import { TransactionValidation } from './transaction.validaton';
 import { ReportService } from 'src/report-journals/report-journals.service';
+import { prev } from 'cheerio/dist/commonjs/api/traversing';
 
 @Injectable()
 export class TransactionService extends BaseService<Trans> {
@@ -652,7 +653,11 @@ export class TransactionService extends BaseService<Trans> {
       //   },
       salesEmasTotal += (Math.abs(det.total_price)) * -1;
       console.log('biy price',det.product_code.buy_price);
-      hppTotal += Math.abs(det.product_code.buy_price);
+      const avgUnitPrice = await this.reportStockService.getAvgUnitPrice(det.product_code.product_id);
+      console.log('avgUnitPrice', avgUnitPrice);
+      console.log('det.weight', det.weight);
+      console.log('det', det);
+      hppTotal += avgUnitPrice * (Math.abs(parseFloat(det.weight)));
     };
 
     // Journal entry sales emas penjualan
@@ -1323,8 +1328,12 @@ export class TransactionService extends BaseService<Trans> {
         console.log('out buy price', product.product_code.buy_price);
         console.log('total persediaan 1', totalPersediaan);
         totalPendapatanEmas += Math.abs(product.total_price) * -1;
-        totalPersediaan += Math.abs(product.product_code.buy_price) * -1;
-        totalHpp += Math.abs(product.product_code.buy_price);
+        console.log('this is trade product', product);
+        console.log('this is trade product code', product.product_code);
+        const avgUnitPrice = await this.reportStockService.getAvgUnitPrice(product.product_code.product.id);
+        const tempHpp = avgUnitPrice * Math.abs(parseFloat(product.weight));
+        totalPersediaan += tempHpp * -1;
+        totalHpp += tempHpp;
       }
 
       // Product In (Diterima dari customer) (from store / not from store)
@@ -1431,6 +1440,19 @@ export class TransactionService extends BaseService<Trans> {
       // trans_type_code: 'SAL'
     });
     // Cancel Stock Sold
+    // bisa trade / bisa purchase / bisa sales status apapun
+    const fetchPrevReportStocks = await this.reportStockService.findAll({
+      trans_id: trans_id
+    });
+    for (const prevReportStock of fetchPrevReportStocks) {
+      if (prevReportStock.qty > 0 ) { // stock bertambah
+        if (prevReportStock.product_id) {
+          await this.reportStockService.delUnitPrice(prevReportStock.product_id, (prevReportStock.price.toNumber() / prevReportStock.weight.toNumber()), prevReportStock.qty, prevReportStock.weight); 
+        }
+      } else if (prevReportStock.qty < 0) { // stock berkurang
+        await this.reportStockService.updateUnitPrice(prevReportStock.product_id,Math.abs(prevReportStock.qty), Math.abs(prevReportStock.weight.toNumber()));
+      }
+    }
     await this.reportStockService.deleteAll({
       trans_id: trans_id,
       // source_id: 3
@@ -1569,8 +1591,6 @@ export class TransactionService extends BaseService<Trans> {
     if (!prevReportStock) {
       throw new BadRequestException('Report stock not found');
     }
-    const tempWeight = prevReportStock.weight;
-    const tempQty = prevReportStock.qty;
     const MappedData = {
         category_id: data.product.type.category_id,
         category_code: data.product.type.category.code,
@@ -1593,6 +1613,7 @@ export class TransactionService extends BaseService<Trans> {
           data: MappedData
         }
       )
+      await this.reportStockService.addUnitPrice(MappedData.product_id, (prevReportStock.price.toNumber() / prevReportStock.weight.toNumber()),prevReportStock.qty, prevReportStock.weight )
     })
   }
 
@@ -1667,7 +1688,8 @@ export class TransactionService extends BaseService<Trans> {
     };
 
     const selectedAccount = accountMap[reason];
-    const amount = Math.abs(parseFloat(productCode.buy_price));
+    const avgUnitPrice = await this.reportStockService.getAvgUnitPrice(productCode.product_id);
+    const amount = avgUnitPrice * Math.abs(parseFloat(productCode.weight));
 
     try {
         await this.db.$transaction(async (prisma) => {
@@ -1732,6 +1754,15 @@ export class TransactionService extends BaseService<Trans> {
 
         // taken out reason // 0: none, 1: repair, 2: lost, 3: taken out by the owner
         // delete from report stock
+        const prevStockOut = await this.db.report_Stocks.findFirst({
+          where: {
+            product_code_id: data.id,
+            source_id: data.taken_out_reason == 1 ? 6 : 2
+          }
+        })
+        if (prevStockOut) { // update unit price only if not repair
+          await this.reportStockService.updateUnitPrice(prevStockOut.product_id, Math.abs(prevStockOut.qty), Math.abs(prevStockOut.weight.toNumber()));
+        }
         const stockOut = await this.db.report_Stocks.deleteMany({
           where: {
             product_code_id: data.id,
@@ -1755,6 +1786,18 @@ export class TransactionService extends BaseService<Trans> {
     const account_id = data.account_id;
     const weight = data.weight;
     const expense = data.expense;
+    const prevReportJournal = await this.db.report_Journals.findFirst({
+      where: {
+        trans_serv_id: productCode.id,
+        trans_type_id: 6
+      }, 
+      orderBy: {
+        created_at: 'desc'
+      }
+    });
+    if (!prevReportJournal) {
+      return ResponseDto.error('Previous report journal not found', null, 404);
+    }
     console.log(productCode, trans_date, account_id, weight, expense);
     // data repaired {
     //   productCode: {
@@ -1827,9 +1870,9 @@ export class TransactionService extends BaseService<Trans> {
     // Perhitungan persediaan : 
     // persediaan barang (debit) = harga beli akhir
     const beratAwal = parseFloat(productCode.weight);
-    const hargaBeliAwal = parseFloat(productCode.buy_price);
+    const hargaKeluarStok = Math.abs(prevReportJournal.amount.toNumber());
     const beratAkhir = parseFloat(weight);
-    const hargaPerGram = hargaBeliAwal / beratAwal;
+    const hargaPerGram = hargaKeluarStok / beratAwal;
     const hargaBeliAkhir = hargaPerGram * beratAkhir;
     const selisihBerat = beratAwal - beratAkhir;
     const kerugianPenyusutanEmas = selisihBerat > 0 ? hargaPerGram * selisihBerat : 0;
@@ -1911,7 +1954,7 @@ export class TransactionService extends BaseService<Trans> {
             trans_type_id: transType.id,
             description: 'Persediaan dalam perbaikan dikeluarkan, barang telah direparasi' + ' ' + productCode.barcode,
             account_id: repairInventoryAccount.account_id,
-            amount: Math.abs(hargaBeliAwal) * -1,
+            amount: Math.abs(hargaKeluarStok) * -1,
             detail_description: 'Persediaan dalam perbaikan dikeluarkan, barang telah direparasi',
             cash_bank: false
           }
@@ -1991,6 +2034,8 @@ export class TransactionService extends BaseService<Trans> {
     for (var productCode of stockNotScanned) {
       // Dr. Beban Kerugian Barang Hilang    Rp 1.000.000  
       //     Cr. Persediaan Barang Dagangan      Rp 1.000.000    
+      const avgUnitPrice = await this.reportStockService.getAvgUnitPrice(productCode.product_id);
+      const amountKerugian = avgUnitPrice * Math.abs(parseFloat(productCode.weight));
       try {
         await this.db.$transaction(async (prisma) => {
           if (!data.id) {
@@ -2007,7 +2052,7 @@ export class TransactionService extends BaseService<Trans> {
               trans_type_id: transType.id,
               description: `Barang Keluar ${reason} setelah opname stock tgl. ${new Date(data.trans_date).toLocaleDateString('id-ID')}`,
               account_id: lostAccount.account_id,
-              amount: Math.abs(parseFloat(productCode.buy_price)),
+              amount: amountKerugian,
               detail_description: 'Beban Kerugian Barang Hilang ' + productCode.product.store.name,
               cash_bank: true,
               created_at: data.trans_date
@@ -2023,7 +2068,7 @@ export class TransactionService extends BaseService<Trans> {
               trans_type_id: transType.id,
               description: `Barang Keluar ${reason} setelah opname stock tgl. ${new Date(data.trans_date).toLocaleDateString('id-ID')} ${productCode.barcode}`,
               account_id: inventoryAccount.account_id,
-              amount: Math.abs(parseFloat(productCode.buy_price)) * -1,
+              amount: amountKerugian * -1,
               detail_description: 'Persediaan Barang Dagang ' + productCode.product.store.name,
               cash_bank: false,
               created_at: data.trans_date
@@ -2095,6 +2140,17 @@ export class TransactionService extends BaseService<Trans> {
           console.log('deleted ReportJournals', delReportJournals);
 
           // delete from report stocks
+          const prevStockOuts = await prisma.report_Stocks.findMany({
+            where: {
+              trans_id: id,
+              source_id: 2,
+            }
+          })
+          if (prevStockOuts.length > 0) {
+            for (const prevStockOut of prevStockOuts) {
+              await this.reportStockService.updateUnitPrice(prevStockOut.product_id, Math.abs(prevStockOut.qty), Math.abs(prevStockOut.weight.toNumber()));
+            }
+          }
           const delReportStocks = await prisma.report_Stocks.deleteMany({
             where: {
               source_id: 2, // OUTSTOCK
