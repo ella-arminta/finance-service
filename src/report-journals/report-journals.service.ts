@@ -501,7 +501,7 @@ export class ReportService extends BaseService<Report_Journals> {
         // Main query filters
         if (data.dateStart) {
             params.push(data.dateStart); // $offset + 1
-            conditions.push(`rj.trans_date > $${params.length}::date`);
+            conditions.push(`rj.trans_date >= $${params.length}::date`);
         }
     
         if (data.dateEnd) {

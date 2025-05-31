@@ -1075,7 +1075,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             weight:tempWeight,
             price: parseFloat(data.productCode.buy_price),
             qty: tempQty,
-            created_at: new Date(data.productCode.created_at),
+            created_at: new Date(data.trans_date),
         }
         const result = await this.create(MappedData);
         console.log('stock out result',result);
