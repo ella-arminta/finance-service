@@ -80,6 +80,7 @@ export class ReportStocksController {
       dateEnd: parseDate(sanitizeInput(body.dateEnd), true), // 23:59:59
       category_id: body.category_id,
       store_id: body.store_id,
+      owner_id: body.owner_id,
     };
   
     console.log('Sanitized body:', body);

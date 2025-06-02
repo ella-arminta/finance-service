@@ -920,7 +920,7 @@ export class TransactionService extends BaseService<Trans> {
       let KasAccount;
       if (data.status == 0 || data.account_id == null) {
         KasAccount = await this.transAccountSettingsServ.getDefaultAccount(
-          'piutang', data.store_id, data.store.company_id, `Default akun piutang ${data.store.name}`, 1, 'Default Akun Piutang'
+          'purchaseCust', data.store_id, data.store.company_id, `Default akun kas beli dari customer ${data.store.name}`, 1, 'Default Akun kas beli dari customer'
         )
         KasAccount.id = KasAccount.account_id;
       } else {

@@ -785,9 +785,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             SELECT 
                 rs.category_id,
                 rs.category_name,
-                s.id AS store_id,
-                s.company_id AS company_id,
-                c.owner_id,
     
                 COALESCE(SUM(CASE WHEN rs.trans_date < $1::timestamp THEN rs.qty ELSE 0 END), 0)::numeric AS initial_stock,
                 COALESCE(SUM(CASE WHEN rs.trans_date < $1::timestamp THEN rs.weight ELSE 0 END), 0)::numeric AS initial_stock_gram,
@@ -840,9 +837,14 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             query += ` AND rs.trans_date <= $${paramIndex}::timestamp`;
             params.push(dateEnd);
         }
+
+        if (!store_id && !company_id) {
+            query += ` AND c.owner_id = $${paramIndex}::uuid`;
+            params.push(filters.owner_id);
+        }
     
         query += `
-            GROUP BY rs.category_id, rs.category_name, s.id, s.company_id, c.owner_id
+            GROUP BY rs.category_id, rs.category_name
         `;
     
         const result = await this.db.$queryRawUnsafe(query, ...params);
