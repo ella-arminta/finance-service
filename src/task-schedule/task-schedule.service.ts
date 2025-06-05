@@ -12,7 +12,7 @@ export class TaskScheduleService {
         private readonly db: DatabaseService,
     ) { }
 
-    @Cron('0 11 * * *', {
+    @Cron('0 12 * * *', {
         timeZone: 'Asia/Jakarta',
     })
     async handleCron() {
