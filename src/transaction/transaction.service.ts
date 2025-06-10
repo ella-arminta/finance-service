@@ -1978,42 +1978,112 @@ export class TransactionService extends BaseService<Trans> {
   }
 
   async handleStockOpnameApproved(data: any) {
-    console.log('data', data);
-       // this is stock not scanned [
-    //   {
-    //     id: 'c9172e6c-be97-4e3e-a4ac-c1d25fc7b62f',
-    //     barcode: 'AA0020100040001',
-    //     product_id: '38043fba-3b36-43d7-a7c9-0e6317916868',
-    //     weight: 12,
-    //     fixed_price: 5000,
-    //     status: 0,
-    //     taken_out_at: null,
-    //     taken_out_reason: 0,
-    //     taken_out_by: null,
-    //     buy_price: 400000,
-    //     tax_purchase: 44000,
-    //     image: 'uploads\\product\\88813eb4-bfd2-4b7b-b555-d461a986b13b.png',
-    //     account_id: 'f609be50-160a-4edd-b3ac-755ab5c5739a',
-    //     created_at: 2025-03-18T06:49:50.612Z,
-    //     updated_at: 2025-03-18T06:49:50.612Z,
-    //     deleted_at: null,
-    //     product: {
-    //       id: '38043fba-3b36-43d7-a7c9-0e6317916868',
-    //       code: 'AA002010004',
-    //       name: 'Putih',
-    //       description: 'asdf',
-    //       images: [Array],
-    //       status: 1,
-    //       tags: [],
-    //       type_id: '19d5aba0-b8ff-4091-b0a8-a34d837a653a',
-    //       store_id: '8dedffbb-f267-490a-9feb-e1547b01fcda',
-    //       created_at: 2025-03-18T06:49:01.709Z,
-    //       updated_at: 2025-03-18T06:49:01.709Z,
-    //       deleted_at: null,
-    //       type: [Object]
-    //     }
-    //   }
-    // ]
+    console.log('data in stock opname approved', data);
+    // data in stock opname approved {
+  //   products: [
+  //     {
+  //       id: 'a1f895a4-88a9-45fe-9b17-1990fd03bffc',
+  //       stock_opname_id: '76211d08-26dc-4076-a2b0-fb04b36b887e',
+  //       product_code_id: '4845a4dc-30e0-4104-a92d-3d35ebf2a679',
+  //       description: null,
+  //       scanned: false,
+  //       created_at: '2025-06-10T07:18:58.630Z',
+  //       updated_at: '2025-06-10T07:18:58.630Z',
+  //       deleted_at: null,
+  //       productCode: [Object]
+  //     },
+  //     {
+  //       id: 'c5d2d6b6-5b00-46f2-a5e2-99fc17cce2da',
+  //       stock_opname_id: '76211d08-26dc-4076-a2b0-fb04b36b887e',
+  //       product_code_id: '5acdd0eb-7078-491a-b650-60f6eec18a5f',
+  //       description: null,
+  //       scanned: false,
+  //       created_at: '2025-06-10T07:18:58.650Z',
+  //       updated_at: '2025-06-10T07:18:58.650Z',
+  //       deleted_at: null,
+  //       productCode: [Object]
+  //     },
+  //     {
+  //       id: '45b7d0a3-5114-462f-83f2-86cfc73aaa06',
+  //       stock_opname_id: '76211d08-26dc-4076-a2b0-fb04b36b887e',
+  //       product_code_id: '7a2b3f84-f401-482e-8670-5ab763e7c0c8',
+  //       description: null,
+  //       scanned: false,
+  //       created_at: '2025-06-10T07:18:58.667Z',
+  //       updated_at: '2025-06-10T07:18:58.667Z',
+  //       deleted_at: null,
+  //       productCode: [Object]
+  //     },
+  //     {
+  //       id: 'f0bcb7aa-6bc7-4557-a0d9-b429c84dd75e',
+  //       stock_opname_id: '76211d08-26dc-4076-a2b0-fb04b36b887e',
+  //       product_code_id: '4565779d-435c-4026-86b9-c12b7f06c2e5',
+  //       description: null,
+  //       scanned: false,
+  //       created_at: '2025-06-10T07:18:58.685Z',
+  //       updated_at: '2025-06-10T07:18:58.685Z',
+  //       deleted_at: null,
+  //       productCode: [Object]
+  //     },
+  //     {
+  //       id: '1c767fb3-d6ee-412c-92f2-780ce6a68a63',
+  //       stock_opname_id: '76211d08-26dc-4076-a2b0-fb04b36b887e',
+  //       product_code_id: 'fafb18b8-d653-46ac-ab98-2ffdb87edb50',
+  //       description: null,
+  //       scanned: false,
+  //       created_at: '2025-06-10T07:18:58.701Z',
+  //       updated_at: '2025-06-10T07:18:58.701Z',
+  //       deleted_at: null,
+  //       productCode: [Object]
+  //     },
+  //     {
+  //       id: 'c93a58ec-b11d-4b15-bca3-9013709fb8c6',
+  //       stock_opname_id: '76211d08-26dc-4076-a2b0-fb04b36b887e',
+  //       product_code_id: 'dc9cdb6e-6c41-4c7b-8304-d75ba46a715b',
+  //       description: null,
+  //       scanned: false,
+  //       created_at: '2025-06-10T07:18:58.722Z',
+  //       updated_at: '2025-06-10T07:18:58.722Z',
+  //       deleted_at: null,
+  //       productCode: [Object]
+  //     },
+  //     {
+  //       id: 'e11350b0-4278-4c82-910d-36669b8f5875',
+  //       stock_opname_id: '76211d08-26dc-4076-a2b0-fb04b36b887e',
+  //       product_code_id: 'dcfa1ac8-139a-41de-91a1-653422e36720',
+  //       description: null,
+  //       scanned: false,
+  //       created_at: '2025-06-10T07:18:58.742Z',
+  //       updated_at: '2025-06-10T07:18:58.742Z',
+  //       deleted_at: null,
+  //       productCode: [Object]
+  //     },
+  //     {
+  //       id: '7897093c-de36-4cc0-8f70-4eb1624eb448',
+  //       stock_opname_id: '76211d08-26dc-4076-a2b0-fb04b36b887e',
+  //       product_code_id: '296bb82e-88f9-4c8d-aa24-8a66cea8c62f',
+  //       description: null,
+  //       scanned: true,
+  //       created_at: '2025-06-10T07:18:58.776Z',
+  //       updated_at: '2025-06-10T07:19:08.386Z',
+  //       deleted_at: null,
+  //       productCode: [Object]
+  //     },
+  //     {
+  //       id: '02877553-9abf-4bcc-8315-e7e6d5537e9a',
+  //       stock_opname_id: '76211d08-26dc-4076-a2b0-fb04b36b887e',
+  //       product_code_id: 'f668fde4-1500-44ad-be2b-36ce56c3cebe',
+  //       description: null,
+  //       scanned: false,
+  //       created_at: '2025-06-10T07:18:58.802Z',
+  //       updated_at: '2025-06-10T07:18:58.802Z',
+  //       deleted_at: null,
+  //       productCode: [Object]
+  //     }
+  //   ],
+  //   id: '76211d08-26dc-4076-a2b0-fb04b36b887e',
+  //   trans_date: '2025-06-10T07:21:49.555Z'
+  // }
     // Lost Stocks 
     const stockNotScanned = data.stockNotScanned;
     const store_id = stockNotScanned[0].product.store_id;
@@ -2058,7 +2128,7 @@ export class TransactionService extends BaseService<Trans> {
               store_id: productCode.product.store_id,
               trans_date: data.trans_date,
               trans_type_id: transType.id,
-              description: `Barang Keluar ${reason} setelah opname stock tgl. ${new Date(data.trans_date).toLocaleDateString('id-ID')}`,
+              description: `Barang Keluar ${reason} setelah opname stock tgl. ${new Date(data.trans_date).toLocaleDateString('id-ID')} ${productCode.barcode}`,
               account_id: lostAccount.account_id,
               amount: amountKerugian,
               detail_description: 'Beban Kerugian Barang Hilang ' + productCode.product.store.name,
@@ -2159,7 +2229,7 @@ export class TransactionService extends BaseService<Trans> {
           const prevStockOuts = await prisma.report_Stocks.findMany({
             where: {
               trans_id: id,
-              source_id: 2,
+              // source_id: 2,
             }
           })
           if (prevStockOuts.length > 0) {
@@ -2169,13 +2239,11 @@ export class TransactionService extends BaseService<Trans> {
           }
           const delReportStocks = await prisma.report_Stocks.deleteMany({
             where: {
-              source_id: 2, // OUTSTOCK
+              // source_id: 2, // OUTSTOCK
               trans_id: id,
             }
           });
           console.log('deleted reportStocks', delReportStocks);
-
-
         });
       } catch (error) {
         console.error('Error creating stock out:', error);

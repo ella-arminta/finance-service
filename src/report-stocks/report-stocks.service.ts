@@ -1396,6 +1396,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         await this.updateUnitPrice(MappedData.product_id, MappedData.qty, MappedData.weight);
         return result;
     }
+    
     async handleStockInRepaired(data: any) {
         const source = await this.stockSourceService.findOne(undefined, { code: 'REPAIR' });
         const tempWeight = Math.abs(parseFloat(data.weight));
