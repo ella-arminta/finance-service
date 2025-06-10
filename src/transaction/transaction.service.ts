@@ -653,7 +653,7 @@ export class TransactionService extends BaseService<Trans> {
       //   },
       salesEmasTotal += (Math.abs(det.total_price)) * -1;
       console.log('biy price',det.product_code.buy_price);
-      const avgUnitPrice = await this.reportStockService.getAvgUnitPrice(det.product_code.product_id);
+      const avgUnitPrice = await this.reportStockService.getUnitPrice(det.product_code.product_id, det.product_code.id, store.id);
       console.log('avgUnitPrice', avgUnitPrice);
       console.log('det.weight', det.weight);
       console.log('det', det);
@@ -1330,7 +1330,8 @@ export class TransactionService extends BaseService<Trans> {
         totalPendapatanEmas += Math.abs(product.total_price) * -1;
         console.log('this is trade product', product);
         console.log('this is trade product code', product.product_code);
-        const avgUnitPrice = await this.reportStockService.getAvgUnitPrice(product.product_code.product.id);
+        var tempProductCodeID = product.product_code ? product.product_code.id : null; // boleh null karena outside product
+        const avgUnitPrice = await this.reportStockService.getUnitPrice(product.product_code.product.id, tempProductCodeID,data.store_id);
         const tempHpp = avgUnitPrice * Math.abs(parseFloat(product.weight));
         totalPersediaan += tempHpp * -1;
         totalHpp += tempHpp;
@@ -1688,7 +1689,7 @@ export class TransactionService extends BaseService<Trans> {
     };
 
     const selectedAccount = accountMap[reason];
-    const avgUnitPrice = await this.reportStockService.getAvgUnitPrice(productCode.product_id);
+    const avgUnitPrice = await this.reportStockService.getUnitPrice(productCode.product_id, productCode.id, store.id);
     const amount = avgUnitPrice * Math.abs(parseFloat(productCode.weight));
 
     try {
@@ -1728,6 +1729,13 @@ export class TransactionService extends BaseService<Trans> {
             console.log('reportJournalKredit',reportJournalKredit);
 
             data.trans_serv_id = productCode.id;
+            const fetchstore = await this.db.stores.findFirst({
+              where: { id: store.id },
+              include: { company: true }
+            });
+            if (fetchstore.inventory_val_method == 2) {
+              data.amount_stock = amount;
+            }
             await this.reportStockService.handleStockOut(data);
         });
 
@@ -2034,7 +2042,7 @@ export class TransactionService extends BaseService<Trans> {
     for (var productCode of stockNotScanned) {
       // Dr. Beban Kerugian Barang Hilang    Rp 1.000.000  
       //     Cr. Persediaan Barang Dagangan      Rp 1.000.000    
-      const avgUnitPrice = await this.reportStockService.getAvgUnitPrice(productCode.product_id);
+      const avgUnitPrice = await this.reportStockService.getUnitPrice(productCode.product_id, productCode.id, store_id);
       const amountKerugian = avgUnitPrice * Math.abs(parseFloat(productCode.weight));
       try {
         await this.db.$transaction(async (prisma) => {
@@ -2078,6 +2086,14 @@ export class TransactionService extends BaseService<Trans> {
           // Report Stock
           data.trans_id = data.id;
           data.productCode = productCode;
+          const store = await this.db.stores.findFirst({
+            where: {
+              id: store_id
+            }
+          });
+          if (store.inventory_val_method == 2) {
+            data.amount_stock = amountKerugian;
+          }
           var stockOut = await this.reportStockService.handleStockOut(data);
         });
       } catch (error) {

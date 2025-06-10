@@ -169,7 +169,8 @@ export class JournalsService{
             JOIN "Trans_Type" tt ON rj.trans_type_id = tt.id
             JOIN "Stores" s ON rj.store_id = s.id
             JOIN "Companies" c ON s.company_id = c.id
-            ${whereClause};
+            ${whereClause}
+            ORDER BY rj.created_at Desc
         `;
     
         return await this.db.$queryRawUnsafe(query, ...params);

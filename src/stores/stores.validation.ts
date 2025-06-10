@@ -25,6 +25,7 @@ export class StoreValidation {
         updated_at: this.dateSchema,
         deleted_at: this.dateSchema.nullable(),
         code: z.string(),
+        inventory_val_method: z.number().int().min(1).max(3).optional(),
     });      
 
     readonly UPDATE: ZodType = z.object({
@@ -40,6 +41,7 @@ export class StoreValidation {
         updated_at: this.dateSchema,
         deleted_at: this.dateSchema.nullable(),
         code: z.string().optional(),
+        inventory_val_method: z.number().int().min(1).max(3).optional(),
     });
     
 }

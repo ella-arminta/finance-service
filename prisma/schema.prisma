@@ -34,6 +34,7 @@ model Stores {
   code     String @default("BA")
   name        String
   company_id  String @db.Uuid
+  inventory_val_method Int @default(1) // 1: Average , 2 : Precise Value (Buy Price per Product Code)
 
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
