@@ -6,7 +6,7 @@ import { BaseService } from 'src/common/base.service';
 import { ResponseDto } from 'src/common/response.dto';
 import { DatabaseService } from 'src/database/database.service';
 import { ReportService } from 'src/report-journals/report-journals.service';
-import { add, format, isSameDay } from 'date-fns';
+import { add, endOfDay, format, isSameDay, startOfDay } from 'date-fns';
 
 @Injectable()
 export class PayableReceivableService extends BaseService<Payable_Receivables> {
@@ -528,62 +528,71 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
         await this.handleReminderJob();
     }
     async handleReminderJob() {
-      this.logger.log('Running reminder cron job...');
-  
-      const today = new Date();
-  
-      const reminders = await this.db.reminder_Payable_Receivables.findMany({
-        where: {
-          OR: [
-            { date_remind: today },
-            {
-              interval: { not: null },
-              period: { not: null },
+        this.logger.log('Running reminder cron job...');
+    
+        const today = new Date();
+        const start = startOfDay(today);
+        const end = endOfDay(today);
+    
+        const reminders = await this.db.reminder_Payable_Receivables.findMany({
+            where: {
+            OR: [
+                {
+                    date_remind: {
+                        gte: start,
+                        lte: end,
+                    },
+                },
+                {
+                interval: { not: null },
+                period: { not: null },
+                },
+            ],
+            payable_receivable: {
+                due_date: { not: null },
+                status: 0,
+            }
             },
-          ],
-          payable_receivable: {
-            due_date: { not: null },
-            status: 0,
-          }
-        },
-        include: {
-          payable_receivable: {
             include: {
-              report_journal: {
+            payable_receivable: {
                 include: {
-                    trans_type: true,
-                    account: true,
-                    store: {
-                        include: {
-                            company: true,
+                report_journal: {
+                    include: {
+                        trans_type: true,
+                        account: true,
+                        store: {
+                            include: {
+                                company: true,
+                            },
                         },
                     },
                 },
-              },
+                },
             },
-          },
-        },
-      });
-  
-      for (const reminder of reminders) {
-        const { date_remind, interval, period, emails, payable_receivable } = reminder;
-  
-        const dueDate = payable_receivable.due_date;
-        if (!dueDate) continue;
-  
-        let shouldSend = false;
-  
-        if (date_remind) {
-          shouldSend = isSameDay(new Date(date_remind), today);
-        } else if (interval && period) {
-          const reminderDate = this.subtractPeriod(dueDate, interval, period);
-          shouldSend = isSameDay(reminderDate, today);
+            },
+        });
+        console.log(`reminders found: ${reminders.length}`);
+    
+        for (const reminder of reminders) {
+            const { date_remind, interval, period, emails, payable_receivable } = reminder;
+    
+            const dueDate = payable_receivable.due_date;
+            if (!dueDate) continue;
+    
+            let shouldSend = false;
+    
+            if (date_remind) {
+                shouldSend = isSameDay(new Date(date_remind), today);
+            } else if (interval && period) {
+                const reminderDate = this.subtractPeriod(dueDate, interval, period);
+                shouldSend = isSameDay(reminderDate, today);
+            }
+    
+            if (shouldSend && emails.length > 0) {
+                console.log(`Sending reminder email for ${payable_receivable.report_journal.code} to ${emails.join(', ')}`);
+                await this.sendEmail(emails, payable_receivable);
+            }
         }
-  
-        if (shouldSend && emails.length > 0) {
-          await this.sendEmail(emails, payable_receivable);
-        }
-      }
     }
   
     subtractPeriod(date: Date, interval: number, period: string): Date {

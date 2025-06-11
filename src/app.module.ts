@@ -25,9 +25,11 @@ import { OperationModule } from './operation/operation.module';
 import { ActionAccountSettingModule } from './action-account-setting/action-account-setting.module';
 import { PayableReceivableModule } from './payable-receivable/payable-receivable.module';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { ConfigModule, ConfigService } from '@nestjs/config'; 
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     AccountsModule, 
     DatabaseModule, 
     CommonModule, 
@@ -49,24 +51,28 @@ import { MailerModule } from '@nestjs-modules/mailer';
     OperationModule,
     ActionAccountSettingModule,
     PayableReceivableModule,
-    MailerModule.forRoot({
-      transport: {
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-          user: 'brigittaella15@gmail.com',
-          pass: 'bnfivmxofmlgikqf', // use App Password (not your Gmail password)
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (config: ConfigService) => ({
+        transport: {
+          host: config.get('MAIL_HOST'),
+          port: +config.get<number>('MAIL_PORT'),
+          secure: true,
+          auth: {
+            user: config.get('MAIL_USER'),
+            pass: config.get('MAIL_PASS'),
+          },
         },
-      },
-      defaults: {
-        from: '"Finance App" brigittaella15@gmail.com',
-      },
-      template: {
-        options: {
-          strict: true,
+        defaults: {
+          from: config.get('MAIL_FROM'),
         },
-      },
+        template: {
+          options: {
+            strict: true,
+          },
+        },
+      }),
+      inject: [ConfigService],
     }),
 
   ],
