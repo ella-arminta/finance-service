@@ -165,6 +165,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 return ResponseDto.error('Store not found', 404);
             }
         } else {
+            console.log('filters in getStockCard:', filters);
             const product = await this.db.report_Stocks.findFirst({
                 where: {
                     product_id: filters.product_id,
@@ -173,6 +174,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     store_id: true,
                 }
             })
+            console.log('this is the product get stock card:', product);
             store = await this.db.stores.findFirst({
                 where: {
                     id: product.store_id,
@@ -1396,7 +1398,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         await this.updateUnitPrice(MappedData.product_id, MappedData.qty, MappedData.weight);
         return result;
     }
-    
+
     async handleStockInRepaired(data: any) {
         const source = await this.stockSourceService.findOne(undefined, { code: 'REPAIR' });
         const tempWeight = Math.abs(parseFloat(data.weight));
