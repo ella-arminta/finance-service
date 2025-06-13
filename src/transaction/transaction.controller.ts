@@ -347,6 +347,9 @@ export class TransactionController {
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
+        if (newdata.status == 0) {
+          return ResponseDto.success('Transaction Does need to be recorded in journal!', null, 201);
+        }
         if (newdata.status != 1 && newdata.status != 2) {
           throw new Error('Transaction done only!');
         }
