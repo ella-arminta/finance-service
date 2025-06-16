@@ -52,6 +52,7 @@ export class ReportController {
         return ResponseDto.success('PDF Generated Successfully!', { pdf: pdfBase64 });
       }
       catch (error) {
+        console.error('[generatePDF error]', error); // ini akan kelihatan di log
         return ResponseDto.error('Failed to generate PDF', error, 500);
       }
     }
