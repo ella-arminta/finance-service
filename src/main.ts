@@ -45,6 +45,7 @@ async function bootstrap() {
     'operation.*',
     'product.code.deleted',
     'product.code.created',
+    'product.code.updated',
     'store.*',
     'transaction.finance.created', 
     'transaction.finance.updated',

@@ -532,21 +532,7 @@ export class TransactionController {
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        // Product Code generated for Trade or Purchase
-        if (data.transref_id && data.transref_id != null) {
-          // get trans_id from transaction
-          const transProduct = await this.transactionClientTcp
-              .send({ cmd: 'get:transproduct/*' }, { params: { id: data.transref_id } })
-              .toPromise();
-          data.trans_id = transProduct.data.transaction_id;
-          const result = await this.transactionService.updateProductCodeTrans(data);
-          return ResponseDto.success('Product Code Created!', result, 200);
-        }
-        // Product cod egenerated from supplier 
-        else {
-          const result = await this.transactionService.buyProduct(data);
-          return ResponseDto.success('Product Code Created!', result, 200);
-        }
+        this.productCodeCreated(data);
       },
       {
         queueName: 'product.code.created',
@@ -556,9 +542,105 @@ export class TransactionController {
       },
     )();
   }
+  private async productCodeCreated(data: any) {
+        // Product Code generated for Trade or Purchase
+    if (data.transref_id && data.transref_id != null) {
+      // get trans_id from transaction
+      const transProduct = await this.transactionClientTcp
+          .send({ cmd: 'get:transproduct/*' }, { params: { id: data.transref_id } })
+          .toPromise();
+      data.trans_id = transProduct.data.transaction_id;
+      const result = await this.transactionService.updateProductCodeTrans(data);
+      return ResponseDto.success('Product Code Created!', result, 200);
+    }
+    // Product cod egenerated from supplier 
+    else {
+      const result = await this.transactionService.buyProduct(data);
+      return ResponseDto.success('Product Code Created!', result, 200);
+    }
+  }
 
-  // PURCHASE FROM CUSTOMER
-  // TRADE TRANS
+  @EventPattern('product.code.updated')
+  @Exempt()
+  async handleProductCodeUpdated(@Payload() data: any, @Ctx() context: RmqContext) {
+    console.log('product code updated', data);
+    data = data.data;
+    // generated product {
+    //   id: 'c17ada64-7847-4995-98b4-bcbcd038183f',
+    //   barcode: 'UUAAS0020100090006',
+    //   product_id: '2fca95fd-6525-4cee-8796-b9a09f670f25',
+    //   weight: '12',
+    //   fixed_price: '10000',
+    //   status: 0,
+    //   taken_out_at: null,
+    //   taken_out_reason: 0,
+    //   taken_out_by: null,
+    //   buy_price: '120000',
+    //   tax_purchase: '0',
+    //   image: '',
+    //   account_id: 'ad844ebf-ceab-474d-995b-3f7b60eb5847',
+    //   created_at: '2025-03-28T13:12:29.109Z',
+    //   updated_at: '2025-03-28T13:12:29.109Z',
+    //   deleted_at: null,
+    //   product: {
+    //     id: '2fca95fd-6525-4cee-8796-b9a09f670f25',
+    //     code: 'UUAAS002010009',
+    //     name: 'Product B',
+    //     description: '',
+    //     status: 1,
+    //     tags: [],
+    //     type_id: '62a80d88-595e-4e5b-b45d-6e1131369b2b',
+    //     store_id: '9c0d2ffc-1cf1-4a4c-bd2f-8cc18afca7c9',
+    //     created_at: '2025-03-28T08:19:57.755Z',
+    //     updated_at: '2025-03-28T08:19:57.755Z',
+    //     deleted_at: null,
+    //     type: {
+    //       id: '62a80d88-595e-4e5b-b45d-6e1131369b2b',
+    //       code: 'UUAAS00201',
+    //       name: 'Subcategory B',
+    //       description: '',
+    //       category_id: 'c2afe74a-836a-4ab0-b320-975ef8249f63',
+    //       percent_price_reduction: '0',
+    //       fixed_price_reduction: '0',
+    //       percent_broken_reduction: '0',
+    //       fixed_broken_reduction: '0',
+    //       created_at: '2025-03-28T08:18:51.337Z',
+    //       updated_at: '2025-03-28T08:18:51.337Z',
+    //       deleted_at: null,
+    //       category: [Object]
+    //     },
+    //     store: {
+    //       id: '9c0d2ffc-1cf1-4a4c-bd2f-8cc18afca7c9',
+    //       code: 'HOREE',
+    //       name: 'horee',
+    //       is_active: true,
+    //       is_flex_price: false,
+    //       is_float_price: false,
+    //       tax_percentage: '0',
+    //       company_id: '61016edc-5c08-4c8b-a303-4dec1c320461',
+    //       created_at: '2025-03-27T15:03:17.152Z',
+    //       updated_at: '2025-03-27T15:03:17.152Z',
+    //       deleted_at: null,
+    //       company: [Object]
+    //     }
+    //   },
+    //   transref_id: 'e965b699-fa70-46ab-934b-0a0482d99464' // transactionProduct.id
+    // }
+
+    await RmqHelper.handleMessageProcessing(
+      context,
+      async () => {
+        await this.reportStockService.handleProductCodeDeleted(data);
+        await this.productCodeCreated(data);
+      },
+      {
+        queueName: 'product.code.updated',
+        useDLQ: true,
+        dlqRoutingKey: 'dlq.product.code.updated',
+        prisma: this.transactionService.db
+      },
+    )();
+  }
 
   @EventPattern('stock.out')
   @Exempt()
