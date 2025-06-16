@@ -13,33 +13,26 @@ RUN npm run build
 # Stage 2 - Production Stage
 FROM node:23-alpine
 
-# ✅ Add system packages needed by PhantomJS
+# Install system packages required by phantomjs
 RUN apk add --no-cache \
-    curl \
     fontconfig \
     freetype \
-    ttf-dejavu \
-    libpng \
-    libstdc++ \
-    dumb-init
+    ttf-dejavu
 
 WORKDIR /app
 
+# Copy built application and production dependencies manifest
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY ./runSeeder.ts ./runSeeder.ts
 
+# Install production dependencies
 RUN npm install --production
 
-# ✅ Optional, if you need seeders
-RUN npm install ts-node --save-dev
-RUN npm install --save-dev @types/bcrypt
+# Reinstall phantomjs-prebuilt to ensure it's compiled for the correct environment
+RUN npm uninstall phantomjs-prebuilt && \
+    npm install phantomjs-prebuilt
 
-# ✅ Ensure PhantomJS & html-pdf modules are copied
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/phantomjs-prebuilt ./node_modules/phantomjs-prebuilt
-COPY --from=builder /app/node_modules/html-pdf ./node_modules/html-pdf
-
-CMD ["node", "dist/main"]
+# Your command to run the application
+CMD ["node", "dist/src/main"]
