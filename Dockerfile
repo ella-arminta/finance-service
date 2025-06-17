@@ -1,5 +1,5 @@
 # Stage 1 - Build Stage
-FROM node:18-slim AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Stage 2 - Production Stage
-FROM node:18-slim
+FROM node:20-slim
 
 # Install required system dependencies for Chromium
 RUN apt-get update && apt-get install -y \
