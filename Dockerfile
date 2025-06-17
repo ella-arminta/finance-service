@@ -19,26 +19,17 @@ FROM node:23-alpine
 
 # Install system packages required including a key compatibility library
 RUN apk add --no-cache \
-    fontconfig \
-    freetype \
-    ttf-dejavu \
-    libc6-compat \
     chromium \
     nss \
+    freetype \
     harfbuzz \
     ca-certificates \
     ttf-freefont \
-    nodejs \
-    yarn \
+    fontconfig \
     udev \
     dumb-init \
-    libstdc++ \
-    alsa-lib \
-    gtk3 \
-    at-spi2-core \
-    dbus-glib \
-    ffmpeg
-
+    libstdc++
+    
 WORKDIR /app
 
 # Copy build artifacts from the builder stage
