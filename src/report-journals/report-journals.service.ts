@@ -433,10 +433,16 @@ export class ReportService extends BaseService<Report_Journals> {
         </body>
         </html>`;
 
+        // const browser = await puppeteer.launch({
+        //     headless: true,
+        //     args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        // });
         const browser = await puppeteer.launch({
+            executablePath: '/usr/bin/chromium-browser', // or '/usr/bin/chromium'
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
+
 
         try {
             const page = await browser.newPage();
