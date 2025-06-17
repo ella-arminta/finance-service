@@ -57,6 +57,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/runSeeder2.ts ./runSeeder2.ts
 
 # Default command
 CMD ["node", "dist/src/main"]
