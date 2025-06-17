@@ -440,8 +440,7 @@ export class ReportService extends BaseService<Report_Journals> {
         const browser = await puppeteer.launch({
             executablePath: '/usr/bin/chromium-browser', // or '/usr/bin/chromium'
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-            protocolTimeout: 60000 // Optional: increase timeout
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
 
