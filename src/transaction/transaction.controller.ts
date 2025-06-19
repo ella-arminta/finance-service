@@ -560,7 +560,7 @@ export class TransactionController {
     }
   }
 
-  @EventPattern('product.code.updated')
+  @EventPattern('finance.code.updated')
   @Exempt()
   async handleProductCodeUpdated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('product code updated', data);
@@ -627,10 +627,6 @@ export class TransactionController {
     //   transref_id: 'e965b699-fa70-46ab-934b-0a0482d99464' // transactionProduct.id
     // }
     // if dee gk ada 
-    if (!data.product || !data.tax_purchase || !data.buy_price || !data.barcode || !data.account_id) {
-      return ResponseDto.success('No Need Updated!', {}, 200);
-    }
-
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
@@ -638,9 +634,9 @@ export class TransactionController {
         await this.productCodeCreated(data);
       },
       {
-        queueName: 'product.code.updated',
+        queueName: 'finance.code.updated',
         useDLQ: true,
-        dlqRoutingKey: 'dlq.product.code.updated',
+        dlqRoutingKey: 'dlq.finance.code.updated',
         prisma: this.transactionService.db
       },
     )();
