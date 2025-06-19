@@ -1548,7 +1548,9 @@ export class TransactionService extends BaseService<Trans> {
       cash_bank: true,
     })
 
-    const generatedCode = await this.generateReportJournalCode(transType, data.store_id);
+    console.log('data store id', data.store.id, data);
+
+    const generatedCode = await this.generateReportJournalCode(transType, data.store.id);
 
     // CREATE TRANSACTION
     var reportJournal;
