@@ -1506,6 +1506,7 @@ export class TransactionService extends BaseService<Trans> {
     //     }
     //   }
     // }
+    console.log('this is buy product data', data);
     const store = await this.db.stores.findFirst({
       where: {
         id: data.product.store_id

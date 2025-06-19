@@ -151,6 +151,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
     }
 
     async getStockCard(filters: any) {
+        console.log('test ture nya:', !filters.store_id && !filters.product_id, filters.store_id, filters.product_id );
         if (!filters.store_id && !filters.product_id) {
             return this.getStockCardAvg(filters);
         }
@@ -165,21 +166,24 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 return ResponseDto.error('Store not found', 404);
             }
         } else {
-            console.log('filters in getStockCard:', filters);
-            const product = await this.db.report_Stocks.findFirst({
-                where: {
-                    product_id: filters.product_id,
-                },
-                select: {
-                    store_id: true,
-                }
-            })
-            console.log('this is the product get stock card:', product);
+            // console.log('filters in getStockCard:', filters);
+            // const product = await this.db.report_Stocks.findFirst({
+            //     where: {
+            //         product_id: filters.product_id,
+            //     },
+            //     select: {
+            //         store_id: true,
+            //     }
+            // })
+            // console.log()
+            // console.log('this is the product get stock card:', product);
+            // if (product) {
             store = await this.db.stores.findFirst({
                 where: {
-                    id: product.store_id,
+                    id: filters.auth.store_id,
                 }
             });
+            // }
         }
 
         // Average Method

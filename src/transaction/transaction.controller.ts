@@ -626,6 +626,10 @@ export class TransactionController {
     //   },
     //   transref_id: 'e965b699-fa70-46ab-934b-0a0482d99464' // transactionProduct.id
     // }
+    // if dee gk ada 
+    if (!data.product || !data.tax_purchase || !data.buy_price || !data.barcode || !data.account_id) {
+      return ResponseDto.success('No Need Updated!', {}, 200);
+    }
 
     await RmqHelper.handleMessageProcessing(
       context,
