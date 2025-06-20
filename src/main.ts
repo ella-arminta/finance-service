@@ -5,18 +5,18 @@ import { ZodFilter } from './filters/http-exception.filter';
 import { RmqHelper } from './helper/rmq.helper';
 
 async function bootstrap() {  
-  const app = await NestFactory.createMicroservice<MicroserviceOptions>(
-    AppModule,
-    {
-      transport: Transport.TCP,
-      options: { 
-        host: process.env.TCP_HOST || 'localhost',
-        port: Number(process.env.TCP_PORT ?? '3003'),
-      }, // Unique port for this TCP service
-    },
-  );
+  const app = await NestFactory.create(AppModule);
 
-  app.useGlobalFilters(new ZodFilter());
+   // TCP Microservice
+  const tcpOptions: MicroserviceOptions = {
+    transport: Transport.TCP,
+    options: {
+      host: process.env.TCP_HOST || 'localhost',
+      port: Number(process.env.TCP_PORT ?? '3003'),
+    },
+  };
+  const tcpService = app.connectMicroservice(tcpOptions);
+  tcpService.useGlobalFilters(new ZodFilter());
 
   // const rabbitMQService =
   // await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
@@ -29,16 +29,18 @@ async function bootstrap() {
   // });
   // RabbitMQ Setup queue name
   const queueName = process.env.RMQ_QUEUE_NAME || 'finance_service_queue_1';
-  const rabbitMQService =
-    await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
-      transport: Transport.RMQ,
-      options: {
-        urls: [process.env.RMQ_URL || 'amqp://localhost:5672'],
-        queue: queueName,
-        noAck: false,
-        queueOptions: { durable: true },
-      },
-    });
+  const rmqOptions: MicroserviceOptions = {
+    transport: Transport.RMQ,
+    options: {
+      urls: [process.env.RMQ_URL || 'amqp://localhost:5672'],
+      queue: queueName,
+      noAck: false,
+      queueOptions: { durable: true },
+    },
+  };
+  const rmqService = app.connectMicroservice(rmqOptions);
+  rmqService.useGlobalFilters(new ZodFilter());
+
   // Setup the topic yang di subscribe
   const routingKeys = [
     'company.*',
@@ -70,9 +72,11 @@ async function bootstrap() {
   //     },
   //   });
 
-  await Promise.all([
-    app.listen(), 
-    rabbitMQService.listen()
-  ]);
+  await app.startAllMicroservices();
+  console.log('All microservices started successfully');
+  // await Promise.all([
+  //   app.listen(), 
+  //   rabbitMQService.listen()
+  // ]);
 }
 bootstrap();
