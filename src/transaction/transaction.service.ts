@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Res } from '@nestjs/common';
 import { BaseService } from 'src/common/base.service';
 import { Trans } from '@prisma/client'
 import { DatabaseService } from 'src/database/database.service';
@@ -11,6 +11,7 @@ import { ValidationService } from 'src/common/validation.service';
 import { TransactionValidation } from './transaction.validaton';
 import { ReportService } from 'src/report-journals/report-journals.service';
 import { prev } from 'cheerio/dist/commonjs/api/traversing';
+import { RmqHelper } from 'src/helper/rmq.helper';
 
 @Injectable()
 export class TransactionService extends BaseService<Trans> {
@@ -1756,10 +1757,18 @@ export class TransactionService extends BaseService<Trans> {
       await this.db.$transaction(async (prisma) => {
         console.log('ini product_code_id', data.id);
         // delete from report journals
-        const delReportJournals = await this.db.report_Journals.deleteMany({
+        const lastReportJournal  = await this.db.report_Journals.findFirst({
           where: {
             trans_serv_id: data.id,
             trans_type_id: 6
+          },
+          orderBy: {
+            created_at: 'desc'
+          }
+        });
+        const delReportJournals = await this.db.report_Journals.deleteMany({
+          where: {
+            code: lastReportJournal.code,
           }
         });
 
@@ -1769,18 +1778,19 @@ export class TransactionService extends BaseService<Trans> {
           where: {
             product_code_id: data.id,
             source_id: data.taken_out_reason == 1 ? 6 : 2
+          },
+          orderBy: {
+            trans_date: 'desc'
           }
         })
         if (prevStockOut) { // update unit price only if not repair
           await this.reportStockService.updateUnitPrice(prevStockOut.product_id, Math.abs(prevStockOut.qty), Math.abs(prevStockOut.weight.toNumber()));
         }
-        const stockOut = await this.db.report_Stocks.deleteMany({
+        const stockOut = await this.db.report_Stocks.delete({
           where: {
-            product_code_id: data.id,
-            source_id:data.taken_out_reason == 1 ? 6 : 2
+            id: prevStockOut.id
           }
         });
-        console.log('stockout report stock',stockOut);
       });
     } catch (error) {
       console.error('Error unstock out:', error);
@@ -1972,12 +1982,87 @@ export class TransactionService extends BaseService<Trans> {
         ]
       });
       // Stock In Repaired
-      data.trans_serv_id = productCode.id;
+      data.trans_id = productCode.id;
       data.productCode.buy_price = hargaBeliAkhir;  // Update buy price
       const reportStocks = await this.reportStockService.handleStockInRepaired(data);
     });
 
     return ResponseDto.success('Stocks repaired handled!', null, 200);
+  }
+
+  async handleStockUnrepaired(id: string, user_id: string) {
+    const transType = await this.db.trans_Type.findUnique({ where: { code: 'MD' } });
+    const stockSource = await this.db.stock_Source.findUnique({ where: { code: 'REPAIR' } });
+    const lastInReport = await this.db.report_Journals.findFirst({
+      where: {
+        trans_serv_id: id,
+        trans_type_id: transType.id
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    })
+    if (!lastInReport) {
+      return ResponseDto.error('Last report journal not found', null, 404);
+    }
+    try {
+      await this.db.$transaction(async (prisma) => {
+        const deleteReportJournals = await prisma.report_Journals.deleteMany({
+          where: {
+            code: lastInReport.code,
+          }
+        });
+        console.log('deleteReportJournals', deleteReportJournals);
+        const todeleteReportStock = await prisma.report_Stocks.findFirst({
+          where : {
+            product_code_id: id,
+            source_id: stockSource.id,
+            qty: {
+              gt: 0
+            }
+          },
+          orderBy: {
+            trans_date: 'desc'
+          }
+        })
+        const deleteReportStock = await prisma.report_Stocks.delete({
+          where: {
+            id: todeleteReportStock.id
+          }
+        });
+        console.log('deleteReportStock', deleteReportStock);
+
+        // get previous stock 
+        const getLastStock = await this.db.report_Stocks.findFirst({
+          where: {
+            product_code_id: id,
+            source_id: stockSource.id,
+            qty: {
+              lt: 0
+            }
+          },
+          orderBy: {
+            trans_date: 'desc'
+          }
+        });
+        if (!getLastStock) {
+          throw new BadRequestException('Last stock not found');
+        }
+        // To Inventory and transaction
+        RmqHelper.publishEvent('product.code.updated', {
+          data: {
+            id: id,
+            status: 3,
+            weight: Math.abs(getLastStock.weight.toNumber()),
+          },
+          user: user_id,
+        });
+      });
+    } catch (error) {
+      console.error('Error handling stock unrepaired:', error);
+      return ResponseDto.error(`Error handling stock unrepaired: ${error.message}`, null, 500);
+    }
+    return ResponseDto.success('Stocks unrepaired handled!', lastInReport, 200);
   }
 
   async handleStockOpnameApproved(data: any) {
@@ -2217,13 +2302,21 @@ export class TransactionService extends BaseService<Trans> {
             throw new Error('Product ID atau Trans Type ID tidak boleh null');
           }
           // delete journals
-          const delReportJournals = await prisma.report_Journals.deleteMany({
+          const findPrevReportJournal = await prisma.report_Journals.findFirst({
             where: {
               trans_serv_id: id,
               trans_type_id: transType.id,
               description: {
                 contains: 'setelah opname stock tgl'
               }
+            }, 
+            orderBy: {
+              created_at: 'desc'
+            }
+          });
+          const delReportJournals = await prisma.report_Journals.deleteMany({
+            where: {
+              code: findPrevReportJournal.code,
             }
           });
           console.log('deleted ReportJournals', delReportJournals);

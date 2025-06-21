@@ -696,6 +696,42 @@ export class TransactionController {
     )();
   }
 
+  @MessagePattern({ cmd: 'post:stock-unrepaired' })
+  @Describe({
+    description: 'stocks repaired',
+    fe: ['inventory/stock-out:open'],
+  })
+  async productCodeUnrepaired(@Payload() data: any): Promise<ResponseDto> {
+    data.body = { ...data.body, params: data.params };
+    console.log('data body unrepaired', data.body);
+    // data body unrepaired {
+    //   auth: {
+    //     company_id: 'ff188ca1-625f-4c5b-98a8-02a71b3144b7',
+    //     store_id: '71f41205-5dcf-4001-8d0f-a40cfb362b34'
+    //   },
+    //   owner_id: '4c941698-5246-43cc-8983-0ca0cf7f48c4',
+    //   id: 'd1764c1d-baa2-4009-9b8b-c3cc70852492',
+    //   params: {
+    //     '0': 'stock-unrepaired',
+    //     service: 'finance',
+    //     user: {
+    //       id: '4c941698-5246-43cc-8983-0ca0cf7f48c4',
+    //       email: 'leonardo.andrianto@petra.ac.id',
+    //       is_owner: true,
+    //       timestamp: '2025-06-21T12:07:10.647Z',
+    //       iat: 1750507630,
+    //       exp: 1750594030
+    //     }
+    //   }
+    // }
+    const res = await this.transactionService.handleStockUnrepaired(data.body.id, data.body.params.user.id);
+    // console.log(res);
+    // return res;
+    return ResponseDto.success(
+      'Product Code Unrepaired!',res, 200
+    )
+  }
+
   @EventPattern('stock.opname.approved')
   @Exempt()
   async handleStockOpnameApproved(@Payload() data: any, @Ctx() context: RmqContext) {
