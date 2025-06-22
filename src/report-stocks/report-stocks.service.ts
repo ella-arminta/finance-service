@@ -335,7 +335,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                     product_code_code AS code,
                     product_name AS name,
                     description,
-                    price / NULLIF(weight, 0) AS price,
+                    CASE WHEN qty >= 0 THEN price / NULLIF(weight, 0) ELSE 0 END AS price,
                     CASE WHEN qty >= 0 THEN qty ELSE 0 END AS "in",
                     CASE WHEN qty < 0 THEN -qty ELSE 0 END AS "out",
                     total_qty as balance,

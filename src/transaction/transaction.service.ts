@@ -2031,6 +2031,8 @@ export class TransactionService extends BaseService<Trans> {
           }
         });
         console.log('deleteReportStock', deleteReportStock);
+        // update unit price
+        await this.reportStockService.updateUnitPrice(todeleteReportStock.product_id, Math.abs(todeleteReportStock.qty) * -1, Math.abs(todeleteReportStock.weight.toNumber()) * -1);
 
         // get previous stock 
         const getLastStock = await this.db.report_Stocks.findFirst({
