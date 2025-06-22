@@ -1,8 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { Transport, MicroserviceOptions } from '@nestjs/microservices';
 import { AppModule } from './app.module';
-import { ZodFilter } from './filters/http-exception.filter';
 import { RmqHelper } from './helper/rmq.helper';
+import { RPCExceptionFilter } from './filters/rpc-exception.filter';
 
 async function bootstrap() {  
   const app = await NestFactory.create(AppModule);
@@ -16,7 +16,7 @@ async function bootstrap() {
     },
   };
   const tcpService = app.connectMicroservice(tcpOptions);
-  tcpService.useGlobalFilters(new ZodFilter());
+  tcpService.useGlobalFilters(new RPCExceptionFilter());
 
   // const rabbitMQService =
   // await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
@@ -39,7 +39,7 @@ async function bootstrap() {
     },
   };
   const rmqService = app.connectMicroservice(rmqOptions);
-  rmqService.useGlobalFilters(new ZodFilter());
+  rmqService.useGlobalFilters(new RPCExceptionFilter());
 
   // Setup the topic yang di subscribe
   const routingKeys = [
