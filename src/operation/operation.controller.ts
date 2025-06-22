@@ -21,13 +21,14 @@ export class OperationController {
   @Exempt()
   async operationCreated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('operation data created', data);
+    const user = data.user;
     data = data.data;
 
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         const validatedData = await this.validationService.validate(this.operationValidation.CREATE, data);
-        const newdata = await this.operationService.create(validatedData);
+        const newdata = await this.operationService.create(validatedData, user);
         return { success: !!newdata }; // Ensures success is always returned
       },
       {
@@ -43,13 +44,14 @@ export class OperationController {
   @Exempt()
   async operationUpdated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('operation data updated', data);
+    const user = data.user;
     data = data.data;
 
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
         const validatedData = await this.validationService.validate(this.operationValidation.UPDATE, data);
-        const updatedata = await this.operationService.update(data.id, validatedData)
+        const updatedata = await this.operationService.update(data.id, validatedData, user)
         return { success: !!updatedata }; // Ensures success is always returned
       },
       {
@@ -65,12 +67,13 @@ export class OperationController {
   @Exempt()
   async operationDeleted(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('operation data deleted', data);
+    const user = data.user;
     data = data.data;
     
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        const deletedData = await this.operationService.delete(data);
+        const deletedData = await this.operationService.delete(data, user);
         return { success: !!deletedData }; // Ensures success is always returned
       },
       {

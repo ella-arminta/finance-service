@@ -120,7 +120,7 @@ export class TransactionController {
       recurringValidatedData = null;
     }
 
-    newdata = await this.transactionService.createUangKeluarMasuk(validatedData, recurringValidatedData);
+    newdata = await this.transactionService.createUangKeluarMasuk(validatedData, recurringValidatedData, params.user.id);
     if (newdata.success == false) {
       return ResponseDto.error('Error', newdata.error, newdata.status);
     }
@@ -171,7 +171,7 @@ export class TransactionController {
     })
     delete validatedData.account_cash_id;
 
-    newdata = await this.transactionService.update(params.id, validatedData);
+    newdata = await this.transactionService.update(params.id, validatedData, params.user.id);
     return ResponseDto.success('Data Created!', newdata, 201);
   }
 
@@ -199,7 +199,7 @@ export class TransactionController {
         }], 400);
     }
 
-    newdata = await this.transactionService.updateStatus(params.id, newstatus);
+    newdata = await this.transactionService.updateStatus(params.id, newstatus, params.user.id);
     return ResponseDto.success('Data Updated!', newdata, 201);
   }
   @MessagePattern({ cmd: 'put:uang-keluar-masuk-disapprove/*' })
@@ -225,7 +225,7 @@ export class TransactionController {
         }], 400);
     }
 
-    newdata = await this.transactionService.updateStatus(params.id, newstatus);
+    newdata = await this.transactionService.updateStatus(params.id, newstatus, params.user.id);
     return ResponseDto.success('Data Updated!', newdata, 201);
   }
 
@@ -332,7 +332,7 @@ export class TransactionController {
           code: 'not_found',
         }], 400);
     }
-    await this.transactionService.delete(id);
+    await this.transactionService.delete(id, params.user.id);
     return ResponseDto.success('Data Deleted!', {}, 200);
   }
 
@@ -340,6 +340,7 @@ export class TransactionController {
   @EventPattern('transaction.finance.created')
   @Exempt()  
   async createTrans(@Payload() data: any, @Ctx() context: RmqContext) {
+    const user = data.user;
     let newdata = data.data.data;
     console.log('create transaction data first', data);
     console.log('create transaction data',newdata)
@@ -356,14 +357,14 @@ export class TransactionController {
         // SALES
         if (newdata.transaction_type == 1) {
           newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
-          const result = await this.transactionService.createSales(newdata);
+          const result = await this.transactionService.createSales(newdata, null, user);
           return ResponseDto.success('Transaction Created!', result, 201);
         }
         // PURCHASE FROM CUSTOMER
         else if (newdata.transaction_type == 2) {
           newdata = await this.validateService.validate(this.transactionValidation.CREATEPURCHASE, newdata);
           try {
-            const result = await this.transactionService.createPurchase(newdata);
+            const result = await this.transactionService.createPurchase(newdata, null, user);
             return ResponseDto.success('Transaction Created!', result, 201);
           } catch (error) {
             console.error('Error creating purchase from customer', error);
@@ -374,7 +375,7 @@ export class TransactionController {
         // Trade 
         else if (newdata.transaction_type == 3) {
           newdata = await this.validateService.validate(this.transactionValidation.CREATETRADE, newdata);
-          const result = await this.transactionService.createTrade(newdata);
+          const result = await this.transactionService.createTrade(newdata, null, user);
           return ResponseDto.success('Transaction Created!', result, 201);
         }
         return ResponseDto.error('Transaction Type Not Found!', null, 400);
@@ -391,6 +392,7 @@ export class TransactionController {
   @EventPattern('transaction.finance.updated')
   @Exempt()
   async updateTrans(@Payload() data: any, @Ctx() context: RmqContext) {
+    const user = data.user;
     let newdata = data.data.data;
     console.log('create transaction data',newdata)
     
@@ -407,14 +409,14 @@ export class TransactionController {
         // SALES
         if (newdata.transaction_type == 1) {
           newdata = await this.validateService.validate(this.transactionValidation.CREATESALES, newdata);
-          const result = await this.transactionService.createSales(newdata, 'updated');
+          const result = await this.transactionService.createSales(newdata, 'updated', user);
           return ResponseDto.success('Transaction Created!', result, 201);
         }
         // PURCHASE FROM CUSTOMER
         else if (newdata.transaction_type == 2) {
           newdata = await this.validateService.validate(this.transactionValidation.CREATEPURCHASE, newdata);
           try {
-            const result = await this.transactionService.createPurchase(newdata, 'updated');
+            const result = await this.transactionService.createPurchase(newdata, 'updated', user);
             return ResponseDto.success('Transaction Created!', result, 201);
           } catch (error) {
             console.error('Error creating purchase from customer', error);
@@ -425,7 +427,7 @@ export class TransactionController {
         // Trade 
         else if (newdata.transaction_type == 3) {
           newdata = await this.validateService.validate(this.transactionValidation.CREATETRADE, newdata);
-          const result = await this.transactionService.createTrade(newdata, 'updated');
+          const result = await this.transactionService.createTrade(newdata, 'updated', user);
           return ResponseDto.success('Transaction Created!', result, 201);
         }
         return ResponseDto.error('Transaction Type Not Found!', null, 400);
@@ -442,6 +444,7 @@ export class TransactionController {
   @EventPattern('transaction.finance.deleted')
   @Exempt()
   async deleteTrans(@Payload() data: any, @Ctx() context: RmqContext) {
+    const user = data.user;
     let deleted_data = data.data.data;
     console.log('deleted_data', deleted_data);
 
@@ -449,7 +452,7 @@ export class TransactionController {
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        await this.transactionService.deleteTrans(deleted_data.id);
+        await this.transactionService.deleteTrans(deleted_data.id, user);
         return ResponseDto.success('Transaction Deleted!', {}, 200);
       },
       {
@@ -466,6 +469,7 @@ export class TransactionController {
   @Exempt()
   async handleProductCodeCreated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('generated product', data);
+    const user = data.user;
     data = data.data;
     // generated product {
     //   id: 'c17ada64-7847-4995-98b4-bcbcd038183f',
@@ -532,7 +536,7 @@ export class TransactionController {
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        this.productCodeCreated(data);
+        this.productCodeCreated(data, user);
       },
       {
         queueName: 'product.code.created',
@@ -542,7 +546,7 @@ export class TransactionController {
       },
     )();
   }
-  private async productCodeCreated(data: any) {
+  private async productCodeCreated(data: any, user_id: string | null = null) {
         // Product Code generated for Trade or Purchase
     if (data.transref_id && data.transref_id != null) {
       // get trans_id from transaction
@@ -550,12 +554,12 @@ export class TransactionController {
           .send({ cmd: 'get:transproduct/*' }, { params: { id: data.transref_id } })
           .toPromise();
       data.trans_id = transProduct.data.transaction_id;
-      const result = await this.transactionService.updateProductCodeTrans(data);
+      const result = await this.transactionService.updateProductCodeTrans(data, user_id);
       return ResponseDto.success('Product Code Created!', result, 200);
     }
     // Product cod egenerated from supplier 
     else {
-      const result = await this.transactionService.buyProduct(data);
+      const result = await this.transactionService.buyProduct(data, user_id);
       return ResponseDto.success('Product Code Created!', result, 200);
     }
   }
@@ -564,6 +568,7 @@ export class TransactionController {
   @Exempt()
   async handleProductCodeUpdated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('product code updated', data);
+    const user = data.user;
     data = data.data;
     // generated product {
     //   id: 'c17ada64-7847-4995-98b4-bcbcd038183f',
@@ -630,8 +635,8 @@ export class TransactionController {
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        await this.reportStockService.handleProductCodeDeleted(data);
-        await this.productCodeCreated(data);
+        await this.reportStockService.handleProductCodeDeleted(data, user);
+        await this.productCodeCreated(data, user);
       },
       {
         queueName: 'finance.code.updated',
@@ -645,11 +650,12 @@ export class TransactionController {
   @EventPattern('stock.out')
   @Exempt()
   async handleStockOut(@Payload() data: any, @Ctx() context: RmqContext) {
+    const user = data.user;
     data = data.data;
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        await this.transactionService.handleStockOut(data);
+        await this.transactionService.handleStockOut(data, user);
       },
       {
         queueName: 'stock.out',
@@ -663,11 +669,12 @@ export class TransactionController {
   @EventPattern('stock.unstock.out')
   @Exempt()
   async handleUnstockOut(@Payload() data: any, @Ctx() context: RmqContext) {
+    const user = data.user;
     data = data.data;
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        await this.transactionService.handleUnstockOut(data);
+        await this.transactionService.handleUnstockOut(data, user);
       },
       {
         queueName: 'stock.unstock.out',
@@ -681,11 +688,12 @@ export class TransactionController {
   @EventPattern('stock.repaired')
   @Exempt()
   async handleStockRepaired(@Payload() data: any, @Ctx() context: RmqContext) {
+    const user = data.user;
     data = data.data;
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        await this.transactionService.handleStockRepaired(data);
+        await this.transactionService.handleStockRepaired(data, user);
       },
       {
         queueName: 'stock.repaired',
@@ -702,6 +710,7 @@ export class TransactionController {
     fe: ['inventory/stock-out:open'],
   })
   async productCodeUnrepaired(@Payload() data: any): Promise<ResponseDto> {
+    const params = data.params;
     data.body = { ...data.body, params: data.params };
     console.log('data body unrepaired', data.body);
     // data body unrepaired {
@@ -724,7 +733,7 @@ export class TransactionController {
     //     }
     //   }
     // }
-    const res = await this.transactionService.handleStockUnrepaired(data.body.id, data.body.params.user.id);
+    const res = await this.transactionService.handleStockUnrepaired(data.body.id, params.user.id);
     // console.log(res);
     // return res;
     return ResponseDto.success(
@@ -735,11 +744,12 @@ export class TransactionController {
   @EventPattern('stock.opname.approved')
   @Exempt()
   async handleStockOpnameApproved(@Payload() data: any, @Ctx() context: RmqContext) {
+    const user = data.user;
     data = data.data;
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        await this.transactionService.handleStockOpnameApproved(data);
+        await this.transactionService.handleStockOpnameApproved(data, user);
       },
       {
         queueName: 'stock.opname.approved',
@@ -753,11 +763,12 @@ export class TransactionController {
   @EventPattern('stock.opname.disapproved')
   @Exempt()
   async handleStockOpnameDisapproved(@Payload() data: any, @Ctx() context: RmqContext) {
+    const user = data.user;
     data = data.data;
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        await this.transactionService.handleStockOpnameDisapproved(data);
+        await this.transactionService.handleStockOpnameDisapproved(data, user);
       },
       {
         queueName: 'stock.opname.disapproved',

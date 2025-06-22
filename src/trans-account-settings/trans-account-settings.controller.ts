@@ -24,7 +24,7 @@ export class TransAccountSettingsController {
     var newdata = data.body;
     newdata.store_id = newdata.auth.store_id;
     var validatedData = await this.validationService.validate(this.tacValidation.CREATE, newdata);
-    var newData = await this.transAccountSettingsService.create(validatedData);
+    var newData = await this.transAccountSettingsService.create(validatedData, data.params.user.id);
 
     if (!newData) {
       return ResponseDto.error('Failed to create account', [{
@@ -78,7 +78,7 @@ export class TransAccountSettingsController {
     var params  = data.params;
     var newdata = data.body;
     var validatedData = await this.validationService.validate(this.tacValidation.UPDATE, newdata);
-    var newData = await this.transAccountSettingsService.update(params.id,validatedData);
+    var newData = await this.transAccountSettingsService.update(params.id,validatedData, params.user.id);
 
     if (!newData) {
       return ResponseDto.error('Failed to update account', [{

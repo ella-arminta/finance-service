@@ -25,6 +25,35 @@ export class AccountsController {
     fe: ['master/account:add']
   })
   async create(@Payload() data: any) {
+    // console.log('data in create account', data);
+    // data in create account {
+    //   params: {
+    //     '0': 'account',
+    //     service: 'finance',
+    //     user: {
+    //       id: '4c941698-5246-43cc-8983-0ca0cf7f48c4',
+    //       email: 'leonardo.andrianto@petra.ac.id',
+    //       is_owner: true,
+    //       timestamp: '2025-06-22T12:26:23.493Z',
+    //       iat: 1750595183,
+    //       exp: 1750681583
+    //     }
+    //   },
+    //   body: {
+    //     auth: {
+    //       company_id: 'ff188ca1-625f-4c5b-98a8-02a71b3144b7',
+    //       store_id: 'efdbb3b7-1438-445a-b608-9586cdbe7ca6'
+    //     },
+    //     owner_id: '4c941698-5246-43cc-8983-0ca0cf7f48c4',
+    //     code: 30002,
+    //     name: 'Modal Owner hehe',
+    //     description: '',
+    //     company_id: 'ff188ca1-625f-4c5b-98a8-02a71b3144b7',
+    //     account_type_id: 6,
+    //     store_id: '71f41205-5dcf-4001-8d0f-a40cfb362b34'
+    //   },
+    //   method: 'POST'
+    // }
     var newdata = data.body;
 
     newdata = await this.validationService.validate(this.accountValidation.CREATE, newdata);
@@ -63,7 +92,7 @@ export class AccountsController {
       newdata.company_id = store.company_id;
     }
 
-    newdata = await this.accountsService.create(newdata);
+    newdata = await this.accountsService.create(newdata, data.params.user.id);
     return ResponseDto.success('Data Created!', newdata, 201);
   }
 
@@ -176,11 +205,11 @@ export class AccountsController {
         }], 400);
       }
     }
-    var updatedData = await this.accountsService.update(param.id, validatedData);
+    var updatedData = await this.accountsService.update(param.id, validatedData, param.user.id);
     if (updatedData) {
       RmqHelper.publishEvent('account.updated', {
         data: updatedData,
-        user: data.params.user.id,
+        user: param.user.id,
       });
     }
     return ResponseDto.success('Data Updated!', updatedData, 201);
@@ -193,7 +222,7 @@ export class AccountsController {
   })
   async remove(@Payload() data: any) {
     const param = data.params;
-    const deletedData = await this.accountsService.delete(param.id);
+    const deletedData = await this.accountsService.delete(param.id, param.user.id);
     if (!deletedData) {
       return ResponseDto.error('Data not found!', null, 404);
     }

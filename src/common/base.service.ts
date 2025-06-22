@@ -10,12 +10,21 @@ export class BaseService<T> {
     protected isSoftDelete = false,
   ) {}
 
-  async create(data: any): Promise<T> {
+  async create(data: any, user_id: string | null = null): Promise<T> {
     // console.log('data in base service', data);
-    return (this.db[this.prismaModel] as any).create({ 
+    const newdata = await (this.db[this.prismaModel] as any).create({ 
       data,
       include: this.relations
     });
+    await this.db.action_Log.create({
+      data: {
+        user_id: user_id,
+        event: 'CREATE',
+        resource: this.prismaModel as string,
+        diff: JSON.stringify(data)
+      },
+    })
+    return newdata;
   }
 
   async findAll(params = {}, literal = false, orderBy: Record<string, 'asc' | 'desc'> = {}): Promise<T[]> {
@@ -69,37 +78,70 @@ export class BaseService<T> {
   }
 
 
-  async update(id: any, data: Partial<T>) {
-    return (this.db[this.prismaModel] as any).update({ where: { id }, data });
+  async update(id: any, data: Partial<T>, user_id: string | null = null) {
+    const updatedData = await (this.db[this.prismaModel] as any).update({ where: { id }, data });
+    await this.db.action_Log.create({
+      data: {
+        user_id: user_id,
+        event: 'UPDATE',
+        resource: this.prismaModel as string,
+        diff: JSON.stringify(data)
+      },
+    })
+    return updatedData;
   }
 
-  async delete(id: any){
+  async delete(id: any, user_id: string | null = null) {
     const deletedData = await this.findOne(id);
     if (deletedData == null) {
       console.log('data not found');
       return null;
     }
 
+    var successFulldelete;
     if (this.isSoftDelete) {
-      return  (this.db[this.prismaModel] as any).update({
+      successFulldelete = await  (this.db[this.prismaModel] as any).update({
         where: { id },
         data: { deleted_at: new Date() },
       });
+    } else {
+      successFulldelete = await (this.db[this.prismaModel] as any).delete({
+        where: { id },
+      });
     }
-    return (this.db[this.prismaModel] as any).delete({
-      where: { id },
-    });
+
+    await this.db.action_Log.create({
+      data: {
+        user_id: user_id,
+        event: 'DELETE',
+        resource: this.prismaModel as string,
+        diff: JSON.stringify(id)
+      },
+    })
+
+    return successFulldelete;
   }
 
-  async deleteAll(params = {}) {
+  async deleteAll(params = {}, user_id:string|null =null) {
     const whereConditions: Record<string, any> = {
       ...(this.isSoftDelete ? { deleted_at: null } : {}),
       ...params,
     };
   
-    return (this.db[this.prismaModel] as any).deleteMany({
+    const deleted = await (this.db[this.prismaModel] as any).deleteMany({
       where: whereConditions,
     });
+
+    await this.db.action_Log.create({
+      data: {
+        user_id: user_id,
+        event: 'DELETEALL',
+        resource: this.prismaModel as string,
+        diff: JSON.stringify(deleted)
+      },
+    })
+
+    return  deleted;
   }
 
   async sync(data: any[]) {

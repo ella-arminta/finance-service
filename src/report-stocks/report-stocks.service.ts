@@ -26,7 +26,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         super('report_Stocks', db, relations);
     }
 
-    async handleSoldStock(data: any) {
+    async handleSoldStock(data: any, user_id: string | null = null) {
         // console.log('Product:', prod, 'type', prod.product_code.product.type);
         // Product: {
         //     total_price: 1200000,
@@ -110,6 +110,15 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             const reportStocks = await this.db.report_Stocks.createMany({
                 data: stocksReports
             });
+
+            await this.db.action_Log.create({
+                data: {
+                    user_id: user_id,
+                    event: 'CREATESOLD',
+                    resource: 'report_Stocks',
+                    diff: JSON.stringify({ ...data }),
+                },
+            })
             return reportStocks;
         } catch (error) {
             console.log('Error handle stock sold:', error);
@@ -117,7 +126,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         }
     }
 
-    async handleBuyStock(data: any) {
+    async handleBuyStock(data: any, user_id: string | null = null) {
         const source = await this.stockSourceService.findOne(undefined, { code: 'INSTOCK' });
         const validData = await this.validationService.validate(this.reportStockValidation.CREATE, data);
         const tempWeight = Math.abs(validData.weight);
@@ -143,9 +152,9 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             qty: tempQty,
             created_at: new Date(validData.created_at),
         }
-        const result = await this.create(MappedData);
+        const result = await this.create(MappedData, user_id);
         if (result) {
-            await this.addUnitPrice(MappedData.product_id, (MappedData.price / MappedData.weight), MappedData.qty, MappedData.weight);
+            await this.addUnitPrice(MappedData.product_id, (MappedData.price / MappedData.weight), MappedData.qty, MappedData.weight, user_id);
         }
         return result;
     }
@@ -1246,7 +1255,7 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
     }
     
 
-    async handleProductCodeDeleted(data: any) {
+    async handleProductCodeDeleted(data: any, user_id: string|null = null) {
         console.log('this is product code deleted',data);
         // data: {
         //     id: '9e2f1473-5a96-4819-b4b5-a717033b1791',
@@ -1357,11 +1366,19 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 });
             }
             
+            await prisma.action_Log.create({
+                data: {
+                    user_id: user_id,
+                    event: 'DELETE',
+                    resource: 'product_code',
+                    diff: JSON.stringify(data),
+                },
+            })
         });
         return ResponseDto.success('Product code deleted!', null, 200);
     }
 
-    async handleStockOut(data: any) {
+    async handleStockOut(data: any, user_id: string|null = null) {
         console.log('this is stock out data',data);
         let code;
         switch (data.reason) {
@@ -1397,13 +1414,13 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             qty: tempQty,
             created_at: new Date(data.trans_date),
         }
-        const result = await this.create(MappedData);
+        const result = await this.create(MappedData, user_id);
         console.log('stock out result',result);
-        await this.updateUnitPrice(MappedData.product_id, MappedData.qty, MappedData.weight);
+        await this.updateUnitPrice(MappedData.product_id, MappedData.qty, MappedData.weight, user_id);
         return result;
     }
 
-    async handleStockInRepaired(data: any) {
+    async handleStockInRepaired(data: any, user_id: string|null = null) {
         const source = await this.stockSourceService.findOne(undefined, { code: 'REPAIR' });
         const tempWeight = Math.abs(parseFloat(data.weight));
         const tempQty = 1;
@@ -1428,13 +1445,13 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             qty: tempQty,
             created_at: new Date(data.productCode.created_at),
         }
-        const result = await this.create(MappedData);
+        const result = await this.create(MappedData, user_id);
         console.log('result stock in repaired', result);
-        await this.updateUnitPrice(MappedData.product_id, MappedData.qty, MappedData.weight);
+        await this.updateUnitPrice(MappedData.product_id, MappedData.qty, MappedData.weight, user_id);
         return result;
     }
 
-    async handlePurchaseStock(data) {
+    async handlePurchaseStock(data, user_id: string|null = null) {
         const source = await this.stockSourceService.findOne(undefined, { code: 'PURCHASE' });
         var results = [];
         for (let prodCode of data.transaction_products) {
@@ -1521,17 +1538,17 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 MappedData.trans_product_id = prodCode.id; // table transactionProduct.id dari service transaction
             }
             console.log('purchase stock in mappedData',MappedData)
-            const result = await this.create(MappedData);
+            const result = await this.create(MappedData, user_id);
             results.push(result);
             if (MappedData.product_id) {
-                await this.addUnitPrice(MappedData.product_id, (MappedData.price / MappedData.weight), MappedData.qty, MappedData.weight);
+                await this.addUnitPrice(MappedData.product_id, (MappedData.price / MappedData.weight), MappedData.qty, MappedData.weight, user_id);
             }
         }
         console.log('result purchase from customer', results);
         return results;
     }
 
-    async handleTradeStock(data) {
+    async handleTradeStock(data, user_id: string|null = null) {
         const source = await this.stockSourceService.findOne(undefined, { code: 'TRADE' });
         var results = [];
         for (let prodCode of data.transaction_products) {
@@ -1569,18 +1586,18 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 MappedData.trans_product_id = prodCode.id; // table transactionProduct.id dari service transaction
             }
             console.log('trade stock in mappedData',MappedData)
-            const result = await this.create(MappedData);
+            const result = await this.create(MappedData, user_id);
             results.push(result);
             if (MappedData.product_id && tempQty > 0) {
-                await this.addUnitPrice(MappedData.product_id, (MappedData.price / MappedData.weight), MappedData.qty, MappedData.weight);
+                await this.addUnitPrice(MappedData.product_id, (MappedData.price / MappedData.weight), MappedData.qty, MappedData.weight, user_id);
             } else if (MappedData.product_id && tempQty < 0) {
-                await this.updateUnitPrice(MappedData.product_id, tempQty, tempWeight);
+                await this.updateUnitPrice(MappedData.product_id, tempQty, tempWeight, user_id);
             }
         }
         return results;
     }
 
-    async addUnitPrice(product_id, price_per_gram, qty, weight) {
+    async addUnitPrice(product_id, price_per_gram, qty, weight, user_id : string|null = null) {
         // Add Average Unit Price
         if (product_id == null) {
             return null;
@@ -1624,10 +1641,19 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             });
         }
 
+        await this.db.action_Log.create({
+            data: {
+                user_id: user_id,
+                event: 'ADD',
+                resource: 'unit_Prices',
+                diff: JSON.stringify({ product_id, price_per_gram, qty, weight }),
+            },
+        })
+
         return newUnitPrice;
     }
 
-    async delUnitPrice(product_id, price_per_gram, qty, weight) {
+    async delUnitPrice(product_id, price_per_gram, qty, weight, user_id : string|null = null) {
         let lastUnitPrice = await this.db.unit_Prices.findUnique({
             where: { product_id }
         });
@@ -1656,10 +1682,19 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
             });
         }
 
+        await this.db.action_Log.create({
+            data: {
+                user_id: user_id,
+                event: 'DELETE',
+                resource: 'unit_Prices',
+                diff: JSON.stringify({ product_id, price_per_gram, qty, weight }),
+            },
+        })
+
         return lastUnitPrice;
     }
 
-    async updateUnitPrice(product_id, qty, weight) { // qty bisa negatif atau positif
+    async updateUnitPrice(product_id, qty, weight, user_id: string| null = null) { // qty bisa negatif atau positif
         let lastUnitPrice = await this.db.unit_Prices.findUnique({
             where: { product_id }
         });
@@ -1677,6 +1712,15 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 }
             });
         }
+
+        await this.db.action_Log.create({
+            data: {
+                user_id: user_id,
+                event: 'UPDATE',
+                resource: 'unit_Prices',
+                diff: JSON.stringify({ product_id, qty, weight }),
+            },
+        })
         return null;
     }
 

@@ -481,3 +481,16 @@ model Unit_Prices {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
+
+// Model for storing action logs
+model Action_Log {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String?  @db.Uuid
+  event       String
+  resource    String
+  diff        Json?
+  timestamp   DateTime @default(now())
+
+  @@index([user_id])
+  @@index([resource])
+}

@@ -45,7 +45,7 @@ export class TutupKasirController {
 
     var validatedData = await this.validateService.validate(this.tkValidation.CREATE, sanitizedData);
 
-    newdata = await this.tutupKasirService.create(validatedData);
+    newdata = await this.tutupKasirService.create(validatedData, params.user.id);
     return ResponseDto.success('Data Created!', newdata, 201);    
   }
 
@@ -140,7 +140,7 @@ export class TutupKasirController {
       date: new Date(newdata.date),
     }
     var validatedData = await this.validateService.validate(this.tkValidation.UPDATE, sanitizedData);
-    const result = await this.tutupKasirService.update(id, validatedData);
+    const result = await this.tutupKasirService.update(id, validatedData, params.user.id);
     return ResponseDto.success('Data Updated!', result, 200);
   }
 }

@@ -65,7 +65,7 @@ export class TransactionService extends BaseService<Trans> {
     return validatedData;
   }
 
-  async createUangKeluarMasuk(data: any, recurringValidatedData:any) {
+  async createUangKeluarMasuk(data: any, recurringValidatedData:any, user_id: string|null = null) {
     try {
       const result = await this.db.$transaction(async (prisma) => {
         // Create the main transaction record
@@ -108,6 +108,15 @@ export class TransactionService extends BaseService<Trans> {
           }
         }
 
+        await prisma.action_Log.create({
+          data: {
+            user_id: user_id,
+            event: 'CREATE',
+            resource: 'UangKeluarMasuk',
+            diff: JSON.stringify({ ...data, ...recurringValidatedData }),
+          },
+        });
+
         // If no errors occur, return the created transaction
         return ResponseDto.success('Transaction Successfully created', trans)
       });
@@ -122,7 +131,7 @@ export class TransactionService extends BaseService<Trans> {
     }
   }
 
-  async createRecurring(data: any) {
+  async createRecurring(data: any, user_id: string|null = null) {
     console.log('data in create recurring', data);
     // RECURRING DAY
     // newdata {
@@ -196,6 +205,15 @@ export class TransactionService extends BaseService<Trans> {
           }
         });
 
+        await prisma.action_Log.create({
+            data: {
+                user_id: user_id,
+                event: 'CREATE',
+                resource: 'recurring',
+                diff: JSON.stringify({ ...data }),
+            },
+        })
+
         // If no errors occur, return the created transaction
         return trans;
       });
@@ -209,7 +227,7 @@ export class TransactionService extends BaseService<Trans> {
     }
   }
 
-  async update(id: any, data: any) {
+  async update(id: any, data: any, user_id: string|null = null) {
     try {
       const result = await this.db.$transaction(async (prisma) => {
         // Update the main transaction record
@@ -240,6 +258,15 @@ export class TransactionService extends BaseService<Trans> {
             })),
           });
         }
+
+        await prisma.action_Log.create({
+          data: {
+            user_id: user_id,
+            event: 'UPDATE',
+            resource: 'UangKeluarMasuk',
+            diff: JSON.stringify({ ...data }),
+          },
+        });
       });
 
       return result;
@@ -250,7 +277,7 @@ export class TransactionService extends BaseService<Trans> {
   }
 
 
-  async delete(id: any) {
+  async delete(id: any, user_id: string|null = null) {
     try {
       // delete trans_details with the id of the transaction
       const result = await this.db.$transaction(async (prisma) => {
@@ -269,6 +296,15 @@ export class TransactionService extends BaseService<Trans> {
             deleted_at: new Date(),
           }
         })
+
+        await prisma.action_Log.create({
+          data: {
+            user_id: user_id,
+            event: 'DELETE',
+            resource: 'UangKeluarMasuk',
+            diff: JSON.stringify({ id }),
+          },
+        });
       });
       return result;
     } catch (error) {
@@ -277,7 +313,7 @@ export class TransactionService extends BaseService<Trans> {
     }
   }
 
-  async updateStatus(id: any, status: number) {
+  async updateStatus(id: any, status: number, user_id: string|null = null) {
     const trans = await this.findOne(id);
 
     try {
@@ -320,7 +356,7 @@ export class TransactionService extends BaseService<Trans> {
     }
 
     // Update trans
-    const updatedTrans = await this.update(id, { approve: status });
+    const updatedTrans = await this.update(id, { approve: status }, user_id);
 
     return updatedTrans;
   }
@@ -464,7 +500,7 @@ export class TransactionService extends BaseService<Trans> {
     5: 'Marketplace',
   }
 
-  async createSales(data: any, formType: 'submit' | 'updated' = 'submit') {
+  async createSales(data: any, formType: 'submit' | 'updated' = 'submit', user_id: string|null = null) {
     // REFORMAT TRANSACTION DETAIL
     // Kas / Piutang Usaha     (D)  9.990  
     // Diskon Penjualan        (D)  1.000  
@@ -801,10 +837,19 @@ export class TransactionService extends BaseService<Trans> {
           })),
         });
 
+        await prisma.action_Log.create({
+          data: {
+            user_id: user_id,
+            event: 'CREATESALES',
+            resource: 'Report_Journals',
+            diff: JSON.stringify({ ...data, formType }),
+          },
+        });
+
         // Call handleSoldStock inside the transaction
         if (data.status == 2) {
           data.created_at = nowtime;
-          reportStock = await this.reportStockService.handleSoldStock(data);
+          reportStock = await this.reportStockService.handleSoldStock(data, user_id);
         }
       });
     } catch (error) {
@@ -815,7 +860,7 @@ export class TransactionService extends BaseService<Trans> {
     return reportJournal;
   }
 
-  async createPurchase(data: any, formType: 'submit' | 'updated' = 'submit') {
+  async createPurchase(data: any, formType: 'submit' | 'updated' = 'submit', user_id: string|null = null) {
       console.log('purchase data hehe',data);
         // purchase data hehe {
         //   id: '31628e90-34d4-479a-ba43-970cf639bd3f',
@@ -1066,11 +1111,20 @@ export class TransactionService extends BaseService<Trans> {
             data: reportJournalData
           });
 
+          await prisma.action_Log.create({
+            data: {
+              user_id: user_id,
+              event: 'CREATEPURCHASE',
+              resource: 'Report_Journals',
+              diff: JSON.stringify({ ...data, formType }),
+            },
+          });
+
           // Call handleSoldStock inside the transaction
           data.trans_serv_id = data.id;
           if (data.status == 2) {
             data.created_at = nowtime;
-            reportStock = await this.reportStockService.handlePurchaseStock(data);
+            reportStock = await this.reportStockService.handlePurchaseStock(data, user_id);
           }
         });
       } catch (error) {
@@ -1080,7 +1134,7 @@ export class TransactionService extends BaseService<Trans> {
       return data;
   }
 
-  async createTrade(data: any, formType: 'submit' | 'updated' = 'submit') {
+  async createTrade(data: any, formType: 'submit' | 'updated' = 'submit', user_id: string|null = null) {
     // create transaction data {
     //   id: '1bc167e8-78ef-4d43-9e0f-df49649f37c7',
     //   date: '2025-03-29T00:00:00.000Z',
@@ -1423,9 +1477,18 @@ export class TransactionService extends BaseService<Trans> {
           })),
         });
 
+        await prisma.action_Log.create({
+          data: {
+            user_id: user_id,
+            event: 'CREATETRADE',
+            resource: 'Report_Journals',
+            diff: JSON.stringify({ ...data, formType, ...journalData }),
+          },
+        });
+
         // Call handleSoldStock inside the transaction
         data.trans_serv_id = data.id;
-        reportStock = await this.reportStockService.handleTradeStock(data);
+        reportStock = await this.reportStockService.handleTradeStock(data, user_id);
       });
     } catch (error) {
       console.error('Error creating sales transaction:', error);
@@ -1435,7 +1498,7 @@ export class TransactionService extends BaseService<Trans> {
     return reportJournal;
   }
 
-  async deleteTrans(trans_id) {
+  async deleteTrans(trans_id, user_id: string|null = null) {
     // Cancel Report Journal
     await this.reportJournalsService.deleteAll({ 
       trans_serv_id: trans_id,
@@ -1456,14 +1519,14 @@ export class TransactionService extends BaseService<Trans> {
       }
     }
     await this.reportStockService.deleteAll({
-      trans_id: trans_id,
+      trans_id: trans_id
       // source_id: 3
-    });
+    }, user_id);
     return true;
   }
 
   // BUY PRODUCT
-  async buyProduct(data: any) {
+  async buyProduct(data: any, user_id: string|null = null) {
     // Persediaan Barang Dagang    (D) Rp10.000.000  
     // PPN Masukan                 (D) Rp1.000.000  
     //       Kas/Bank/Utang Dagang            (K) Rp11.000.000  
@@ -1575,8 +1638,17 @@ export class TransactionService extends BaseService<Trans> {
             created_at: data.created_at,
           })),
         });
+
+        await prisma.action_Log.create({
+          data: {
+            user_id: user_id,
+            event: 'BUYPRODUCT',
+            resource: 'Report_Journals',
+            diff: JSON.stringify({ ...data, ...transDetailsFormated }),
+          },
+        });
         // Signal Stock In 
-        stockIn = await this.reportStockService.handleBuyStock(data);
+        stockIn = await this.reportStockService.handleBuyStock(data, user_id);
       });
     } catch (error) {
       console.error('Error creating sales transaction:', error);
@@ -1587,7 +1659,7 @@ export class TransactionService extends BaseService<Trans> {
   }
 
   // Product Code generated for Trade or Purchase
-  async updateProductCodeTrans(data: any) {
+  async updateProductCodeTrans(data: any, user_id: string|null = null) {
     const prevReportStock = await this.db.report_Stocks.findFirst({
       where: {
         trans_product_id: data.transref_id
@@ -1618,11 +1690,19 @@ export class TransactionService extends BaseService<Trans> {
           data: MappedData
         }
       )
-      await this.reportStockService.addUnitPrice(MappedData.product_id, (prevReportStock.price.toNumber() / prevReportStock.weight.toNumber()),prevReportStock.qty, prevReportStock.weight )
+      await prisma.action_Log.create({
+        data: {
+          user_id: user_id,
+          event: 'UPDATE',
+          resource: 'product_codes',
+          diff: JSON.stringify({ ...data, ...reportStocks }),
+        },
+      });
+      await this.reportStockService.addUnitPrice(MappedData.product_id, (prevReportStock.price.toNumber() / prevReportStock.weight.toNumber()),prevReportStock.qty, prevReportStock.weight , user_id)
     })
   }
 
-  async handleStockOut(data: any) {
+  async handleStockOut(data: any, user_id: string|null = null) {
     console.log('handleStockOut', data);
     // handlestockout data {
     //     productCode: {
@@ -1732,6 +1812,15 @@ export class TransactionService extends BaseService<Trans> {
             });
             console.log('reportJournalKredit',reportJournalKredit);
 
+            await prisma.action_Log.create({
+              data: {
+                user_id: user_id,
+                event: 'CREATESTOCKOUT',
+                resource: 'Report_Journals',
+                diff: JSON.stringify({ ...data }),
+              },
+            });
+
             data.trans_serv_id = productCode.id;
             const fetchstore = await this.db.stores.findFirst({
               where: { id: store.id },
@@ -1740,7 +1829,7 @@ export class TransactionService extends BaseService<Trans> {
             if (fetchstore.inventory_val_method == 2) {
               data.amount_stock = amount;
             }
-            await this.reportStockService.handleStockOut(data);
+            await this.reportStockService.handleStockOut(data, user_id);
         });
 
         return ResponseDto.success('Stocks out handled!', null, 200);
@@ -1751,7 +1840,7 @@ export class TransactionService extends BaseService<Trans> {
   }
 
 
-  async handleUnstockOut(data: any) {
+  async handleUnstockOut(data: any, user_id: string|null = null) {
     console.log('handleUnstockOut', data);
     try {
       await this.db.$transaction(async (prisma) => {
@@ -1772,6 +1861,15 @@ export class TransactionService extends BaseService<Trans> {
           }
         });
 
+        await prisma.action_Log.create({
+          data: {
+            user_id: user_id,
+            event: 'UNSTOCKOUT',
+            resource: 'Report_Journals',
+            diff: JSON.stringify({ ...data }),
+          },
+        });
+
         // taken out reason // 0: none, 1: repair, 2: lost, 3: taken out by the owner
         // delete from report stock
         const prevStockOut = await this.db.report_Stocks.findFirst({
@@ -1784,12 +1882,20 @@ export class TransactionService extends BaseService<Trans> {
           }
         })
         if (prevStockOut) { // update unit price only if not repair
-          await this.reportStockService.updateUnitPrice(prevStockOut.product_id, Math.abs(prevStockOut.qty), Math.abs(prevStockOut.weight.toNumber()));
+          await this.reportStockService.updateUnitPrice(prevStockOut.product_id, Math.abs(prevStockOut.qty), Math.abs(prevStockOut.weight.toNumber()), user_id);
         }
         const stockOut = await this.db.report_Stocks.delete({
           where: {
             id: prevStockOut.id
           }
+        });
+        await prisma.action_Log.create({
+          data: {
+            user_id: user_id,
+            event: 'DELETE',
+            resource: 'Report_Stocks',
+            diff: JSON.stringify({ ...stockOut }),
+          },
         });
       });
     } catch (error) {
@@ -1800,7 +1906,7 @@ export class TransactionService extends BaseService<Trans> {
     return ResponseDto.success('Unstocks out handled!', null, 200);
   }
 
-  async handleStockRepaired(data: any) {
+  async handleStockRepaired(data: any, user_id: string|null = null) {
     console.log('data repaired', data);
     const productCode = data.productCode;
     const trans_date = data.trans_date;
@@ -1981,16 +2087,26 @@ export class TransactionService extends BaseService<Trans> {
           }
         ]
       });
+
+      await prisma.action_Log.create({
+        data: {
+          user_id: user_id,
+          event: 'REPAIRED',
+          resource: 'StockOut',
+          diff: JSON.stringify({ ...data }),
+        },
+      });
+
       // Stock In Repaired
       data.trans_id = productCode.id;
       data.productCode.buy_price = hargaBeliAkhir;  // Update buy price
-      const reportStocks = await this.reportStockService.handleStockInRepaired(data);
+      const reportStocks = await this.reportStockService.handleStockInRepaired(data, user_id);
     });
 
     return ResponseDto.success('Stocks repaired handled!', null, 200);
   }
 
-  async handleStockUnrepaired(id: string, user_id: string) {
+  async handleStockUnrepaired(id: string, user_id: string|null = null) {
     const transType = await this.db.trans_Type.findUnique({ where: { code: 'MD' } });
     const stockSource = await this.db.stock_Source.findUnique({ where: { code: 'REPAIR' } });
     const lastInReport = await this.db.report_Journals.findFirst({
@@ -2031,8 +2147,16 @@ export class TransactionService extends BaseService<Trans> {
           }
         });
         console.log('deleteReportStock', deleteReportStock);
+        await prisma.action_Log.create({
+          data: {
+            user_id: user_id,
+            event: 'UNREPAIRED',
+            resource: 'StockOut',
+            diff: JSON.stringify({ id }),
+          },
+        });
         // update unit price
-        await this.reportStockService.updateUnitPrice(todeleteReportStock.product_id, Math.abs(todeleteReportStock.qty) * -1, Math.abs(todeleteReportStock.weight.toNumber()) * -1);
+        await this.reportStockService.updateUnitPrice(todeleteReportStock.product_id, Math.abs(todeleteReportStock.qty) * -1, Math.abs(todeleteReportStock.weight.toNumber()) * -1, user_id);
 
         // get previous stock 
         const getLastStock = await this.db.report_Stocks.findFirst({
@@ -2067,7 +2191,7 @@ export class TransactionService extends BaseService<Trans> {
     return ResponseDto.success('Stocks unrepaired handled!', lastInReport, 200);
   }
 
-  async handleStockOpnameApproved(data: any) {
+  async handleStockOpnameApproved(data: any, user_id: string|null = null) {
     console.log('data in stock opname approved', data);
     // data in stock opname approved {
   //   products: [
@@ -2242,6 +2366,14 @@ export class TransactionService extends BaseService<Trans> {
               created_at: data.trans_date
             }
           })
+          await prisma.action_Log.create({
+            data: {
+              user_id: user_id,
+              event: 'APPROVED',
+              resource: 'Stock_Opname',
+              diff: JSON.stringify({ ...data }),
+            },
+          });
 
           // Report Stock
           data.trans_id = data.id;
@@ -2254,7 +2386,7 @@ export class TransactionService extends BaseService<Trans> {
           if (store.inventory_val_method == 2) {
             data.amount_stock = amountKerugian;
           }
-          var stockOut = await this.reportStockService.handleStockOut(data);
+          var stockOut = await this.reportStockService.handleStockOut(data, user_id);
         });
       } catch (error) {
         console.error('Error creating stock out:', error);
@@ -2265,7 +2397,7 @@ export class TransactionService extends BaseService<Trans> {
     return ResponseDto.success('Stocks loss during opname handled!', null, 200);
   }
 
-  async handleStockOpnameDisapproved(data: any) {
+  async handleStockOpnameDisapproved(data: any, user_id: string|null = null) {
     // console.log(data);
     // {
     //   stockNotScanned: [
@@ -2335,11 +2467,27 @@ export class TransactionService extends BaseService<Trans> {
               await this.reportStockService.updateUnitPrice(prevStockOut.product_id, Math.abs(prevStockOut.qty), Math.abs(prevStockOut.weight.toNumber()));
             }
           }
+          await prisma.action_Log.create({
+            data: {
+              user_id: user_id,
+              event: 'DISAPPROVED',
+              resource: 'Stock_Opname_Report_Journals',
+              diff: JSON.stringify({ ...data }),
+            },
+          });
           const delReportStocks = await prisma.report_Stocks.deleteMany({
             where: {
               // source_id: 2, // OUTSTOCK
               trans_id: id,
             }
+          });
+          await prisma.action_Log.create({
+            data: {
+              user_id: user_id,
+              event: 'DISAPPROVED',
+              resource: 'Stock_Opname_Report_Stocks',
+              diff: JSON.stringify({ ...delReportStocks }),
+            },
           });
           console.log('deleted reportStocks', delReportStocks);
         });

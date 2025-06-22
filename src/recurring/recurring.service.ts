@@ -32,7 +32,7 @@ export class RecurringService extends BaseService<Trans_Recurring> {
         return Object.values(RecurringType);
     }
 
-    async update(id: any, data: any) {
+    async update(id: any, data: any, user_id: string | null = null) {
         try {
             const result = await this.db.$transaction(async (prisma) => {
                 // Update the main transaction record
@@ -63,6 +63,14 @@ export class RecurringService extends BaseService<Trans_Recurring> {
                     })),
                 });
                 // console.log('updated TransDetails', transDetails);
+                await prisma.action_Log.create({
+                    data: {
+                        user_id: user_id,
+                        event: 'UPDATE',
+                        resource: 'recurring',
+                        diff: JSON.stringify({ ...data, id }),
+                    },
+                })
             });
 
             return result;
@@ -72,8 +80,8 @@ export class RecurringService extends BaseService<Trans_Recurring> {
         }
     }
 
-    async create(data:any) {
-        var newdata = await this.transService.createRecurring(data);
+    async create(data:any, user_id: string | null = null) {
+        var newdata = await this.transService.createRecurring(data, user_id);
         return newdata;
     }
 
@@ -187,7 +195,7 @@ export class RecurringService extends BaseService<Trans_Recurring> {
         }
     }
     
-    async createTransactionFromRecurring(data: any) {
+    async createTransactionFromRecurring(data: any, user_id: string | null = null) {
         try {
             // today
             console.log('data create transaction from recurring', data);
@@ -215,6 +223,15 @@ export class RecurringService extends BaseService<Trans_Recurring> {
                     },
                     include: this.relations
                 });
+
+                await prisma.action_Log.create({
+                    data: {
+                        user_id: user_id,
+                        event: 'CREATE',
+                        resource: 'recurring',
+                        diff: JSON.stringify({ ...data }),
+                    },
+                })
         
                 // If no errors occur, return the created transaction
                 return trans;

@@ -136,7 +136,7 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
     }
 
     // Update Payment Payable Receivable
-    async update(report_journal_id: any, data: any) {
+    async update(report_journal_id: any, data: any, user_id: string | null = null) {
         let reportJournalParent = await this.reportJournalService.findOne(report_journal_id);
         if (!reportJournalParent) {
             return ResponseDto.error('Report Journal not found', null, 400);
@@ -317,6 +317,15 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
                         report_journal: true,
                     }
                 });
+
+                await tx.action_Log.create({
+                    data: {
+                        user_id: user_id,
+                        event: 'UPDATE',
+                        resource: 'payable_Receivables',
+                        diff: JSON.stringify({ ...data, report_journal_id }),
+                    },
+                })
             });
         } catch (error) {
             return ResponseDto.error('Failed to create payable receivable', error, 400);
@@ -326,7 +335,7 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
         return ResponseDto.success('Payable Receivable updated', updatedPayableReceivable, 200);
     }
 
-    async delete(detail_id: any) {
+    async delete(detail_id: any, user_id: string | null = null) {
         const detail = await this.db.payable_Receivables_Detail.findUnique({
             where: { id: detail_id },
             include: {
@@ -379,6 +388,15 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
                         updated_at: new Date(),
                     }
                 });
+
+                await tx.action_Log.create({
+                    data: {
+                        user_id: user_id,
+                        event: 'DELETE',
+                        resource: 'payable_Receivables',
+                        diff: JSON.stringify({detail_id}),
+                    },
+                })
             });
         } catch (error) {
             console.error(error);
@@ -389,7 +407,7 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
         return ResponseDto.success('Payable Receivable deleted', updatedPayableReceivables, 200);
     }
 
-    async updateDueDate(report_journal_id: any, due_date: any) {
+    async updateDueDate(report_journal_id: any, due_date: any, user_id: string | null = null) {
         let reportJournalParent = await this.reportJournalService.findOne(report_journal_id);
         if (!reportJournalParent) {
             return ResponseDto.error('Report Journal not found', null, 400);
@@ -427,6 +445,15 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
                         },
                     });
                 }
+
+                await tx.action_Log.create({
+                    data: {
+                        user_id: user_id,
+                        event: 'UPDATEDUEDATE',
+                        resource: 'payable_Receivables',
+                        diff: JSON.stringify({report_journal_id, due_date}),
+                    },
+                })
             });
         } catch (error) {
             console.error(error);
@@ -436,7 +463,7 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
         return ResponseDto.success('Payable Receivable updated', payableReceivable, 200);
     }
 
-    async createReminder(report_journal_id: any, data: any) {
+    async createReminder(report_journal_id: any, data: any, user_id: string | null = null) {
         let reportJournalParent = await this.reportJournalService.findOne(report_journal_id);
         if (!reportJournalParent) {
             return ResponseDto.error('Report Journal not found', null, 400);
@@ -492,6 +519,15 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
                         emails: data.emails,
                     },
                 })
+
+                await tx.action_Log.create({
+                    data: {
+                        user_id: user_id,
+                        event: 'CREATEREMINDER',
+                        resource: 'payable_Receivables',
+                        diff: JSON.stringify({...data, report_journal_id}),
+                    },
+                })
             });
         } catch (error) {
             console.error(error);
@@ -501,7 +537,7 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
         return ResponseDto.success('Payable Receivable updated', createReminder, 200);
     }
 
-    async deleteReminder(reminder_id) {
+    async deleteReminder(reminder_id, user_id: string | null = null) {
         const reminder = await this.db.reminder_Payable_Receivables.findUnique({
             where: { id: reminder_id },
         });
@@ -513,6 +549,14 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
             await this.db.reminder_Payable_Receivables.delete({
                 where: { id: reminder_id },
             });
+            await this.db.action_Log.create({
+                data: {
+                    user_id: user_id,
+                    event: 'DELETEREMINDER',
+                    resource: 'payable_Receivables',
+                    diff: JSON.stringify({reminder_id}),
+                },
+            })
         } catch (error) {
             console.error(error);
             return ResponseDto.error('Failed to delete reminder', error, 500);
@@ -632,6 +676,15 @@ export class PayableReceivableService extends BaseService<Payable_Receivables> {
           <p>Terima kasih.</p>
         `,
       });
+
+        await this.db.action_Log.create({
+            data: {
+                user_id: null,
+                event: 'SENDREMINDER',
+                resource: 'payable_Receivables',
+                diff: JSON.stringify(toEmails),
+            },
+        })
   
       this.logger.log(`Email reminder sent to: ${toEmails.join(', ')}`);
     }

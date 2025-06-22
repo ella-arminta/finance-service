@@ -92,11 +92,12 @@ export class ReportStocksController {
   @Exempt()
   async handleProductCodeCreated(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('handleProductCodeCreated', data);
+    const user = data.user;
     data = data.data;
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        this.reportStocksService.handleProductCodeDeleted(data);
+        this.reportStocksService.handleProductCodeDeleted(data, user);
       },
       {
         queueName: 'product.code.deleted',

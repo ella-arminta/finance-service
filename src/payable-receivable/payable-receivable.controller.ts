@@ -101,7 +101,7 @@ export class PayableReceivableController {
   async updateReceivablePayable(@Payload() data: any) {
     try {
       const validatedData = await this.validationService.validate(this.payrecService.CREATE, data.body);
-      const createData = await this.payableReceivableService.update( validatedData.report_journal_id , validatedData);
+      const createData = await this.payableReceivableService.update( validatedData.report_journal_id , validatedData, data.params.user.id);
       return createData;
     } catch (error) {
       console.log(error);
@@ -120,7 +120,7 @@ export class PayableReceivableController {
   async updateReceivablePayableDuedate(@Payload() data: any) {
     try {
       const validatedData = await this.validationService.validate(this.payrecService.DUEDATE, data.body);
-      const createData = await this.payableReceivableService.updateDueDate( validatedData.report_journal_id , validatedData.due_date);
+      const createData = await this.payableReceivableService.updateDueDate( validatedData.report_journal_id , validatedData.due_date, data.params.user.id);
       return createData;
     } catch (error) {
       return ResponseDto.error('Failed to update data', error, 400);
@@ -137,7 +137,7 @@ export class PayableReceivableController {
   })
   async deleteReceivablePayable(@Payload() data: any) {
     try {
-      const result = await this.payableReceivableService.delete(data.params.id);
+      const result = await this.payableReceivableService.delete(data.params.id, data.params.user.id);
       return result;
     } catch (error) {
       return ResponseDto.error('Failed to delete data', error, 400);
@@ -155,7 +155,7 @@ export class PayableReceivableController {
   async createReminderReceivablePayable(@Payload() data: any) {
     try {
       const validatedData = await this.validationService.validate(this.payrecService.CREATEREMINDER, data.body);
-      const createData = await this.payableReceivableService.createReminder( validatedData.report_journal_id , validatedData);
+      const createData = await this.payableReceivableService.createReminder( validatedData.report_journal_id , validatedData, data.params.user.id);
       return createData;
     } catch (error) {
       return ResponseDto.error('Failed to update data', error, 400);
@@ -172,7 +172,7 @@ export class PayableReceivableController {
   })
   async deleteReminder(@Payload() data: any) {
     try {
-      const result = await this.payableReceivableService.deleteReminder(data.params.id);
+      const result = await this.payableReceivableService.deleteReminder(data.params.id, data.params.user.id);
       return result;
     } catch (error) {
       return ResponseDto.error('Failed to delete data', error, 400);

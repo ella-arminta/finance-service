@@ -137,7 +137,7 @@ export class RecurringController {
       delete validatedData.account_cash_id;
       // console.log('validatedData', validatedData);
 
-      var result = await this.recurringService.update(params.id, validatedData);
+      var result = await this.recurringService.update(params.id, validatedData, params.user.id);
       return ResponseDto.success('Data Retrieved!', result, 200);
     }
 
@@ -151,7 +151,7 @@ export class RecurringController {
     })
     async delete(@Payload() data: any) {
       var params = data.params;
-      var result = await this.recurringService.delete(params.id);
+      var result = await this.recurringService.delete(params.id, data.params.user.id);
       return ResponseDto.success('Data Retrieved!', result, 200);
     }
 
@@ -204,7 +204,7 @@ export class RecurringController {
       delete validatedData.account_cash_id;
 
       // CREATE RECURRING
-      newdata = await this.recurringService.create(validatedData);
+      newdata = await this.recurringService.create(validatedData, params.user.id);
       
       return ResponseDto.success('Data Created!', newdata, 201);
     }

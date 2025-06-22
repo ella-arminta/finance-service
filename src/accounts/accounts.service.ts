@@ -202,7 +202,7 @@ export class AccountsService extends BaseService<Accounts> {
     return accounts;
   }
 
-  async create(data: Prisma.AccountsCreateInput): Promise<Accounts> {
+  async create(data: Prisma.AccountsCreateInput, user_id: string|null = null): Promise<Accounts> {
     // console.log('data in base service', data);
     const newdata = await this.db.accounts.create({ 
       data,
@@ -216,10 +216,19 @@ export class AccountsService extends BaseService<Accounts> {
       });
     }
 
+    await this.db.action_Log.create({
+      data: {
+        user_id: user_id,
+        event: 'CREATE',
+        resource: 'Accounts',
+        diff: JSON.stringify(data)
+      },
+    })
+
     return newdata;
   }
 
-  async delete(id: any){
+  async delete(id: any, user_id: string|null = null) {
     const deletedData = await this.findOne(id);
     if (deletedData == null) {
       console.log('data not found');
@@ -241,11 +250,30 @@ export class AccountsService extends BaseService<Accounts> {
       where: { account_id: id },
     });
 
+    await this.db.action_Log.create({
+      data: {
+        user_id: user_id,
+        event: 'DELETE',
+        resource: 'Accounts',
+        diff: JSON.stringify(id)
+      },
+    })
+
     return deletedData;
   }
 
-  async update(id: any, data: Prisma.AccountsUpdateInput) {
+  async update(id: any, data: Prisma.AccountsUpdateInput, user_id: string|null = null) {
     const updatedData = await this.db.accounts.update({ where: { id }, data });
+
+    await this.db.action_Log.create({
+      data: {
+        user_id: user_id,
+        event: 'UPDATE',
+        resource: 'Accounts',
+        diff: JSON.stringify({ ...data, id }),
+      },
+    })
+
     return updatedData;
   }
 }

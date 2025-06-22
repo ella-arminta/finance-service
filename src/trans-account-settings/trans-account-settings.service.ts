@@ -557,7 +557,7 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
         return result;
     }
 
-    async create(data: any): Promise<any> {
+    async create(data: any, user_id: string | null = null): Promise<any> {
         let result = null;
         let prevData = await this.db.trans_Account_Settings.findUnique({
             where: {
@@ -596,6 +596,14 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 }
             })
         }
+        await this.db.action_Log.create({
+            data: {
+                user_id: user_id,
+                event: 'CREATE',
+                resource: 'Trans_Account_Settings',
+                diff: JSON.stringify(data)
+            },
+        });
         return result;
     }
 }

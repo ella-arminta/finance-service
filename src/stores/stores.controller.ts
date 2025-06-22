@@ -28,6 +28,7 @@ export class StoresController {
   @Exempt()  
   async create(@Payload() data: any , @Ctx() context: RmqContext) {
     console.log('store created emit received:', data);
+    const user = data.user;
     data = data.data;
     
     const sanitizedData = {
@@ -42,7 +43,7 @@ export class StoresController {
       async () => {
         let validatedData = await this.validationService.validate(this.storeValidation.CREATE, sanitizedData);
 
-        const newData = await this.storesService.create(validatedData);
+        const newData = await this.storesService.create(validatedData, user);
         console.log('newdata store', newData);
         if (newData) {
           console.log('Store created successfully acked:', newData);
@@ -62,6 +63,7 @@ export class StoresController {
   @Exempt()  
   async update(@Payload() data: any , @Ctx() context: RmqContext) {
     console.log('store updated emit received:', data);
+    const user = data.user;
     data = data.data;
     const channel = context.getChannelRef();
     const originalMsg = context.getMessage();
@@ -78,7 +80,7 @@ export class StoresController {
       async () => {
         let validatedData = await this.validationService.validate(this.storeValidation.UPDATE, sanitizedData);
 
-        const updatedData = await this.storesService.update(validatedData.id, validatedData);
+        const updatedData = await this.storesService.update(validatedData.id, validatedData, user);
         if (updatedData) {
           console.log('Store updated successfully acked:', updatedData);
         }
@@ -96,12 +98,13 @@ export class StoresController {
   @Exempt()
   async remove(@Payload() data: any, @Ctx() context: RmqContext) {
     console.log('Store deleted emit received', data);
+    const user = data.user;
     data = data.data;
 
     await RmqHelper.handleMessageProcessing(
       context,
       async () => {
-        const deletedData = await this.storesService.delete(data);
+        const deletedData = await this.storesService.delete(data, user);
         if (deletedData) {
           console.log('store deleted successfully acked:', deletedData);
         }
