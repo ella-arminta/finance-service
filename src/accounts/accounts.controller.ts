@@ -138,14 +138,22 @@ export class AccountsController {
     description: 'Get all account',
     fe: [
       'master/account:open',
+      'master/page-account-setting:open',
       'inventory/operation:open',
       'inventory/operation:add',
       'inventory/operation:edit',
       'inventory/operation:detail',
-      'transaction/purchase:add',
-      'transaction/purchase:edit',
-      'transaction/trade:add',
-      'transaction/trade:edit',
+      'finance/cashier-closing:all',
+      'finance/mexpenses:all',
+      'finance/mincomes:all',
+      'finance/receivable-payable:all',
+      'inventory/product:all',
+      'inventory/product-code:all',
+      'transaction/purchase:all',
+      'finance/recurring:all',
+      'finance/general-ledger/detail:all',
+      'inventory/stock-out:open',
+      'transaction/trade:all'
     ],
   })
   async findAll(@Payload() data: any) {

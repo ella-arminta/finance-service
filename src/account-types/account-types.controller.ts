@@ -11,7 +11,10 @@ export class AccountTypesController {
   @MessagePattern({ cmd: 'get:account-type' })
   @Describe({
     description: 'Get all account type',
-    fe: []
+    fe: [
+      'master/account:add',
+      'master/account:edit',
+    ]
   })
   async findAll(@Payload() data: any) {
     const filters = data.filters || {};
@@ -22,7 +25,10 @@ export class AccountTypesController {
   @MessagePattern({ cmd: 'get:account-type/*' })
   @Describe({
     description: 'get account type by id',
-    fe: []
+    fe: [
+      'master/account:add',
+      'master/account:edit',
+    ]
   })
   async findOne(@Payload() data: any) {
     const param = data.params;

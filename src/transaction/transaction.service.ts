@@ -1913,6 +1913,7 @@ export class TransactionService extends BaseService<Trans> {
     const account_id = data.account_id;
     const weight = data.weight;
     const expense = data.expense;
+    //todoella: Karena ini mengambil dari trans report journal yang pake metode average
     const prevReportJournal = await this.db.report_Journals.findFirst({
       where: {
         trans_serv_id: productCode.id,
@@ -2004,6 +2005,9 @@ export class TransactionService extends BaseService<Trans> {
     const selisihBerat = beratAwal - beratAkhir;
     const kerugianPenyusutanEmas = selisihBerat > 0 ? hargaPerGram * selisihBerat : 0;
     const penyesuaianPersediaan = selisihBerat < 0 ? hargaPerGram * Math.abs(selisihBerat) : 0;
+    console.log('hargaPerGram', hargaPerGram);
+    console.log('hargakeluarstok', hargaKeluarStok);
+    console.log('beratAwal', beratAwal);
 
     await this.db.$transaction(async (prisma) => {
       const reportJournalExpense = await prisma.report_Journals.createMany({

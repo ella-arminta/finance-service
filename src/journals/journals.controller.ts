@@ -45,7 +45,6 @@ export class JournalsController {
   @Describe({
     description: 'Get Journals By ID',
     fe: [
-      'finance/journal/detail:open',
       'finance/journal:detail',
     ]
   })

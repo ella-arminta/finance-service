@@ -82,7 +82,8 @@ export class PayableReceivableController {
   @Describe({
     description: 'Get Receivables and Payables',
     fe: [
-      'finance/receivable-payable:open',
+      'finance/receivable-payable:edit',
+      'finance/receivable-payable:detail',
     ]
   })
   async getReceivablePayableDetail(@Payload() data: any) {
@@ -94,7 +95,7 @@ export class PayableReceivableController {
   @Describe({
     description: 'Update Receivables and Payables',
     fe: [
-      'finance/receivable-payable:open',
+      'finance/receivable-payable:add',
       'finance/receivable-payable:edit',
     ]
   })
@@ -113,7 +114,7 @@ export class PayableReceivableController {
   @Describe({
     description: 'Update Receivables and Payables',
     fe: [
-      'finance/receivable-payable:open',
+      'finance/receivable-payable:add',
       'finance/receivable-payable:edit',
     ]
   })
@@ -131,7 +132,6 @@ export class PayableReceivableController {
   @Describe({
     description: 'Delete Receivables and Payables',
     fe: [
-      'finance/receivable-payable:open',
       'finance/receivable-payable:delete',
     ]
   })
@@ -148,7 +148,7 @@ export class PayableReceivableController {
   @Describe({
     description: 'Create Reminder Receivables and payables',
     fe: [
-      'finance/receivable-payable:open',
+      'finance/receivable-payable:add',
       'finance/receivable-payable:edit',
     ]
   })
@@ -166,7 +166,6 @@ export class PayableReceivableController {
   @Describe({
     description: 'Delete Receivables and Payables',
     fe: [
-      'finance/receivable-payable:open',
       'finance/receivable-payable:delete',
     ]
   })

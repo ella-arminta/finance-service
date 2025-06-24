@@ -1698,6 +1698,16 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
         let lastUnitPrice = await this.db.unit_Prices.findUnique({
             where: { product_id }
         });
+        
+
+        await this.db.action_Log.create({
+            data: {
+                user_id: user_id,
+                event: 'UPDATE',
+                resource: 'unit_Prices',
+                diff: JSON.stringify({ product_id, qty, weight }),
+            },
+        })
 
         if (lastUnitPrice) {
             const lastQty = lastUnitPrice.qty.toNumber();
@@ -1712,15 +1722,6 @@ export class ReportStocksService extends BaseService<Report_Stocks> {
                 }
             });
         }
-
-        await this.db.action_Log.create({
-            data: {
-                user_id: user_id,
-                event: 'UPDATE',
-                resource: 'unit_Prices',
-                diff: JSON.stringify({ product_id, qty, weight }),
-            },
-        })
         return null;
     }
 
