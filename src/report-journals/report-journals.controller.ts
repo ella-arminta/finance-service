@@ -32,6 +32,29 @@ export class ReportController {
       return ResponseDto.success('Data Retrieved!', datas, 200);
     }
 
+    @MessagePattern({ cmd: 'get:profit-loss-year' })
+    @Describe({
+      description: 'Get Profit and Lost Yearly Statement',
+      fe: [
+        'finance/profit-loss:open'
+      ]
+    })
+    async profitLossYearly(@Payload() data: any) {
+      const params = data.params;
+      const filters = data.body;
+      const userId = params.user.id;
+      console.log('the first fitler',filters);
+      var filtersValidated = await this.validateService.validate(this.reportValidation.FILTER, filters);
+      // get the year of startdate
+      filtersValidated.year = filtersValidated.start_date ? filtersValidated.start_date.getFullYear() : new Date().getFullYear(); // Add year to filters
+      try {
+        const datas =  await this.reportService.getProfitLossYearly(userId, filtersValidated);
+        return ResponseDto.success('Data Retrieved!', datas, 200);
+      } catch (error) {
+        return ResponseDto.error('Failed to retrieve data', error, 500);
+      }
+    }
+
     @MessagePattern({ cmd: 'post:pdf-profit-loss'})
     @Describe({
         description: 'Generate PDF Profit and Lost Statement',

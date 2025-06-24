@@ -304,6 +304,26 @@ export class ReportService extends BaseService<Report_Journals> {
         ]
     }
 
+    async getProfitLossYearly(userId: string, filters: any = {}) {
+        var filtersLoop = filters;
+        var year = filters.year;
+        // loop 12 kali untuk setiap bulan
+        var result = [];
+        for (let i = 0; i < 12; i++) {
+            filtersLoop.start_date = new Date(year, i, 1);
+            filtersLoop.end_date = new Date(year, i + 1, 0);
+            console.log('filtersLoop', filtersLoop);
+            const monthlyData = await this.getProfitLoss(userId, filtersLoop);
+            const profitMonth = monthlyData[monthlyData.length - 1].data[0].amount;
+            result.push({
+                'label': filtersLoop.start_date.toLocaleString('default', { month: 'long' }),
+                'data': profitMonth
+            });
+        }
+
+        return result;
+    }
+
     private async sumAmountByAccounts(account_id: string[], start_date: Date, end_date: Date) {
         const total = await this.db.report_Journals.aggregate({
             _sum: {
