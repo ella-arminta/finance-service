@@ -18,7 +18,7 @@ export class TaskScheduleController {
     fe: []
   })
   async getScrapeData(@Payload() data: any) {
-    const scrapedDaata = await this.taskScheduleService.scrapeDataGold();
+    const scrapedDaata = await this.taskScheduleService.scrapeDataGold2();
     const svaedDb  = await this.taskScheduleService.handleCron();
     return ResponseDto.success('Data fetch',scrapedDaata);
   }
