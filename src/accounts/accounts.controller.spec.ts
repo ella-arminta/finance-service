@@ -10,8 +10,7 @@ describe('AccountsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AccountsController],
       providers: [AccountsService, ValidationService],
-    })
-    .compile();
+    }).compile();
 
     controller = module.get<AccountsController>(AccountsController);
   });
@@ -22,34 +21,33 @@ describe('AccountsController', () => {
 
   it('should create account', async () => {
     const account = {
-        code: 123, 
-        deactive: false,
-        name: 'test',
-        type: 1,
-    }
+      code: 123,
+      deactive: false,
+      name: 'test',
+      type: 1,
+    };
 
     await expect(controller.create(account)).resolves.toEqual({
-        error: [],
-        message: 'success',
-        statusCode : 200,
-        data: {
-            id: 1,
-            ...account
-        }
+      error: [],
+      message: 'success',
+      statusCode: 200,
+      data: {
+        id: 1,
+        ...account,
+      },
     });
   });
 
   it('should update a account', async () => {
     const dto = {
-        deactive: true,
-    }
-    
-    await expect(controller.update(1, dto)).resolves.toEqual({
-        id: 1,
-        ...dto
+      deactive: true,
+    };
+
+    await expect(controller.update(dto)).resolves.toEqual({
+      id: 1,
+      ...dto,
     });
 
     // expect(mockAccountsService.update).toHaveBeenCalledWith();
   });
-
 });

@@ -49,7 +49,7 @@ export class MessagePatternDiscoveryService {
         name: messagePattern[0].cmd,
         description: desribePattern.description,
         pages: desribePattern.fe,
-        service: 'master',
+        service: 'finance',
       });
     }
   }

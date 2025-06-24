@@ -1,6 +1,12 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import { AppService } from './app.service';
-import { ClientProxy, Ctx, EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
+import {
+  ClientProxy,
+  Ctx,
+  EventPattern,
+  MessagePattern,
+  Payload,
+} from '@nestjs/microservices';
 import { Exempt } from './decorator/exempt.decorator';
 import { MessagePatternDiscoveryService } from './discovery/message-pattern-discovery.service';
 import { ResponseDto } from './common/response.dto';
@@ -18,10 +24,10 @@ export class AppController {
   @Exempt()
   async getAllRoutes(): Promise<any> {
     const patterns = this.discovery.getMessagePatterns();
+    console.log(patterns);
     return ResponseDto.success('Pattern Found!', patterns, 200);
   }
 
-  
   @MessagePattern({ cmd: 'post:run-failed-message/*' })
   @Exempt()
   async runFailedMessage(@Payload() data: any): Promise<ResponseDto> {
@@ -31,20 +37,28 @@ export class AppController {
       const id = parseInt(data.params.id);
       const failedMessage = await this.db.failed_Message.findUnique({
         where: { id },
-      })
+      });
       if (!failedMessage) {
         return ResponseDto.error('Failed message not found!', null, 404);
       }
-      const queueName =  failedMessage.queue;
+      const queueName = failedMessage.queue;
       const payload = failedMessage.payload['data'];
       console.log('this is payload data', payload);
 
       try {
         await this.financeClient.emit({ cmd: queueName }, payload).toPromise();
-        return ResponseDto.success('Message reprocessed successfully!', null, 200);
+        return ResponseDto.success(
+          'Message reprocessed successfully!',
+          null,
+          200,
+        );
       } catch (err) {
-        return ResponseDto.error('Failed to reprocess message!', err.message, 500);
-      }  
+        return ResponseDto.error(
+          'Failed to reprocess message!',
+          err.message,
+          500,
+        );
+      }
     } catch (error) {
       console.error('Error running failed message:', error);
       return ResponseDto.error('Failed to run message!', error.message, 500);
