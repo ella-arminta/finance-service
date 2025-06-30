@@ -123,6 +123,18 @@ async function main() {
       action: 'piutangPembelian',
       name: 'Piutang Pembelian Emas dari Customer (Debit)',
       description: 'Akun piutang yang digunakan toko ketika telah membayar namun belum mendapatkan emasnya dari customer pada transaksi PURCHASE EMAS'
+    },
+    {
+      id: 21,
+      action: 'pur1',
+      name: 'Pembelian Emas dari Supplier metode Kas / Bank (Kredit)',
+      description: 'Akun yang digunakan toko ketika melakukan pembelian emas dari supplier dengan metode pembayaran CASH atau BANK pada transaksi PURCHASE EMAS SUPPLIER',
+    },
+    {
+      id: 22,
+      action: 'pur2',
+      name: 'Pembelian Emas dari Supplier metode Hutang Dagang (Kredit)',
+      description: 'Akun yang digunakan toko ketika melakukan pembelian emas dari supplier dengan metode pembayaran HUTANG DAGANG pada transaksi PURCHASE EMAS SUPPLIER',
     }
   ];  
 

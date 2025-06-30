@@ -213,7 +213,7 @@ export class AccountsController {
       filters,
     );
     console.log('filters get account', filters);
-    const dataResult = await this.accountsService.findAll(filters);
+    const dataResult = await this.accountsService.findAll(filters, false, { code: 'asc' });
     return ResponseDto.success('Data Found!', dataResult, 200);
   }
 

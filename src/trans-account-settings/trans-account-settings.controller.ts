@@ -66,6 +66,20 @@ export class TransAccountSettingsController {
     return ResponseDto.success('Account found!', result);
   }
 
+  @MessagePattern({ cmd: 'get:trans-account-action' })
+  @Describe({
+    description: 'find trans account setting',
+    fe: ['inventory/product:edit'],
+  })
+  async findAllByAction(@Payload() data: any) {
+    var filters = data.body;
+    filters.store_id = filters.auth.store_id;
+    var result =
+      await this.transAccountSettingsService.findAllByAction(filters.action, filters.store_id);
+
+    return ResponseDto.success('Account found!', result);
+  }
+
   @MessagePattern({ cmd: 'get:trans-account-setting-action/*' })
   @Describe({
     description: 'find trans account setting by action',

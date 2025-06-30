@@ -21,6 +21,7 @@
     "test:e2e:watch": "jest --config ./test/jest-e2e.json --watch",
     "seed": "ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\"}' runSeeder2.ts",
     "seed2": "ts-node prisma/seeder/*.ts",
+    "seedlocal": "ts-node --transpile-only runSeeder.ts",
     "truncate": "node -r ts-node/register src/database/truncateTable.ts",
     "console:sync-database": "nest console SyncDatabaseService"
   },

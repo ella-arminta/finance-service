@@ -482,7 +482,9 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                 }
             },
             include: {
-                account: true
+                account: true,
+                maction: true,
+                store: true
             }
         });
 
@@ -526,7 +528,9 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
                     }
                 },
                 include: {
-                    account: true
+                    account: true,
+                    maction: true,
+                    store: true
                 }
             });
         }
@@ -605,5 +609,53 @@ export class TransAccountSettingsService extends BaseService<Trans_Account_Setti
             },
         });
         return result;
+    }
+
+    async findAllByAction(action: string[], store_id: string): Promise<any[]> {
+        const store = await this.db.stores.findUnique({
+            where: {
+                id: store_id
+            }
+        });
+        var transAccSettings =  await this.db.trans_Account_Settings.findMany({
+            where: {
+                action: {
+                    in: action
+                },
+                store_id: store_id,
+            },  
+            include: {
+                account: true,
+                maction: true,
+            }
+        });
+        // if transsAccsettings length empty
+        if (transAccSettings.length == 0) {
+            const actionPur1 = await this.getDefaultAccount(
+                'pur1',
+                store_id,
+                store.company_id,
+                'Pembelian Emas dari Supplier metode Kas / Bank (Kredit)',
+                1,
+                'Akun yang digunakan toko ketika melakukan pembelian emas dari supplier dengan metode pembayaran CASH atau BANK pada transaksi PURCHASE EMAS SUPPLIER',
+                store_id
+            )
+
+            const actionPur2 = await this.getDefaultAccount(
+                'pur2',
+                store_id,
+                store.company_id,
+                'Pembelian Emas dari Supplier metode Hutang Dagang (Kredit)',
+                3,
+                'Akun yang digunakan toko ketika melakukan pembelian emas dari supplier dengan metode pembayaran HUTANG DAGANG pada transaksi PURCHASE EMAS SUPPLIER',
+                store_id
+            )
+            transAccSettings = [
+                actionPur1,
+                actionPur2
+            ];
+        }
+
+        return transAccSettings;
     }
 }
